@@ -6,7 +6,7 @@ import SettingsMenu from '../SettingsMenu';
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
-  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath } = useAppState();
+  const { zoomScale, setZoomScale, rotationAngle, setRotationAngle, theme, setTheme, currentImagePath } = useAppState();
 
   const handleMinimize = async () => {
     const appWindow = getCurrentWindow();
@@ -35,30 +35,34 @@ const Titlebar: Component = () => {
   return (
     <div class="custom-titlebar flex items-center justify-between bg-gray-100 px-2 py-3 border-b border-gray-300 relative" data-tauri-drag-region>
       {/* 左側: ズームボタン群 */}
-      <div class="flex items-center gap-2">
-        <button id="zoomOutBtn" class="btn btn-outline px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-200" onClick={() => setZoomScale(zoomScale() / 1.2)} aria-label="縮小 (−)">−</button>
+      <div class="flex items-center">
+        <button id="zoomOutBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200" onClick={() => setZoomScale(zoomScale() / 1.2)} aria-label="縮小 (−)">−</button>
 
-        <button id="zoomResetBtn" class="btn btn-outline px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-200 flex items-center gap-1" onClick={() => setZoomScale(1)} aria-label="リセット">
+        <button id="zoomResetBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200 flex items-center gap-1" onClick={() => setZoomScale(1)} aria-label="リセット">
           <img class="icon" src="/reload_hoso.svg" alt="リセットアイコン" />
           <span>{Math.round(zoomScale() * 100)}%</span>
         </button>
 
-        <button id="zoomInBtn" class="btn btn-primary px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700" onClick={() => setZoomScale(zoomScale() * 1.2)} aria-label="拡大 (+)">＋</button>
+        <button id="zoomInBtn" class="btn btn-primary px-2 py-0.9 rounded-lg bg-blue-600 text-white hover:bg-blue-700" onClick={() => setZoomScale(zoomScale() * 1.2)} aria-label="拡大 (+)">＋</button>
 
-        <button id="screenFitBtn" class="btn btn-outline px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-200" aria-label="画面フィット">
+        <button id="screenFitBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200" aria-label="画面フィット">
           <img class="icon" src="/focus_ca_h.svg" alt="画面フィット" />
+        </button>
+
+        <button id="rotateBtn" class="btn btn-outline px-2 py-0.9 pl-2 rounded-lg border border-gray-300 hover:bg-gray-200" onClick={() => setRotationAngle((rotationAngle() + 90) % 360)} aria-label="回転">
+          <img class="icon" src="/reload_hoso.svg" alt="回転アイコン" />
         </button>
       </div>
 
       {/* 右側: 設定ボタンとウィンドウコントロールボタン */}
-      <div class="flex items-center">
+      <div class="flex items-center relative">
         <button id="settingBtn" class="window-btn hover:bg-gray-200 p-1 rounded-lg mr-5" onClick={toggleSettings} aria-label="設定" title="設定">
           <img class="icon" src="/setting_ge_h.svg" alt="設定アイコン" />
         </button>
 
         {/* 設定ドロップダウンメニュー - 左側に展開 */}
         {showSettings() && (
-          <div class="absolute top-full right-0 mt-1 z-50">
+          <div class="absolute top-full left-0 mt-1 z-50 transform -translate-x-full">
             <SettingsMenu
               theme={theme()}
               onThemeChange={(newTheme) => {

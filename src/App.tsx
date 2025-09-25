@@ -1,5 +1,6 @@
-import type { Component, JSX } from 'solid-js';
+import type { Component } from 'solid-js';
 import { createSignal, createContext, useContext, onMount } from 'solid-js';
+import { createThemeController, isThemeKey, type ThemeKey } from './lib/theme';
 
 import Titlebar from './components/Titlebar';
 import ImageViewer from './components/ImageViewer';
@@ -16,8 +17,8 @@ interface AppState {
   setZoomScale: (scale: number) => void;
   rotationAngle: () => number;
   setRotationAngle: (angle: number) => void;
-  theme: () => 'light' | 'dark' | 'auto';
-  setTheme: (theme: 'light' | 'dark' | 'auto') => void;
+  theme: () => ThemeKey;
+  setTheme: (theme: ThemeKey) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -35,18 +36,20 @@ const App: Component = () => {
   const [currentImagePath, setCurrentImagePath] = createSignal<string>('');
   const [zoomScale, setZoomScale] = createSignal<number>(1);
   const [rotationAngle, setRotationAngle] = createSignal<number>(0);
-  const [theme, setTheme] = createSignal<'light' | 'dark' | 'auto'>('auto');
+  const [theme, setTheme] = createSignal<ThemeKey>('auto');
+
+  createThemeController(theme);
 
   // テーマの永続化
   onMount(() => {
-    const savedTheme = localStorage.getItem('vdi-theme') as 'light' | 'dark' | 'auto' | null;
-    if (savedTheme) {
+    const savedTheme = localStorage.getItem('vdi-theme');
+    if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
   });
 
   // テーマ変更時に保存
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'auto') => {
+  const handleThemeChange = (newTheme: ThemeKey) => {
     setTheme(newTheme);
     localStorage.setItem('vdi-theme', newTheme);
   };

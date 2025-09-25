@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* ========================= テーマ設定 (CSS Custom Properties) ========================= */
-:root {
+:root,
+[data-theme="light"] {
   /* ライトテーマ（デフォルト）の色定義 */
   --bg-primary: #ffffff;           /* メイン背景色 */
   --bg-secondary: #f8fafc;         /* セカンダリ背景色（タイトルバーなど） */
@@ -204,6 +205,10 @@ html, body, #root {
 
 /* フッター要素の改行制限 */
 footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   white-space: nowrap; /* 改行を防ぐ */
   overflow: hidden; /* はみ出し部分を隠す */
 
@@ -324,14 +329,11 @@ footer p {
 }
 
 /* ========================= 連結ズームボタングループ ========================= */
-/* 親コンテナのギャップを0にして3ボタンを密着させる */
-.custom-titlebar .flex.items-center.mr-auto {
-  gap: 0; /* Tailwindのgap-2を上書き */
-}
 
 /* ズームグループの直後にある「画面フィット」には余白を戻す */
-.custom-titlebar #screenFitBtn {
-  margin-left: 8px;
+.custom-titlebar #screenFitBtn,
+.custom-titlebar #rotateBtn {
+  margin-left: 4px;
 }
 
 /* ベーススタイル（3ボタン共通） */

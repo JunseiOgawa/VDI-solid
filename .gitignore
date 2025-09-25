@@ -3,6 +3,7 @@
 /src-tauri/.cargo
 /src-tauri/Cargo.lock
 /src-tauri/tauri.conf.json
+/src-tauri/gen
 
 # Node.js
 node_modules
