@@ -1,20 +1,23 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "vid-solid",
+  "$schema": "https://schema.tauri.app/config/v2.json",
+  "productName": "vdi-solid",
   "version": "0.1.0",
-  "identifier": "com.junse.vid-solid",
+  "identifier": "com.vdi.solid",
   "build": {
-    "beforeDevCommand": "npm run start",
+    "beforeDevCommand": "vite",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "title": "vid-solid",
+        "title": "VDI-solid",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "transparent": true,
+        "decorations": false
       }
     ],
     "security": {
