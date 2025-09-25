@@ -17,7 +17,7 @@ const ImageViewer: Component = () => {
   });
 
   return (
-    <div class="image-viewer">
+  <div class="checkerboard-bg flex h-full w-full flex-1 items-center justify-center overflow-hidden transition-colors duration-300">
       {imageSrc() ? (
         <img
           src={imageSrc()!}
@@ -31,7 +31,9 @@ const ImageViewer: Component = () => {
           }}
         />
       ) : (
-        <div class="no-image">No image selected</div>
+        <div class="rounded-md border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+          No image selected
+        </div>
       )}
     </div>
   );

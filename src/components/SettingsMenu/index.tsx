@@ -27,12 +27,15 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   };
 
   return (
-    <div class="settings-menu">
+    <div class="min-w-[160px] rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-1 text-sm text-[var(--text-secondary)] shadow-[0_4px_12px_var(--shadow)] transition-colors duration-150">
       <div class="py-1">
         {/* テーマ設定 */}
-        <button class="settings-item w-full text-left px-3 py-2 flex items-center justify-between" onClick={toggleThemeSubmenu}>
+        <button
+          class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+          onClick={toggleThemeSubmenu}
+        >
           <span>テーマ設定</span>
-          <span class="chevron">{showThemeSubmenu() ? '▾' : '▸'}</span>
+          <span class="text-xs text-[var(--text-muted)]">{showThemeSubmenu() ? '▾' : '▸'}</span>
         </button>
 
         {/* サブメニュー: テーマ選択 */}
@@ -42,7 +45,7 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               {(themeDef) => (
                 <button
                   type="button"
-                  class="settings-item w-full text-left px-3 py-2"
+                  class="aria-[checked=true]:bg-[var(--bg-tertiary)] aria-[checked=true]:text-[var(--text-primary)] w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                   role="menuitemradio"
                   aria-checked={props.theme === themeDef.key}
                   onClick={() => props.onThemeChange(themeDef.key)}
@@ -51,7 +54,7 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
                     <span class="font-medium">
                       {themeDef.label} {props.theme === themeDef.key ? '✓' : ''}
                     </span>
-                    <span class="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span class="text-xs text-[var(--text-muted)]">
                       {themeDef.description}
                     </span>
                   </div>
@@ -61,10 +64,13 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
           </div>
         )}
 
-  <hr class="my-1" style={{ 'border-color': 'var(--border-primary)' }} />
+        <hr class="my-1 border-t border-[var(--border-primary)]" />
 
         {/* エクスプローラで開く */}
-        <button class="settings-item w-full text-left px-3 py-2" onClick={handleRevealInExplorer}>
+        <button
+          class="w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+          onClick={handleRevealInExplorer}
+        >
           エクスプローラで開く
         </button>
       </div>

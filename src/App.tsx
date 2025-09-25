@@ -70,9 +70,9 @@ const App: Component = () => {
 
   return (
     <AppContext.Provider value={appState}>
-      <div class="app-container">
+      <div class="flex min-h-screen flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
         <Titlebar />
-        <main class="main-content">
+        <main class="relative flex flex-1 flex-col overflow-hidden pb-12">
           <ImageViewer />
           <Controls />
         </main>

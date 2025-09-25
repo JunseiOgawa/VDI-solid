@@ -1,466 +1,83 @@
 @import "tailwindcss";
 
-/* ========================= テーマ設定 (CSS Custom Properties) ========================= */
-:root,
-[data-theme="light"] {
-  /* ライトテーマ（デフォルト）の色定義 */
-  --bg-primary: #ffffff;           /* メイン背景色 */
-  --bg-secondary: #f8fafc;         /* セカンダリ背景色（タイトルバーなど） */
-  --bg-tertiary: #f1f5f9;          /* 第三背景色 */
-  --text-primary: #0f172a;         /* メインテキスト色 */
-  --text-secondary: #475569;       /* セカンダリテキスト色 */
-  --text-muted: #94a3b8;           /* ミュートテキスト色 */
-  --border-primary: #e2e8f0;       /* メインボーダー色 */
-  --border-secondary: #cbd5e1;     /* セカンダリボーダー色 */
-  --accent-primary: #3b82f6;       /* アクセント色（青） */
-  --accent-hover: #2563eb;         /* アクセントホバー色 */
-  --shadow: rgba(0, 0, 0, 0.1);    /* シャドウ色 */
-
-  /* ビューワー固有の色設定 */
-  --viewer-bg-pattern: #f3f4f6;    /* チェッカーボード背景色 */
-  --viewer-overlay: rgba(0, 0, 0, 0.1);          /* オーバーレイ色 */
-  --nav-arrow-bg: rgba(255, 255, 255, 0.8);      /* ナビ矢印背景 */
-  --nav-arrow-border: rgba(255, 255, 255, 0.8);  /* ナビ矢印ボーダー */
-  --nav-arrow-icon: rgba(255, 255, 255, 0.8);    /* ナビ矢印アイコン色 */
-}
-
-/* ダークテーマの色定義 */
-[data-theme="dark"] {
-  --bg-primary: #0f172a;           /* メイン背景色（濃い青グレー） */
-  --bg-secondary: #1e293b;         /* セカンダリ背景色 */
-  --bg-tertiary: #334155;          /* 第三背景色 */
-  --text-primary: #f8fafc;         /* メインテキスト色（ほぼ白） */
-  --text-secondary: #cbd5e1;       /* セカンダリテキスト色 */
-  --text-muted: #64748b;           /* ミュートテキスト色 */
-  --border-primary: #334155;       /* メインボーダー色 */
-  --border-secondary: #475569;     /* セカンダリボーダー色 */
-  --accent-primary: #60a5fa;       /* アクセント色（明るい青） */
-  --accent-hover: #3b82f6;         /* アクセントホバー色 */
-  --shadow: rgba(0, 0, 0, 0.3);    /* シャドウ色（濃く） */
-
-  /* ビューワー固有の色設定（ダーク用） */
-  --viewer-bg-pattern: #374151;    /* チェッカーボード背景色（ダーク） */
-  --viewer-overlay: rgba(255, 255, 255, 0.1);    /* オーバーレイ色（反転） */
-  --nav-arrow-bg: rgba(0, 0, 0, 0.8);            /* ナビ矢印背景（ダーク） */
-  --nav-arrow-border: rgba(255, 255, 255, 0.6);  /* ナビ矢印ボーダー */
-  --nav-arrow-icon: rgba(255, 255, 255, 0.8);    /* ナビ矢印アイコン色 */
-}
-
-
-
-/* ========================= アプリ全体のベースレイアウト調整 ========================= */
-html, body, #root {
-  height: 100%;
-  overflow-x: hidden; /* 横スクロールは禁止 */
-  overflow-y: auto;   /* 縦は必要に応じてスクロール（ズーム操作はviewer側でpreventDefault） */
-
-  /* テーマ変数を適用 */
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease; /* テーマ切り替え時のスムーズな遷移 */
-}
-
-/* ビューワーコンテナ内でのスクロールは許可（ズーム操作用） */
-#viewerContainer {
-  overflow: auto;
-  /* スクロールバーを非表示にする（機能は維持） */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-}
-
-/* WebKit系ブラウザ（Chrome, Safari）でスクロールバーを非表示 */
-#viewerContainer::-webkit-scrollbar {
-  display: none;
-}
-
-/* カスタムタイトルバー */
-.custom-titlebar {
-  -webkit-app-region: drag;
-  user-select: none;
-  height: 32px;
-
-  /* テーマ対応 */
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  color: var(--text-primary);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-/* ボタン類全般でドラッグを無効化 */
-.custom-titlebar button,
-.custom-titlebar .btn {
-  -webkit-app-region: no-drag;
-}
-
-.window-btn {
-  -webkit-app-region: no-drag;
-  transition: background-color 0.2s, color 0.2s;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* テーマ対応 */
-  color: var(--text-secondary);
-  border-radius: 4px;
-}
-
-.window-btn:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-/* 画像コンテナの背景（透明部分を表示するチェッカーボード） */
-.viewer-bg {
-  background-image:
-    linear-gradient(45deg, var(--viewer-bg-pattern) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--viewer-bg-pattern) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--viewer-bg-pattern) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--viewer-bg-pattern) 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-  transition: background-image 0.3s ease; /* テーマ切り替え時の遷移 */
-}
-
-/* ナビゲーション矢印要素 - 共通スタイル */
-.nav-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  cursor: pointer;
-  opacity: 0; /* デフォルトで非表示 */
-  transition: opacity 0.3s ease;
-  z-index: 10;
-}
-
-/* 左ナビゲーション要素 */
-.nav-left {
-  opacity: 0; /* デフォルトで非表示 */
-  transition: opacity 0.3s ease;
-}
-
-.nav-left:hover {
-  opacity: 1; /* 左ナビゲーション要素自体にホバーした時 */
-}
-
-/* 右ナビゲーション要素 */
-.nav-right {
-  opacity: 0; /* デフォルトで非表示 */
-  transition: opacity 0.3s ease;
-}
-
-.nav-right:hover {
-  opacity: 1; /* 右ナビゲーション要素自体にホバーした時 */
-}
-
-
-
-#viewerContainer:hover .nav-left:hover {
-  opacity: 1;
-}
-
-
-
-#viewerContainer:hover .nav-right:hover {
-  opacity: 1;
-}
-
-.nav-arrow::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--nav-arrow-border);
-  border-radius: 4px;
-  background: var(--nav-arrow-bg);
-  backdrop-filter: blur(4px);
-  transition: all 0.2s ease;
-}
-
-.nav-arrow:hover::before {
-  background: var(--viewer-overlay);
-  border-color: var(--nav-arrow-icon);
-}
-
-/* 左矢印 */
-.nav-left::before {
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-right: 3px solid var(--nav-arrow-icon);
-  border-bottom: 3px solid var(--nav-arrow-icon);
-  transform: translate(-50%, -50%) rotate(135deg);
-}
-
-/* 右矢印 */
-.nav-right::before {
-  right: 50%;
-  transform: translate(50%, -50%);
-  border-right: 3px solid var(--nav-arrow-icon);
-  border-bottom: 3px solid var(--nav-arrow-icon);
-  transform: translate(50%, -50%) rotate(-45deg);
-}
-
-/* フッター要素の改行制限 */
-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  white-space: nowrap; /* 改行を防ぐ */
-  overflow: hidden; /* はみ出し部分を隠す */
-
-  /* テーマ対応 */
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border-primary);
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-footer p {
-  white-space: nowrap; /* フッター内のpタグも改行を防ぐ */
-  overflow: hidden; /* はみ出し部分を隠す */
-  text-overflow: ellipsis; /* 長すぎる文字は省略記号で表示 */
-}
-
-
-/* 画面幅600px以上の場合：画面の1/5幅で表示 */
-@media (min-width: 600px) {
-  .nav-left {
-    left: 0;
-    width: 20vw; /* 画面幅の1/5 */
+@layer base {
+  :root,
+  [data-theme="light"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-primary: #e2e8f0;
+    --border-secondary: #cbd5e1;
+    --accent-primary: #3b82f6;
+    --accent-hover: #2563eb;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --viewer-bg-pattern: #f3f4f6;
+    --viewer-overlay: rgba(0, 0, 0, 0.1);
+    --nav-arrow-bg: rgba(255, 255, 255, 0.8);
+    --nav-arrow-border: rgba(255, 255, 255, 0.8);
+    --nav-arrow-icon: rgba(255, 255, 255, 0.8);
   }
 
-  .nav-right {
-    right: 0;
-    width: 20vw; /* 画面幅の1/5 */
+  [data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --border-primary: #334155;
+    --border-secondary: #475569;
+    --accent-primary: #60a5fa;
+    --accent-hover: #3b82f6;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --viewer-bg-pattern: #374151;
+    --viewer-overlay: rgba(255, 255, 255, 0.1);
+    --nav-arrow-bg: rgba(0, 0, 0, 0.8);
+    --nav-arrow-border: rgba(255, 255, 255, 0.6);
+    --nav-arrow-icon: rgba(255, 255, 255, 0.8);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  footer {
+    font-size: 0.875rem;
   }
 }
 
-/* 画面幅599px以下の場合：左右80pxで表示 */
-@media (max-width: 599px) {
-  .nav-left {
-    left: 0;
-    width: 80px;
+@layer utilities {
+  .drag-region {
+    -webkit-app-region: drag;
   }
 
-  .nav-right {
-    right: 0;
-    width: 80px;
+  .no-drag {
+    -webkit-app-region: no-drag;
   }
-}
 
-/* ========================= テーマ切り替えボタン ========================= */
-.theme-toggle-btn {
-  font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-}
-
-
-
-/* アイコン画像（ボタン内）の基本スタイル */
-.icon,
-.theme-icon {
-  width: 16px;
-  height: 16px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.theme-toggle-btn .theme-icon {
-  filter: none; /* 将来テーマ毎の色変換が必要ならここで調整 */
-}
-
-/* テーマ連動の色指定: currentColor を使うSVGに反映される */
-.window-btn,
-.theme-toggle-btn {
-  color: var(--text-secondary);
-}
-
-[data-theme="dark"] .window-btn,
-[data-theme="dark"] .theme-toggle-btn {
-  color: var(--text-secondary);
-}
-
-/* 必要に応じて hover 時に強調 */
-.window-btn:hover,
-.theme-toggle-btn:hover {
-  color: var(--text-primary);
-}
-
-/* ========================= 設定ドロップダウンメニュー ========================= */
-.settings-menu {
-  -webkit-app-region: no-drag;
-  position: absolute;
-  right: 0;
-  top: 100%;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border-color: var(--border-primary);
-  box-shadow: 0 4px 12px var(--shadow);
-  z-index: 50;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  opacity: 1;
-  transform: scale(1);
-  border-radius: 8px;
-  padding: 8px 0;
-  min-width: 160px;
-}
-
-.settings-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 8px 12px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: none;
-  cursor: pointer;
-}
-
-.settings-item:hover,
-.settings-item[aria-checked="true"] {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-/* ========================= 連結ズームボタングループ ========================= */
-
-/* ズームグループの直後にある「画面フィット」には余白を戻す */
-.custom-titlebar #screenFitBtn,
-.custom-titlebar #rotateBtn {
-  margin-left: 4px;
-}
-
-/* ベーススタイル（3ボタン共通） */
-.custom-titlebar #zoomOutBtn,
-.custom-titlebar #zoomResetBtn,
-.custom-titlebar #zoomInBtn {
-  -webkit-app-region: no-drag;
-  /* 外観 */
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-secondary);
-  border-radius: 0;
-  height: 28px;
-  padding: 0 10px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px; /* リセットボタンのアイコンとテキスト間 */
-  box-shadow: inset 0 1px 2px var(--shadow);
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
-}
-
-/* 左端（−）ボタン：左角のみ角丸、右側の線はつなぎ目を1本にするため隠す */
-.custom-titlebar #zoomOutBtn {
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
-  border-right-color: transparent;
-}
-
-/* 中央（100%）ボタン：角丸なし、両端の線は外周側のみ見えるよう調整 */
-.custom-titlebar #zoomResetBtn {
-  min-width: 72px; /* 視認性のため中央は少し広く */
-  background-color: var(--bg-secondary); /* サンプルに合わせ中央だけ少し色味を変える */
-  border-left-color: var(--border-secondary); /* 左の外周線 */
-  border-right-color: transparent;            /* 右はつなぎ目を1本に */
-}
-
-/* 右端（＋）ボタン：右角のみ角丸 */
-.custom-titlebar #zoomInBtn {
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
-}
-
-/* ホバー時のフィードバック */
-.custom-titlebar #zoomOutBtn:hover,
-.custom-titlebar #zoomInBtn:hover {
-  /* color-mix対応ブラウザでわずかに明るく。非対応でも下のfallbackで概ね良好 */
-  background-color: color-mix(in srgb, var(--bg-tertiary), white 10%);
-}
-
-/* color-mix未対応向けのフォールバック（上書きされないブラウザではこちらが効く） */
-@supports not (background-color: color-mix(in srgb, black, white)) {
-  .custom-titlebar #zoomOutBtn:hover,
-  .custom-titlebar #zoomInBtn:hover {
-    background-color: var(--bg-secondary);
+  .checkerboard-bg {
+    background-image:
+      linear-gradient(45deg, var(--viewer-bg-pattern) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--viewer-bg-pattern) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--viewer-bg-pattern) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--viewer-bg-pattern) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
   }
-}
-
-/* 中央ボタンはホバーで周囲と同化させる */
-.custom-titlebar #zoomResetBtn:hover {
-  background-color: var(--bg-tertiary);
-}
-
-/* アクティブ時（押下時）は浮き上がりを戻す */
-.custom-titlebar #zoomOutBtn:active,
-.custom-titlebar #zoomResetBtn:active,
-.custom-titlebar #zoomInBtn:active {
-  transform: translateY(0);
-  box-shadow: inset 0 1px 3px var(--shadow);
-}
-
-/* フォーカス可視化（アクセシビリティ） */
-.custom-titlebar #zoomOutBtn:focus-visible,
-.custom-titlebar #zoomResetBtn:focus-visible,
-.custom-titlebar #zoomInBtn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-primary) inset;
-}
-
-/* コントロールボタン */
-.controls {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-}
-
-.controls button {
-  padding: 8px 16px;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.controls button:hover {
-  background-color: var(--bg-tertiary);
-}
-
-/* アプリコンテナのレイアウト */
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  /* Titlebar と Footer の高さを引いた領域を最大高さにする (レスポンシブ) */
-  --titlebar-height: 56px; /* カスタムタイトルバーの高さ (必要に応じて調整) */
-  --footer-height: 32px; /* フッターの高さをここで指定 */
-  max-height: calc(100vh - var(--titlebar-height) - var(--footer-height));
-}
-
-.app-container > footer > div {
-  height: var(--footer-height);
-  background-color: #2a2a2a;
-  color: #aaa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  border-top: 1px solid #444;
 }

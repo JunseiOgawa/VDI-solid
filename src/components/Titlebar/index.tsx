@@ -8,6 +8,11 @@ const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
   const { zoomScale, setZoomScale, rotationAngle, setRotationAngle, theme, setTheme, currentImagePath } = useAppState();
 
+  const baseZoomButtonClasses =
+    'no-drag inline-flex h-7 items-center justify-center border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] shadow-[inset_0_1px_2px_var(--shadow)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]';
+  const windowButtonClasses =
+    'no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]';
+
   const handleMinimize = async () => {
     const appWindow = getCurrentWindow();
     await appWindow.minimize();
@@ -33,36 +38,70 @@ const Titlebar: Component = () => {
   };
 
   return (
-    <div class="custom-titlebar flex items-center justify-between bg-gray-100 px-2 py-3 border-b border-gray-300 relative" data-tauri-drag-region>
+    <div class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300" data-tauri-drag-region>
       {/* 左側: ズームボタン群 */}
-      <div class="flex items-center">
-        <button id="zoomOutBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200" onClick={() => setZoomScale(zoomScale() / 1.2)} aria-label="縮小 (−)">−</button>
-
-        <button id="zoomResetBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200 flex items-center gap-1" onClick={() => setZoomScale(1)} aria-label="リセット">
-          <img class="icon" src="/reload_hoso.svg" alt="リセットアイコン" />
-          <span>{Math.round(zoomScale() * 100)}%</span>
+      <div class="no-drag flex items-center gap-1">
+        <button
+          id="zoomOutBtn"
+          class={`${baseZoomButtonClasses} rounded-l-lg`}
+          onClick={() => setZoomScale(zoomScale() / 1.2)}
+          aria-label="縮小 (−)"
+        >
+          −
         </button>
 
-        <button id="zoomInBtn" class="btn btn-primary px-2 py-0.9 rounded-lg bg-blue-600 text-white hover:bg-blue-700" onClick={() => setZoomScale(zoomScale() * 1.2)} aria-label="拡大 (+)">＋</button>
-
-        <button id="screenFitBtn" class="btn btn-outline px-2 py-0.9 rounded-lg border border-gray-300 hover:bg-gray-200" aria-label="画面フィット">
-          <img class="icon" src="/focus_ca_h.svg" alt="画面フィット" />
+        <button
+          id="zoomResetBtn"
+          class={`${baseZoomButtonClasses} -ml-px rounded-none bg-[var(--bg-secondary)] px-3`}
+          onClick={() => setZoomScale(1)}
+          aria-label="リセット"
+        >
+          <img class="h-4 w-4" src="/reload_hoso.svg" alt="リセットアイコン" />
+          <span class="ml-2 font-medium">{Math.round(zoomScale() * 100)}%</span>
         </button>
 
-        <button id="rotateBtn" class="btn btn-outline px-2 py-0.9 pl-2 rounded-lg border border-gray-300 hover:bg-gray-200" onClick={() => setRotationAngle((rotationAngle() + 90) % 360)} aria-label="回転">
-          <img class="icon" src="/reload_hoso.svg" alt="回転アイコン" />
+        <button
+          id="zoomInBtn"
+          class={`${baseZoomButtonClasses} -ml-px rounded-r-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]`}
+          onClick={() => setZoomScale(zoomScale() * 1.2)}
+          aria-label="拡大 (+)"
+        >
+          ＋
+        </button>
+
+        <button
+          id="screenFitBtn"
+          class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+          aria-label="画面フィット"
+        >
+          <img class="h-4 w-4" src="/focus_ca_h.svg" alt="画面フィット" />
+        </button>
+
+        <button
+          id="rotateBtn"
+          class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+          onClick={() => setRotationAngle((rotationAngle() + 90) % 360)}
+          aria-label="回転"
+        >
+          <img class="h-4 w-4" src="/reload_hoso.svg" alt="回転アイコン" />
         </button>
       </div>
 
       {/* 右側: 設定ボタンとウィンドウコントロールボタン */}
-      <div class="flex items-center relative">
-        <button id="settingBtn" class="window-btn hover:bg-gray-200 p-1 rounded-lg mr-5" onClick={toggleSettings} aria-label="設定" title="設定">
-          <img class="icon" src="/setting_ge_h.svg" alt="設定アイコン" />
+      <div class="relative flex items-center gap-1">
+        <button
+          id="settingBtn"
+          class="no-drag mr-4 flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+          onClick={toggleSettings}
+          aria-label="設定"
+          title="設定"
+        >
+          <img class="h-4 w-4" src="/setting_ge_h.svg" alt="設定アイコン" />
         </button>
 
         {/* 設定ドロップダウンメニュー - 左側に展開 */}
         {showSettings() && (
-          <div class="absolute top-full left-0 mt-1 z-50 transform -translate-x-full">
+          <div class="no-drag absolute left-0 top-full z-50 mt-1 -translate-x-full transform">
             <SettingsMenu
               theme={theme()}
               onThemeChange={(newTheme) => {
@@ -74,17 +113,17 @@ const Titlebar: Component = () => {
           </div>
         )}
 
-        <button id="minimizeBtn" class="window-btn hover:bg-gray-200 p-1 rounded-lg" onClick={handleMinimize} aria-label="最小化">
+        <button id="minimizeBtn" class={windowButtonClasses} onClick={handleMinimize} aria-label="最小化">
           <svg width="20" height="20" viewBox="0 1 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 7h8v1H2V7z" fill="currentColor"/>
           </svg>
         </button>
-        <button id="maximizeBtn" class="window-btn hover:bg-gray-200 p-1 rounded-lg" onClick={handleMaximize} aria-label="最大化">
+        <button id="maximizeBtn" class={windowButtonClasses} onClick={handleMaximize} aria-label="最大化">
           <svg width="20" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 2v8h8V2H2zm1 1h6v6H3V3z" fill="currentColor"/>
           </svg>
         </button>
-        <button id="closeBtn" class="window-btn hover:bg-red-500 hover:text-white p-1 rounded-lg" onClick={handleClose} aria-label="閉じる">
+        <button id="closeBtn" class={`${windowButtonClasses} hover:bg-red-500 hover:text-white`} onClick={handleClose} aria-label="閉じる">
           <svg width="12" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
           </svg>
