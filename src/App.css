@@ -437,8 +437,25 @@ footer p {
   background-color: var(--bg-tertiary);
 }
 
+/* アプリコンテナのレイアウト */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  /* Titlebar と Footer の高さを引いた領域を最大高さにする (レスポンシブ) */
+  --titlebar-height: 56px; /* カスタムタイトルバーの高さ (必要に応じて調整) */
+  --footer-height: 32px; /* フッターの高さをここで指定 */
+  max-height: calc(100vh - var(--titlebar-height) - var(--footer-height));
+}
+
 .app-container > footer > div {
-  height: 24px;
+  height: var(--footer-height);
   background-color: #2a2a2a;
   color: #aaa;
   display: flex;

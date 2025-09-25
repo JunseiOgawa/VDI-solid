@@ -1,4 +1,5 @@
 use tauri::Manager;
+use tauri_plugin_fs::init as fs_init;
 use image::ImageFormat;
 use std::path::Path;
 
@@ -294,6 +295,7 @@ pub fn run() {
     
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(fs_init())
         .invoke_handler(tauri::generate_handler![greet, get_launch_image_path, get_launch_window_mode, get_folder_images, get_next_image, get_previous_image, get_system_theme, rotate_image, create_image_backup, restore_image_from_backup, cleanup_image_backup])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更

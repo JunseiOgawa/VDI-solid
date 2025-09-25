@@ -40,12 +40,15 @@ const App: Component = () => {
 
   createThemeController(theme);
 
-  // テーマの永続化
-  onMount(() => {
+  // テーマの永続化と初期画像設定
+  onMount(async () => {
     const savedTheme = localStorage.getItem('vdi-theme');
     if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
+
+    // テスト用にvite.svgを設定
+    setCurrentImagePath('/vite.svg');
   });
 
   // テーマ変更時に保存
