@@ -3,11 +3,6 @@ use tauri_plugin_fs::init as fs_init;
 use image::ImageFormat;
 use std::path::Path;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 // 画像ファイルのバックアップを作成するコマンド
 #[tauri::command]
@@ -288,6 +283,7 @@ fn get_system_theme() -> String {
 }
 
 
+// Tauriアプリケーションのエントリーポイント
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 起動引数から画面サイズ設定を取得
@@ -296,7 +292,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(fs_init())
-        .invoke_handler(tauri::generate_handler![greet, get_launch_image_path, get_launch_window_mode, get_folder_images, get_next_image, get_previous_image, get_system_theme, rotate_image, create_image_backup, restore_image_from_backup, cleanup_image_backup])
+        .invoke_handler(tauri::generate_handler![get_launch_image_path, get_launch_window_mode, get_folder_images, get_next_image, get_previous_image, get_system_theme, rotate_image, create_image_backup, restore_image_from_backup, cleanup_image_backup])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更
             if let Some(mode) = &window_mode {

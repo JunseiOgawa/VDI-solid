@@ -41,6 +41,9 @@ const Titlebar: Component = () => {
     <div class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300" data-tauri-drag-region>
       {/* 左側: ズームボタン群 */}
       <div class="no-drag flex items-center gap-1">
+
+        {/*ズームアウトボタン*/}
+        
         <button
           id="zoomOutBtn"
           class={`${baseZoomButtonClasses} rounded-l-lg`}
@@ -49,6 +52,8 @@ const Titlebar: Component = () => {
         >
           −
         </button>
+
+        {/*ズームリセットボタン*/}
 
         <button
           id="zoomResetBtn"
@@ -60,6 +65,8 @@ const Titlebar: Component = () => {
           <span class="ml-2 font-medium">{Math.round(zoomScale() * 100)}%</span>
         </button>
 
+        {/*ズームインボタン*/}
+
         <button
           id="zoomInBtn"
           class={`${baseZoomButtonClasses} -ml-px rounded-r-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]`}
@@ -69,6 +76,8 @@ const Titlebar: Component = () => {
           ＋
         </button>
 
+        {/*画面フィットボタン*/}
+
         <button
           id="screenFitBtn"
           class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
@@ -77,6 +86,8 @@ const Titlebar: Component = () => {
           <img class="h-4 w-4" src="/focus_ca_h.svg" alt="画面フィット" />
         </button>
 
+        {/*回転ボタン*/}
+        
         <button
           id="rotateBtn"
           class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
