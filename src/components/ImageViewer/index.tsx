@@ -2,27 +2,8 @@ import type { Component } from 'solid-js';
 import { createSignal, createEffect, onMount, onCleanup } from 'solid-js';
 import { useAppState } from '../../App';
 import { CONFIG } from '../../config/config';
-import { invoke } from '@tauri-apps/api/core';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
-
-interface ProcessedFilePath {
-  original_path: string;
-  canonical_path: string;
-  asset_url: string;
-  file_name: string;
-}
-
-const SUPPORTED_EXTENSIONS = new Set([
-  'jpg',
-  'jpeg',
-  'png',
-  'gif',
-  'bmp',
-  'webp',
-  'tiff',
-  'tif',
-  'avif'
-]);
+import { convertFileToAssetUrl, isSupportedImageFile } from '../../lib/fileUtils';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -65,19 +46,19 @@ const ImageViewer: Component = () => {
 
       // 拡張子チェック
       const extension = filePath.split('.').pop()?.toLowerCase();
-      if (!extension || !SUPPORTED_EXTENSIONS.has(extension)) {
+      if (!extension || !isSupportedImageFile(filePath)) {
         console.error('[D&D] Unsupported file extension detected.', { filePath, extension });
         return;
       }
 
       try {
-        logDropEvent('Invoking process_file_path', filePath);
-        const processed = await invoke<ProcessedFilePath>('process_file_path', { path: filePath });
-        logDropEvent('Processed file path', processed);
-        setCurrentImagePath(processed.asset_url);
-        console.info('[D&D] Updated current image path', processed);
+        logDropEvent('Converting file path to asset URL', filePath);
+        const assetUrl = convertFileToAssetUrl(filePath);
+        logDropEvent('Converted asset URL', assetUrl);
+        setCurrentImagePath(assetUrl);
+        console.info('[D&D] Updated current image path', assetUrl);
       } catch (error) {
-        console.error('[D&D] Failed to process file path via Tauri command.', error);
+        console.error('[D&D] Failed to convert file path to asset URL.', error);
       }
     });
 

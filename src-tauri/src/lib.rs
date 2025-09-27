@@ -1,7 +1,6 @@
 use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
-mod dnd;
 mod img;
 
 // OSのテーマ設定（ライト/ダークモード）を取得するコマンド
@@ -104,8 +103,7 @@ pub fn run() {
             img::rotate_image,
             img::create_image_backup,
             img::restore_image_from_backup,
-            img::cleanup_image_backup,
-            dnd::process_file_path
+            img::cleanup_image_backup
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更
