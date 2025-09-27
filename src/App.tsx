@@ -5,7 +5,6 @@ import { createThemeController, isThemeKey, type ThemeKey } from './lib/theme';
 import Titlebar from './components/Titlebar';
 import ImageViewer from './components/ImageViewer';
 import Footer from './components/Footer';
-import Controls from './components/Controls';
 
 import './App.css';
 
@@ -15,8 +14,6 @@ interface AppState {
   setCurrentImagePath: (path: string) => void;
   zoomScale: () => number;
   setZoomScale: (scale: number) => void;
-  rotationAngle: () => number;
-  setRotationAngle: (angle: number) => void;
   theme: () => ThemeKey;
   setTheme: (theme: ThemeKey) => void;
 }
@@ -35,7 +32,6 @@ const App: Component = () => {
   // 状態管理
   const [currentImagePath, setCurrentImagePath] = createSignal<string>('');
   const [zoomScale, setZoomScale] = createSignal<number>(1);
-  const [rotationAngle, setRotationAngle] = createSignal<number>(0);
   const [theme, setTheme] = createSignal<ThemeKey>('auto');
 
   createThemeController(theme);
@@ -47,8 +43,8 @@ const App: Component = () => {
       setTheme(savedTheme);
     }
 
-    // テスト用にvite.svgを設定
-    setCurrentImagePath('/vite.svg');
+    // テスト用にsen19201080.pngを設定
+    setCurrentImagePath('public/sen19201080.png');
   });
 
   // テーマ変更時に保存
@@ -62,8 +58,6 @@ const App: Component = () => {
     setCurrentImagePath,
     zoomScale,
     setZoomScale,
-    rotationAngle,
-    setRotationAngle,
     theme,
     setTheme: handleThemeChange,
   };
@@ -74,7 +68,6 @@ const App: Component = () => {
         <Titlebar />
         <main class="relative flex flex-1 flex-col overflow-hidden pb-12">
           <ImageViewer />
-          <Controls />
         </main>
         <Footer />
       </div>

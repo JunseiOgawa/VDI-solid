@@ -5,7 +5,5 @@
 )]
 
 fn main() {
-
     vdi_lib::run();
-    
 }

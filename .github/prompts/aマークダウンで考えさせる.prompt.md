@@ -33,6 +33,14 @@ mode: agent
                 <name>外部参照: http.get</name>
                 <usage>用途: 必要最小限とし、ライセンスと安全性を確認した上で利用。</usage>
             </tool>
+            <tool>
+                <name>serenamcp</name>
+                <usage>用途: MCP (Model Context Protocol) を活用したコンテキスト管理と、関連リソースの効率的な取得・統合。</usage>
+            </tool>
+            <tool>
+                <name>context7</name>
+                <usage>用途: 高度なコンテキスト分析と、コードの依存関係や構造の視覚化による開発支援。</usage>
+            </tool>
         </tools_priority>
         <principles>
             <principle>
