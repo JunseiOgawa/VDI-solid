@@ -19,8 +19,7 @@ export function computeBaseSize(imgEl: HTMLImageElement | null | undefined, scal
  * @param maxTravelFactor - 移動可能範囲の倍率（デフォルト=1）。低倍率時に範囲を広げるために使用。
  * @returns X軸とY軸の最小・最大値を含むオブジェクト。
  */
-export function computeMinMax(container: Size, displaySize: Size, scale: number, maxTravelFactor: number = 1): MinMax {
-  const safeScale = Math.max(scale, Number.EPSILON);
+export function computeMinMax(container: Size, displaySize: Size, _scale: number, maxTravelFactor: number = 1): MinMax {
   const factor = Math.max(1, maxTravelFactor);
 
   const desiredWidth = displaySize.width * factor;
@@ -40,8 +39,8 @@ export function computeMinMax(container: Size, displaySize: Size, scale: number,
         factor > 1 ? Math.max(0, (desiredHeight - displaySize.height) / 2) : (container.height - displaySize.height) / 2
       );
 
-  const halfWidth = Math.max(0, halfWidthScreen) / safeScale;
-  const halfHeight = Math.max(0, halfHeightScreen) / safeScale;
+  const halfWidth = Math.max(0, halfWidthScreen);
+  const halfHeight = Math.max(0, halfHeightScreen);
 
   return {
     minX: -halfWidth,
