@@ -14,6 +14,10 @@ const ImageViewer: Component = () => {
   const { currentImagePath, setCurrentImagePath, zoomScale, setZoomScale } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
+  const [position, setPosition] = createSignal({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = createSignal(false);
+  let startX = 0;
+  let startY = 0;
 
   // Tauri D&Dイベントリスナー
   onMount(() => {
@@ -78,6 +82,30 @@ const ImageViewer: Component = () => {
     setZoomScale(newScale);
   };
 
+  // ドラッグ機能
+  const handleMouseDown = (event: MouseEvent) => {
+    setIsDragging(true);
+    startX = event.clientX - position().x;
+    startY = event.clientY - position().y;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (event: MouseEvent) => {
+    if (isDragging()) {
+      setPosition({
+        x: event.clientX - startX,
+        y: event.clientY - startY
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
   // currentImagePathが変更されたら画像を読み込む
   createEffect(() => {
     const path = currentImagePath();
@@ -106,12 +134,15 @@ const ImageViewer: Component = () => {
           src={imageSrc()!}
           alt="Displayed Image"
           onWheel={handleWheelZoom}
+          onMouseDown={handleMouseDown}
+          onDragStart={(e) => e.preventDefault()}
           style={{
-            transform: `scale(${zoomScale()})`,
+            transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()})`,
             'transform-origin': 'center',
             'max-width': '100%',
             'max-height': '100%',
-            'object-fit': 'contain'
+            'object-fit': 'contain',
+            cursor: isDragging() ? 'grabbing' : 'grab'
           }}
         />
       ) : (
