@@ -5,6 +5,7 @@ import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { convertFileToAssetUrl, isSupportedImageFile } from '../../lib/fileUtils';
+import { computeFitScale } from '../../lib/screenfit';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -101,19 +102,61 @@ const ImageViewer: Component = () => {
     return applyClamp(candidate);
   };
 
+  // スクリーンフィットの算出と適用を行う関数
+  const calculateAndSetScreenFit = () => {
+    if (!imgEl) return null;
+    const imageWidth = imgEl.naturalWidth || imgEl.width || 0;
+    const imageHeight = imgEl.naturalHeight || imgEl.height || 0;
+    if (!imageWidth || !imageHeight) return null;
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight - CONFIG.ui.headerFooterHeight;
+    const fit = computeFitScale({ width: imageWidth, height: imageHeight }, { width: windowWidth, height: windowHeight });
+
+    if (fit && fit > 0) {
+      // 基準サイズを維持するために一度 zoom をセットし、displaySize を更新して位置をクランプ
+      const prev = zoomScale();
+      setZoomScale(fit);
+      const predictedDisplay = getDisplaySizeForScale(fit, prev);
+      setDisplaySize(predictedDisplay);
+      setPosition((prevPos) => clampToBounds(prevPos, { scale: fit, display: predictedDisplay, referenceScale: prev }));
+      requestAnimationFrame(() => {
+        measureAll();
+        setPosition((prevPos) => clampToBounds(prevPos));
+      });
+    }
+    return null;
+  };
+
+  // 画像位置と計測データをリセットする関数（コンポーネントスコープに切り出し）
+  const resetImagePosition = () => {
+    setPosition({ x: 0, y: 0 });
+    setDisplaySize(null);
+    setBaseSize(null);
+    requestAnimationFrame(() => {
+      measureAll();
+      setPosition((prev) => clampToBounds(prev));
+    });
+  };
+
   // Tauri D&Dイベントリスナー
   onMount(() => {
+    // グローバル参照をアタッチ（可読性のため処理本体は上で定義）
+    (window as any).calculateAndSetScreenFit = calculateAndSetScreenFit;
+    (window as any).resetImagePosition = resetImagePosition;
+
     measureAll();
     const handleResize = () => {
       measureAll();
       setPosition((prev) => clampToBounds(prev));
     };
+
     window.addEventListener('resize', handleResize);
     const releaseDrag = () => {
       if (isDragging()) {
         handleMouseUp();
       }
     };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         releaseDrag();
@@ -124,6 +167,7 @@ const ImageViewer: Component = () => {
         });
       }
     };
+
     window.addEventListener('blur', releaseDrag);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -134,6 +178,7 @@ const ImageViewer: Component = () => {
       });
       resizeObserver.observe(containerEl);
     }
+
     const unlistenDragEnter = listen(TauriEvent.DRAG_ENTER, (event) => {
       logDropEvent('DRAG_ENTER', event.payload);
       setDragActive(true);

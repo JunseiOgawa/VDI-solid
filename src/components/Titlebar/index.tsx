@@ -3,6 +3,7 @@ import { createSignal } from 'solid-js';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAppState } from '../../context/AppStateContext';
 import SettingsMenu from '../SettingsMenu';
+import { handleScreenFit } from './screenfit';
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
@@ -47,7 +48,9 @@ const Titlebar: Component = () => {
         <button
           id="zoomOutBtn"
           class={`${baseZoomButtonClasses} rounded-l-lg`}
-          onClick={() => setZoomScale(zoomScale() / 1.2)}
+          onClick={() => {
+            setZoomScale(zoomScale() / 1.2);
+          }}
           aria-label="縮小 (−)"
         >
           −
@@ -58,10 +61,25 @@ const Titlebar: Component = () => {
         <button
           id="zoomResetBtn"
           class={`${baseZoomButtonClasses} -ml-px rounded-none bg-[var(--bg-secondary)] px-3`}
-          onClick={() => setZoomScale(1)}
+          onClick={() => {
+            // ズームをリセットし、その後 screenfit ロジックを呼び出す
+            
+            try {
+              handleScreenFit();
+            } catch (e) {
+              // ignore
+            }
+            // ImageViewer 側で用意した位置リセット API があれば呼ぶ
+            try {
+              if ((window as any).resetImagePosition) (window as any).resetImagePosition();
+            } catch (e) {
+              // ignore
+            }
+            setZoomScale(1);
+          }}
           aria-label="リセット"
         >
-          <img class="h-4 w-4" src="/reload_hoso.svg" alt="リセットアイコン" />
+          <img class="h-4 w-4" src="/focus_ca_h.svg" alt="リセット（フォーカス）" />
           <span class="ml-2 font-medium">{Math.round(zoomScale() * 100)}%</span>
         </button>
 
@@ -70,7 +88,9 @@ const Titlebar: Component = () => {
         <button
           id="zoomInBtn"
           class={`${baseZoomButtonClasses} -ml-px rounded-r-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]`}
-          onClick={() => setZoomScale(zoomScale() * 1.2)}
+          onClick={() => {
+            setZoomScale(zoomScale() * 1.2);
+          }}
           aria-label="拡大 (+)"
         >
           ＋
@@ -78,13 +98,7 @@ const Titlebar: Component = () => {
 
         {/*画面フィットボタン*/}
 
-        <button
-          id="screenFitBtn"
-          class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
-          aria-label="画面フィット"
-        >
-          <img class="h-4 w-4" src="/focus_ca_h.svg" alt="画面フィット" />
-        </button>
+        {/* screenFitBtn を廃止：代わりにリセットボタンで同等の挙動を呼び出すようにしました */}
 
         {/*回転ボタン*/}
         
