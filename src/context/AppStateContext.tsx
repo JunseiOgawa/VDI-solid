@@ -7,6 +7,8 @@ export interface AppState {
   setCurrentImagePath: (path: string) => void;
   zoomScale: () => number;
   setZoomScale: (scale: number) => void;
+  rotation: () => number;
+  setRotation: (updater: (prev: number) => number) => void;
   theme: () => ThemeKey;
   setTheme: (theme: ThemeKey) => void;
 }
@@ -21,8 +23,9 @@ const AppContext = createContext<AppState>();
  * @param props - 親コンポーネントのプロパティ
  */
 export const AppProvider: ParentComponent = (props) => {
-  const [currentImagePath, setCurrentImagePath] = createSignal<string>('');
+  const [currentImagePath, _setCurrentImagePath] = createSignal<string>('');
   const [zoomScale, setZoomScale] = createSignal<number>(1);
+  const [rotation, setRotation] = createSignal<number>(0);
   const [theme, setTheme] = createSignal<ThemeKey>('auto');
 
   createThemeController(theme);
@@ -32,8 +35,7 @@ export const AppProvider: ParentComponent = (props) => {
     if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
-
-    setCurrentImagePath('public/sen19201080.png');
+    _setCurrentImagePath('public/sen19201080.png');
   });
 
   const handleThemeChange = (newTheme: ThemeKey) => {
@@ -41,11 +43,18 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-theme', newTheme);
   };
 
+  const setCurrentImagePath = (path: string) => {
+    _setCurrentImagePath(path);
+    setRotation(0); // 画像が変更されたら回転をリセット
+  };
+
   const appState: AppState = {
     currentImagePath,
     setCurrentImagePath,
     zoomScale,
     setZoomScale,
+    rotation,
+    setRotation,
     theme,
     setTheme: handleThemeChange,
   };

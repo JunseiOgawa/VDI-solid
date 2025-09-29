@@ -13,7 +13,7 @@ const logDropEvent = (label: string, payload: unknown) => {
 };
 
 const ImageViewer: Component = () => {
-  const { currentImagePath, setCurrentImagePath, zoomScale, setZoomScale } = useAppState();
+  const { currentImagePath, setCurrentImagePath, zoomScale, setZoomScale, rotation } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
   const [position, setPosition] = createSignal({ x: 0, y: 0 });
@@ -323,8 +323,11 @@ const ImageViewer: Component = () => {
           onMouseDown={handleMouseDown}
           onDragStart={(e) => e.preventDefault()}
           style={{
-            transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()})`,
+            transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
             'transform-origin': 'center',
+
+            transition: 'transform 0.3s ease-out',
+
             'max-width': '100%',
             'max-height': '100%',
             'object-fit': 'contain',

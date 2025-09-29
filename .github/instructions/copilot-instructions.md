@@ -12,8 +12,8 @@ applyTo: '**'
 
 ## 具体的指示
 - 各実装・設計・レビューの場面で次のMCP指示を必ず織り込むこと
-use serena
-use context7
+#serena 
+#Context7 
 
 - API、ライブラリ、開発環境、テストなど各種最新仕様をContext7 MCPで確認・引用
 - コードベースの構造解析、既存モジュール・関数の変更影響分析はSerenaMCPに委任
