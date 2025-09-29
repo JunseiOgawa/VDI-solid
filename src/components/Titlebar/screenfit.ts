@@ -1,4 +1,5 @@
 import { CONFIG } from '../../config/config';
+import { computeFitScale } from '../../lib/screenfit';
 
 /**
  * @param imgElement - フィットさせる画像要素
@@ -14,25 +15,14 @@ export const calculateScreenFitScale = (imgElement: HTMLImageElement): number | 
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight - CONFIG.ui.headerFooterHeight;
 
-    // 画像とウィンドウの縦横比を計算
-    const imageAspectRatio = imageWidth / imageHeight;
-    const windowAspectRatio = windowWidth / windowHeight;
-
-    // フィットするスケールを計算
-    if (imageAspectRatio > windowAspectRatio) {
-        // 画像の方が横長 - 横幅に合わせる
-        return windowWidth / imageWidth;
-    } else {
-        // 画像の方が縦長 - 縦幅に合わせる
-        return windowHeight / imageHeight;
-    }
+    // Lib の純粋関数に委譲
+    return computeFitScale(
+        { width: imageWidth, height: imageHeight },
+        { width: windowWidth, height: windowHeight }
+    );
 };
 
-/**
- * 適切なズームスケールを計算して設定することで、画面フィット機能を処理します
- * ImageViewerコンポーネント内のcalculateAndSetScreenFitメソッドを呼び出します
- */
-
+// グローバルにアクセス可能
 export const handleScreenFit = () => {
     // ImageViewerコンポーネントで定義されたグローバルメソッドを呼び出し
     if ((window as any).calculateAndSetScreenFit) {
