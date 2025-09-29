@@ -1,7 +1,7 @@
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, onMount, onCleanup } from 'solid-js';
 import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
-import { useAppState } from '../../App';
+import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { convertFileToAssetUrl, isSupportedImageFile } from '../../lib/fileUtils';

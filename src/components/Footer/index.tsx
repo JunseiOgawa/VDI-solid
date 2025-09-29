@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { useAppState } from '../../App';
+import { useAppState } from '../../context/AppStateContext';
 
 const Footer: Component = () => {
   const { currentImagePath, zoomScale } = useAppState();

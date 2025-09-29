@@ -1,7 +1,7 @@
 import type { Component } from 'solid-js';
 import { createSignal } from 'solid-js';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useAppState } from '../../App';
+import { useAppState } from '../../context/AppStateContext';
 import SettingsMenu from '../SettingsMenu';
 
 const Titlebar: Component = () => {
