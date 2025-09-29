@@ -16,22 +16,39 @@ export function computeBaseSize(imgEl: HTMLImageElement | null | undefined, scal
  * @param container - コンテナのサイズ（幅と高さ）。
  * @param displaySize - 表示要素のサイズ（幅と高さ）。
  * @param scale - スケールファクター。ゼロ除算を避けるために最小値としてNumber.EPSILONを使用します。
+ * @param maxTravelFactor - 移動可能範囲の倍率（デフォルト=1）。低倍率時に範囲を広げるために使用。
  * @returns X軸とY軸の最小・最大値を含むオブジェクト。
  */
-export function computeMinMax(container: Size, displaySize: Size, scale: number): MinMax {
+export function computeMinMax(container: Size, displaySize: Size, scale: number, maxTravelFactor: number = 1): MinMax {
   const safeScale = Math.max(scale, Number.EPSILON);
-  const displayW = displaySize.width;
-  const displayH = displaySize.height;
+  const factor = Math.max(1, maxTravelFactor);
 
-  const halfWidth = Math.abs(displayW - container.width) / (2 * safeScale);
-  const halfHeight = Math.abs(displayH - container.height) / (2 * safeScale);
+  const desiredWidth = displaySize.width * factor;
+  const desiredHeight = displaySize.height * factor;
 
-  const minX = -halfWidth;
-  const maxX = halfWidth;
-  const minY = -halfHeight;
-  const maxY = halfHeight;
+  const halfWidthScreen = displaySize.width >= container.width
+    ? (displaySize.width - container.width) / 2
+    : Math.min(
+        (container.width - displaySize.width) / 2,
+        factor > 1 ? Math.max(0, (desiredWidth - displaySize.width) / 2) : (container.width - displaySize.width) / 2
+      );
 
-  return { minX, maxX, minY, maxY };
+  const halfHeightScreen = displaySize.height >= container.height
+    ? (displaySize.height - container.height) / 2
+    : Math.min(
+        (container.height - displaySize.height) / 2,
+        factor > 1 ? Math.max(0, (desiredHeight - displaySize.height) / 2) : (container.height - displaySize.height) / 2
+      );
+
+  const halfWidth = Math.max(0, halfWidthScreen) / safeScale;
+  const halfHeight = Math.max(0, halfHeightScreen) / safeScale;
+
+  return {
+    minX: -halfWidth,
+    maxX: halfWidth,
+    minY: -halfHeight,
+    maxY: halfHeight
+  };
 }
 
 export function clampPosition(pos: { x: number; y: number }, mm: MinMax) {

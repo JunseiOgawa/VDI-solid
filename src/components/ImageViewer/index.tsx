@@ -94,7 +94,8 @@ const ImageViewer: Component = () => {
       containerSize: container,
       imageSize: natural,
       displaySize: display,
-      scale
+      scale,
+      maxTravelFactor: scale < 1.0 ? 2 : 1
     });
 
     return applyClamp(candidate);
