@@ -7,7 +7,7 @@ import { handleScreenFit } from './screenfit';
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
-  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath, setRotation } = useAppState();
+  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath, enqueueRotation } = useAppState();
 
   const baseZoomButtonClasses =
     'no-drag inline-flex h-7 items-center justify-center border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] shadow-[inset_0_1px_2px_var(--shadow)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]';
@@ -106,7 +106,7 @@ const Titlebar: Component = () => {
           id="rotateBtn"
           class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
           aria-label="回転"
-          onClick={() => setRotation(prev => prev + 90)}
+          onClick={() => enqueueRotation(90)}
         >
           <img class="h-4 w-4" src="/reload_hoso.svg" alt="回転アイコン" />
         </button>

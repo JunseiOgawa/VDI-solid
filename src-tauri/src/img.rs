@@ -65,11 +65,21 @@ pub async fn rotate_image(image_path: String, rotation_angle: f32) -> Result<Str
         return Err("指定されたファイルが存在しません".to_string());
     }
 
+    let normalized_angle = ((rotation_angle.round() as i32 % 360) + 360) % 360;
+
+    if normalized_angle == 0 {
+        return Ok(image_path);
+    }
+
+    if normalized_angle % 90 != 0 {
+        return Err("回転角は90度単位で指定してください".to_string());
+    }
+
     // 画像を読み込み
     let img = image::open(path).map_err(|e| format!("画像の読み込みに失敗しました: {}", e))?;
 
     // 回転処理（90度単位での回転を想定）
-    let rotated_img = match rotation_angle as i32 % 360 {
+    let rotated_img = match normalized_angle {
         90 => img.rotate90(),
         180 => img.rotate180(),
         270 => img.rotate270(),

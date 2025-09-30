@@ -4,7 +4,7 @@ import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
 import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
-import { convertFileToAssetUrl, isSupportedImageFile } from '../../lib/fileUtils';
+import { convertFileToAssetUrlWithCacheBust, isSupportedImageFile } from '../../lib/fileUtils';
 import { computeFitScale } from '../../lib/screenfit';
 
 const logDropEvent = (label: string, payload: unknown) => {
@@ -215,9 +215,9 @@ const ImageViewer: Component = () => {
 
       try {
         logDropEvent('Converting file path to asset URL', filePath);
-        const assetUrl = convertFileToAssetUrl(filePath);
+        const assetUrl = convertFileToAssetUrlWithCacheBust(filePath);
         logDropEvent('Converted asset URL', assetUrl);
-        setCurrentImagePath(assetUrl);
+        setCurrentImagePath(assetUrl, { filePath });
         console.info('[D&D] Updated current image path', assetUrl);
       } catch (error) {
         console.error('[D&D] Failed to convert file path to asset URL.', error);
