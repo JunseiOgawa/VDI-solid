@@ -3,10 +3,16 @@ use tauri_plugin_fs::init as fs_init;
 
 mod img;
 
-// OSのテーマ設定（ライト/ダークモード）を取得するコマンド
-// Windows: レジストリのAppsUseLightTheme値を確認
-// macOS: defaults read -g AppleInterfaceStyleでダークモード確認
-// Linux: gsettingsでGTKテーマ名を確認
+/// OSのテーマ設定（ライト/ダークモード）を取得するコマンド
+///
+/// プラットフォームごとに方法が異なります:
+/// - Windows: レジストリの `AppsUseLightTheme` 値を確認
+/// - macOS: `defaults read -g AppleInterfaceStyle` を確認
+/// - Linux: `gsettings` で GTK テーマ名を確認
+///
+/// # Returns
+///
+/// * `String` - "light" または "dark" を返します。取得に失敗した場合はフォールバックで "light" を返します。
 #[tauri::command]
 fn get_system_theme() -> String {
     #[cfg(target_os = "windows")]
@@ -84,7 +90,18 @@ fn get_system_theme() -> String {
     }
 }
 
-// Tauriアプリケーションのエントリーポイント
+/// Tauri アプリケーションのエントリーポイント
+///
+/// アプリ起動時にウィンドウサイズ/モードを引数から読み取り、ウィンドウに反映します。
+///
+/// 起動引数の仕様（例）:
+/// 1. 引数 1: 起動時に表示する画像パス（オプション、`img` モジュールで処理）
+/// 2. 引数 2: ウィンドウモード/サイズ（例: `FullScreen` または `1920x1080`）
+///
+/// # 動作
+///
+/// * `FullScreen` を指定するとフルスクリーンに遷移します。
+/// * `WIDTHxHEIGHT` の形式を渡すと指定解像度にウィンドウサイズを設定します。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 起動引数から画面サイズ設定を取得

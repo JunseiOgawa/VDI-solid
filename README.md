@@ -1,7 +1,41 @@
-# Tauri + Solid + Typescript
+# VDI-solid
 
-This template should help get you started developing with Tauri, Solid and Typescript in Vite.
+このリポジトリは、Tauri と Solid と TypeScript を用いて開発する、VRゴーグル向けに最適化されたスタンドアロン画像ビューア「VDI（仮想デスクトップイメージャー）」の vdi-solid 版 README です。  
+リポジトリ: https://github.com/JunseiOgawa/VDI-solid
 
-## Recommended IDE Setup
+## 概要
+VDI-solid は、VR パススルー環境で素早く画像を確認できる軽量の画像ビューアです。起動が速く、VR コントローラーで簡単に操作できることを重視しています。
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## アプリの考え方
+- VR ゴーグルのパススルーで画像チェックを容易にする  
+- VR コントローラーで直感的に画像操作（拡大・移動・回転・ページ送り）  
+- 起動は軽量かつ高速
+
+## 提供機能
+- [ x ]ローカルストレージ上の画像ファイルを開く（PNG / JPEG / BMP / GIF 等）
+- [ x ]画像の拡大・縮小
+- [ x ]拡大表示中のパン（移動）
+- [ x ]画像の回転
+- [ x ]複数画像のページ送り
+- [ - ]グリッドの表示
+- [ - ]画像比較
+
+## 使い方（基本起動）
+VDI.exe [画像ファイルパス] [ウィンドウモード]
+
+起動オプション:
+- 1番目の引数: 画像ファイルパス（PNG、JPEG、BMP、GIF など）
+- 2番目の引数（省略可）: ウィンドウモード
+    - FullScreen — フルスクリーンで起動
+    - [幅]x[高さ] — 指定解像度で起動（例: 1920x1080）
+    - 省略時 — デフォルトサイズ（800x600）で起動
+
+起動例:
+- デフォルトサイズで起動
+    VDI.exe image.png
+- フルスクリーンで起動
+    VDI.exe image.png FullScreen
+- 1280x720 で起動
+    VDI.exe image.png 1280x720
+
+
