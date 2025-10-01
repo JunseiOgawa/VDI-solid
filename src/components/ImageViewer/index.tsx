@@ -325,9 +325,6 @@ const ImageViewer: Component = () => {
           style={{
             transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
             'transform-origin': 'center',
-
-            transition: 'transform 0.3s ease-out',
-
             'max-width': '100%',
             'max-height': '100%',
             'object-fit': 'contain',
