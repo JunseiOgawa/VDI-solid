@@ -13,7 +13,16 @@ const logDropEvent = (label: string, payload: unknown) => {
 };
 
 const ImageViewer: Component = () => {
-  const { currentImagePath, setCurrentImagePath, zoomScale, setZoomScale, rotation } = useAppState();
+  const {
+    currentImagePath,
+    currentImageFilePath,
+    setCurrentImagePath,
+    zoomScale,
+    setZoomScale,
+    rotation,
+    loadNextImage,
+    loadPreviousImage
+  } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
   const [position, setPosition] = createSignal({ x: 0, y: 0 });
@@ -21,6 +30,7 @@ const ImageViewer: Component = () => {
   const [containerSize, setContainerSize] = createSignal({ width: 0, height: 0 });
   const [displaySize, setDisplaySize] = createSignal<{ width: number; height: number } | null>(null);
   const [baseSize, setBaseSize] = createSignal<{ width: number; height: number } | null>(null);
+  const [isNavigating, setIsNavigating] = createSignal(false);
   let startX = 0;
   let startY = 0;
   let containerEl: HTMLDivElement | undefined;
@@ -137,6 +147,9 @@ const ImageViewer: Component = () => {
       setPosition((prev) => clampToBounds(prev));
     });
   };
+
+  // 画像のシーケンシャル読み込み・呼び出し
+  const canNavigate = () => Boolean(currentImageFilePath());
 
   // Tauri D&Dイベントリスナー
   onMount(() => {
@@ -282,6 +295,34 @@ const ImageViewer: Component = () => {
     document.removeEventListener('mouseup', handleMouseUp);
     setPosition((prev) => clampToBounds(prev));
   };
+  // 画像のシーケンシャル読み込み処理
+  const handleSequentialNavigation = async (direction: 'next' | 'previous') => {
+    if (isNavigating()) {
+      return;
+    }
+
+    if (!canNavigate()) {
+      console.warn('[Navigation] 現在の画像でフォルダナビゲーションが利用できません');
+      return;
+    }
+
+    if (isDragging()) {
+      handleMouseUp();
+    }
+
+    setIsNavigating(true);
+    const loader = direction === 'next' ? loadNextImage : loadPreviousImage;
+    try {
+      const success = await loader();
+      if (success) {
+        resetImagePosition();
+      }
+    } catch (error) {
+      console.error('[Navigation] 画像ナビゲーションに失敗しました', error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
 
   // currentImagePathが変更されたら画像を読み込む
   createEffect(() => {
@@ -299,7 +340,7 @@ const ImageViewer: Component = () => {
   return (
     <div
       ref={(el: HTMLDivElement) => (containerEl = el)}
-      class="checkerboard-bg relative flex h-full w-full flex-1 items-center justify-center overflow-hidden transition-colors duration-300"
+      class="checkerboard-bg group relative flex h-full w-full flex-1 items-center justify-center overflow-hidden transition-colors duration-300"
       classList={{
         'ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg-primary)]': isDragActive()
       }}
@@ -310,6 +351,54 @@ const ImageViewer: Component = () => {
           <span class="text-sm opacity-80">対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF</span>
         </div>
       )}
+      <button
+        type="button"
+        class="absolute inset-y-0 left-0 z-20 flex w-[30%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 transition-opacity duration-200 pointer-events-none"
+        classList={{
+          'group-hover:pointer-events-auto': canNavigate() && !isNavigating(),
+          'group-hover:opacity-100': canNavigate(),
+          'cursor-not-allowed': !canNavigate() || isNavigating()
+        }}
+        disabled={!canNavigate() || isNavigating()}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          void handleSequentialNavigation('previous');
+        }}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+        }}
+      >
+        <span class="flex items-center gap-2">
+          <span aria-hidden="true">◀</span>
+          <span>前の画像</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        class="absolute inset-y-0 right-0 z-20 flex w-[30%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 transition-opacity duration-200 pointer-events-none"
+        classList={{
+          'group-hover:pointer-events-auto': canNavigate() && !isNavigating(),
+          'group-hover:opacity-100': canNavigate(),
+          'cursor-not-allowed': !canNavigate() || isNavigating()
+        }}
+        disabled={!canNavigate() || isNavigating()}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          void handleSequentialNavigation('next');
+        }}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+        }}
+      >
+        <span class="flex items-center gap-2">
+          <span>次の画像</span>
+          <span aria-hidden="true">▶</span>
+        </span>
+      </button>
       {imageSrc() ? (
         <img
           ref={(el: HTMLImageElement) => (imgEl = el)}
@@ -318,6 +407,7 @@ const ImageViewer: Component = () => {
           onLoad={() => {
             measureAll();
             setPosition((prev) => clampToBounds(prev));
+            calculateAndSetScreenFit();
           }}
           onWheel={handleWheelZoom}
           onMouseDown={handleMouseDown}

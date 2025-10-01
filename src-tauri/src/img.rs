@@ -228,9 +228,11 @@ pub fn get_folder_images(folder_path: String) -> Option<Vec<String>> {
                     let ext_str = extension.to_string_lossy().to_lowercase();
                     if image_extensions.contains(&ext_str.as_str()) {
                         if let Ok(metadata) = entry.metadata() {
-                            if let Ok(created) = metadata.created() {
-                                images.push((path.to_string_lossy().to_string(), created));
-                            }
+                            let timestamp = metadata
+                                .created()
+                                .or_else(|_| metadata.modified())
+                                .unwrap_or(std::time::UNIX_EPOCH);
+                            images.push((path.to_string_lossy().to_string(), timestamp));
                         }
                     }
                 }

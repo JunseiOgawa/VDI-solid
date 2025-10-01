@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { Window } from '@tauri-apps/api/window';
 
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
@@ -36,4 +37,37 @@ export async function closeWindow(): Promise<void> {
  */
 export async function openFileInExplorer(path: string): Promise<void> {
   await revealItemInDir(path);
+}
+// 次の画像のパスを取得する
+
+export async function fetchNextImagePath(
+  currentPath: string,
+  folderNavigationEnabled: boolean
+): Promise<string | null> {
+  try {
+    const result = await invoke<string | null>('get_next_image', {
+      currentPath,
+      folderNavigationEnabled
+    });
+    return result ?? null;
+  } catch (error) {
+    console.error('[Tauri] Failed to fetch next image path', error);
+    return null;
+  }
+}
+// 前の画像のパスを取得する
+export async function fetchPreviousImagePath(
+  currentPath: string,
+  folderNavigationEnabled: boolean
+): Promise<string | null> {
+  try {
+    const result = await invoke<string | null>('get_previous_image', {
+      currentPath,
+      folderNavigationEnabled
+    });
+    return result ?? null;
+  } catch (error) {
+    console.error('[Tauri] Failed to fetch previous image path', error);
+    return null;
+  }
 }

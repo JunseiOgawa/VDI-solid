@@ -2,6 +2,7 @@ import type { ParentComponent } from 'solid-js';
 import { createContext, createSignal, onCleanup, onMount, useContext } from 'solid-js';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileToAssetUrlWithCacheBust } from '../lib/fileUtils';
+import { fetchNextImagePath, fetchPreviousImagePath } from '../lib/tauri';
 import { createThemeController, isThemeKey, type ThemeKey } from '../lib/theme';
 
 // 画像回転のためのrust関数の呼び出しに使用するオプション
@@ -27,6 +28,8 @@ export interface AppState {
   isRotationInProgress: () => boolean;
   theme: () => ThemeKey;
   setTheme: (theme: ThemeKey) => void;
+  loadNextImage: () => Promise<boolean>;
+  loadPreviousImage: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppState>();
@@ -202,6 +205,35 @@ export const AppProvider: ParentComponent = (props) => {
       resetRotationQueue();
     }
   };
+  
+  //画像のシーケンシャル読み込み
+  const loadImageBySequence = async (
+    resolvePath: (current: string) => Promise<string | null>
+  ): Promise<boolean> => {
+    const filePath = currentImageFilePath();
+    if (!filePath) {
+      console.warn('[Navigation] 現在の画像ファイルパスが設定されていません');
+      return false;
+    }
+
+    const nextPath = await resolvePath(filePath);
+    if (!nextPath) {
+      console.warn('[Navigation] 次/前の画像が取得できませんでした');
+      return false;
+    }
+
+    setZoomScale(1);
+    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(nextPath), { filePath: nextPath });
+    return true;
+  };
+
+  const loadNextImage = async (): Promise<boolean> => {
+    return loadImageBySequence((current: string) => fetchNextImagePath(current, true));
+  };
+
+  const loadPreviousImage = async (): Promise<boolean> => {
+    return loadImageBySequence((current: string) => fetchPreviousImagePath(current, true));
+  };
 
   createThemeController(theme);
 
@@ -237,6 +269,8 @@ export const AppProvider: ParentComponent = (props) => {
     isRotationInProgress: isRotating,
     theme,
     setTheme: handleThemeChange,
+    loadNextImage,
+    loadPreviousImage,
   };
 
   return (
