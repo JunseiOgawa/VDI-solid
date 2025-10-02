@@ -1,5 +1,6 @@
 import { CONFIG } from '../../config/config';
 import { computeFitScale } from '../../lib/screenfit';
+import { callCalculateAndSetScreenFit } from '../../lib/imageViewerApi';
 
 /**
  * @param imgElement - フィットさせる画像要素
@@ -24,9 +25,10 @@ export const calculateScreenFitScale = (imgElement: HTMLImageElement): number | 
 
 // グローバルにアクセス可能
 export const handleScreenFit = (): void => {
-    // ImageViewerコンポーネントで定義されたグローバルメソッドを呼び出し
-    const screenFitFn = (window as any).calculateAndSetScreenFit;
-    if (typeof screenFitFn === 'function') {
-        screenFitFn();
+    // ImageViewer 側の登録済みハンドラを呼ぶ（存在しない場合は無視）
+    try {
+        callCalculateAndSetScreenFit();
+    } catch (e) {
+        // ignore
     }
 };

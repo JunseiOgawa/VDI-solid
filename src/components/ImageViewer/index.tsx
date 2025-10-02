@@ -5,6 +5,10 @@ import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { convertFileToAssetUrlWithCacheBust, isSupportedImageFile } from '../../lib/fileUtils';
+import {
+  registerCalculateAndSetScreenFit,
+  registerResetImagePosition
+} from '../../lib/imageViewerApi';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -172,9 +176,9 @@ const ImageViewer: Component = () => {
 
   // Tauri D&Dイベントリスナー
   onMount(() => {
-    // グローバル参照をアタッチ（可読性のため処理本体は上で定義）
-    (window as any).calculateAndSetScreenFit = calculateAndSetScreenFit;
-    (window as any).resetImagePosition = resetImagePosition;
+  // コンポーネントの API をモジュール経由で登録
+  registerCalculateAndSetScreenFit(calculateAndSetScreenFit);
+  registerResetImagePosition(resetImagePosition);
 
     measureAll();
     const handleResize = () => {
@@ -257,6 +261,10 @@ const ImageViewer: Component = () => {
     });
 
     onCleanup(async () => {
+      // 登録解除
+      registerCalculateAndSetScreenFit(null);
+      registerResetImagePosition(null);
+
       (await unlistenDragEnter)();
       (await unlistenDragOver)();
       (await unlistenDragLeave)();

@@ -4,6 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAppState } from '../../context/AppStateContext';
 import SettingsMenu from '../SettingsMenu';
 import { handleScreenFit } from './screenfit';
+import { callResetImagePosition } from '../../lib/imageViewerApi';
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
@@ -66,7 +67,7 @@ const Titlebar: Component = () => {
             setZoomScale(1);
             // ImageViewer 側で用意した位置リセット API があれば呼ぶ
             try {
-              if ((window as any).resetImagePosition) (window as any).resetImagePosition();
+              callResetImagePosition();
             } catch (e) {
               // ignore
             }
