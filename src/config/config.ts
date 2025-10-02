@@ -17,7 +17,7 @@ export interface AppConfig {
 export const CONFIG: AppConfig = {
   zoom: {
     minScale: 0.1,
-    maxScale: 5,
+    maxScale: 10,
     step: 0.1,
   },
   ui: {

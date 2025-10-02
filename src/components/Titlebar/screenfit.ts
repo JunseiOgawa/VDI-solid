@@ -23,9 +23,10 @@ export const calculateScreenFitScale = (imgElement: HTMLImageElement): number | 
 };
 
 // グローバルにアクセス可能
-export const handleScreenFit = () => {
+export const handleScreenFit = (): void => {
     // ImageViewerコンポーネントで定義されたグローバルメソッドを呼び出し
-    if ((window as any).calculateAndSetScreenFit) {
-        (window as any).calculateAndSetScreenFit();
+    const screenFitFn = (window as any).calculateAndSetScreenFit;
+    if (typeof screenFitFn === 'function') {
+        screenFitFn();
     }
 };

@@ -5,7 +5,6 @@ import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { convertFileToAssetUrlWithCacheBust, isSupportedImageFile } from '../../lib/fileUtils';
-import { computeFitScale } from '../../lib/screenfit';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -115,26 +114,46 @@ const ImageViewer: Component = () => {
   // スクリーンフィットの算出と適用を行う関数
   const calculateAndSetScreenFit = () => {
     if (!imgEl) return null;
-    const imageWidth = imgEl.naturalWidth || imgEl.width || 0;
-    const imageHeight = imgEl.naturalHeight || imgEl.height || 0;
-    if (!imageWidth || !imageHeight) return null;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight - CONFIG.ui.headerFooterHeight;
-    const fit = computeFitScale({ width: imageWidth, height: imageHeight }, { width: windowWidth, height: windowHeight });
 
-    if (fit && fit > 0) {
-      // 基準サイズを維持するために一度 zoom をセットし、displaySize を更新して位置をクランプ
-      const prev = zoomScale();
-      setZoomScale(fit);
-      const predictedDisplay = getDisplaySizeForScale(fit, prev);
-      setDisplaySize(predictedDisplay);
-      setPosition((prevPos) => clampToBounds(prevPos, { scale: fit, display: predictedDisplay, referenceScale: prev }));
-      requestAnimationFrame(() => {
-        measureAll();
-        setPosition((prevPos) => clampToBounds(prevPos));
-      });
+    const naturalWidth = imgEl.naturalWidth || imgEl.width || 0;
+    const naturalHeight = imgEl.naturalHeight || imgEl.height || 0;
+    if (!naturalWidth || !naturalHeight) return null;
+
+    let container = containerSize();
+    if (!container.width || !container.height) {
+      updateContainerMetrics();
+      container = containerSize();
     }
-    return null;
+    if (!container.width || !container.height) return null;
+
+    const normalizedRotation = ((rotation() % 360) + 360) % 360;
+    const quarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
+    const effectiveWidth = quarterTurn ? naturalHeight : naturalWidth;
+    const effectiveHeight = quarterTurn ? naturalWidth : naturalHeight;
+
+  const scaleX = container.width / effectiveWidth;
+  const scaleY = container.height / effectiveHeight;
+  let targetScale = Math.min(scaleX, scaleY);
+
+    targetScale = Math.min(CONFIG.zoom.maxScale, Math.max(CONFIG.zoom.minScale, targetScale));
+    const previousScale = zoomScale();
+    const predictedDisplay = getDisplaySizeForScale(targetScale, previousScale);
+
+    setZoomScale(targetScale);
+    setDisplaySize(predictedDisplay);
+
+    const centeredPosition = clampToBounds(
+      { x: 0, y: 0 },
+      { scale: targetScale, display: predictedDisplay, referenceScale: previousScale }
+    );
+    setPosition(centeredPosition);
+
+    requestAnimationFrame(() => {
+      measureAll();
+      setPosition((prevPos) => clampToBounds(prevPos));
+    });
+
+    return targetScale;
   };
 
   // 画像位置と計測データをリセットする関数（コンポーネントスコープに切り出し）
@@ -340,7 +359,7 @@ const ImageViewer: Component = () => {
   return (
     <div
       ref={(el: HTMLDivElement) => (containerEl = el)}
-      class="checkerboard-bg group relative flex h-full w-full flex-1 items-center justify-center overflow-hidden transition-colors duration-300"
+      class="checkerboard-bg group relative flex flex-1 min-h-0 min-w-0 items-center justify-center overflow-hidden transition-colors duration-300"
       classList={{
         'ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg-primary)]': isDragActive()
       }}
@@ -353,10 +372,8 @@ const ImageViewer: Component = () => {
       )}
       <button
         type="button"
-        class="absolute inset-y-0 left-0 z-20 flex w-[30%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 transition-opacity duration-200 pointer-events-none"
+        class="absolute inset-y-0 left-0 z-20 flex w-[30%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
         classList={{
-          'group-hover:pointer-events-auto': canNavigate() && !isNavigating(),
-          'group-hover:opacity-100': canNavigate(),
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
         disabled={!canNavigate() || isNavigating()}
@@ -377,10 +394,8 @@ const ImageViewer: Component = () => {
       </button>
       <button
         type="button"
-        class="absolute inset-y-0 right-0 z-20 flex w-[30%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 transition-opacity duration-200 pointer-events-none"
+        class="absolute inset-y-0 right-0 z-20 flex w-[30%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
         classList={{
-          'group-hover:pointer-events-auto': canNavigate() && !isNavigating(),
-          'group-hover:opacity-100': canNavigate(),
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
         disabled={!canNavigate() || isNavigating()}

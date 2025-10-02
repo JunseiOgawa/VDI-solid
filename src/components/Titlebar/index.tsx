@@ -62,20 +62,14 @@ const Titlebar: Component = () => {
           id="zoomResetBtn"
           class={`${baseZoomButtonClasses} -ml-px rounded-none bg-[var(--bg-secondary)] px-3`}
           onClick={() => {
-            // ズームをリセットし、その後 screenfit ロジックを呼び出す
-            
-            try {
-              handleScreenFit();
-            } catch (e) {
-              // ignore
-            }
+            // ズーム倍率と位置を既定状態に戻す
+            setZoomScale(1);
             // ImageViewer 側で用意した位置リセット API があれば呼ぶ
             try {
               if ((window as any).resetImagePosition) (window as any).resetImagePosition();
             } catch (e) {
               // ignore
             }
-            setZoomScale(1);
           }}
           aria-label="リセット"
         >
@@ -98,7 +92,21 @@ const Titlebar: Component = () => {
 
         {/*画面フィットボタン*/}
 
-        {/* screenFitBtn を廃止：代わりにリセットボタンで同等の挙動を呼び出すようにしました */}
+        <button
+          id="screenFitBtn"
+          class={`${baseZoomButtonClasses} ml-2 rounded-lg`}
+          onClick={() => {
+            try {
+              handleScreenFit();
+            } catch (e) {
+              // ignore
+            }
+          }}
+          aria-label="画面にフィット"
+          title="画面にフィット"
+        >
+          <img class="h-4 w-4" src="/public/全画面表示ボタン5.svg" alt="画面フィット" />
+        </button>
 
         {/*回転ボタン*/}
         

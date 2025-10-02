@@ -10,9 +10,9 @@ import './App.css';
 const App: Component = () => {
   return (
     <AppProvider>
-      <div class="flex min-h-screen flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
+      <div class="flex h-screen flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
         <Titlebar />
-        <main class="relative flex flex-1 flex-col overflow-hidden pb-12">
+        <main class="relative flex flex-1 flex-col overflow-hidden min-h-0">
           <ImageViewer />
         </main>
         <Footer />
