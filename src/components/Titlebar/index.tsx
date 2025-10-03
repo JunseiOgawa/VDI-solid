@@ -3,12 +3,15 @@ import { createSignal } from 'solid-js';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAppState } from '../../context/AppStateContext';
 import SettingsMenu from '../SettingsMenu';
+import GridMenu from '../ImageViewer/GridMenu';
 import { handleScreenFit } from './screenfit';
 import { callResetImagePosition } from '../../lib/imageViewerApi';
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
-  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath, enqueueRotation } = useAppState();
+  /** グリッドメニューの表示状態を管理 */
+  const [showGridMenu, setShowGridMenu] = createSignal(false);
+  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath, enqueueRotation, gridPattern, setGridPattern } = useAppState();
 
   const baseZoomButtonClasses =
     'no-drag inline-flex h-7 items-center justify-center border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] shadow-[inset_0_1px_2px_var(--shadow)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]';
@@ -37,6 +40,11 @@ const Titlebar: Component = () => {
 
   const toggleSettings = () => {
     setShowSettings(!showSettings());
+  };
+
+  /** グリッドメニューの開閉を切り替え */
+  const toggleGridMenu = () => {
+    setShowGridMenu(!showGridMenu());
   };
 
   return (
@@ -119,6 +127,37 @@ const Titlebar: Component = () => {
         >
           <img class="h-4 w-4" src="/reload_hoso.svg" alt="回転アイコン" />
         </button>
+
+        {/*グリッドボタン: グリッド表示メニューを開閉*/}
+        
+        <button
+          id="gridBtn"
+          class="no-drag relative ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+          classList={{
+            'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]': gridPattern() !== 'off',
+          }}
+          onClick={toggleGridMenu}
+          aria-label="グリッド表示"
+          title="グリッド表示"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 2h12v12H2V2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <path d="M2 6.5h12M2 10.5h12M6.5 2v12M10.5 2v12" stroke="currentColor" stroke-width="1"/>
+          </svg>
+        </button>
+
+        {/* グリッドメニュー - 設定メニューと同様にドロップダウン表示 */}
+        {showGridMenu() && (
+          <div class="no-drag absolute left-0 top-full z-50 mt-1">
+            <GridMenu
+              currentPattern={gridPattern()}
+              onPatternChange={(pattern) => {
+                setGridPattern(pattern);
+                setShowGridMenu(false);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 右側: 設定ボタンとウィンドウコントロールボタン */}

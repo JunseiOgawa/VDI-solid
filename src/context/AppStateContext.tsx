@@ -12,6 +12,15 @@ interface SetImagePathOptions {
 }
 
 /**
+ * グリッドパターンの種類
+ * - 'off': グリッド非表示
+ * - '3x3': 3×3グリッド
+ * - '5x3': 5×3グリッド
+ * - '4x4': 4×4グリッド
+ */
+export type GridPattern = 'off' | '3x3' | '5x3' | '4x4';
+
+/**
  * アプリケーションの状態を管理するためのコンテキストインターフェース。
  */
 export interface AppState {
@@ -30,6 +39,10 @@ export interface AppState {
   setTheme: (theme: ThemeKey) => void;
   loadNextImage: () => Promise<boolean>;
   loadPreviousImage: () => Promise<boolean>;
+  /** 現在のグリッド表示パターンを取得 */
+  gridPattern: () => GridPattern;
+  /** グリッド表示パターンを設定 */
+  setGridPattern: (pattern: GridPattern) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -78,6 +91,8 @@ export const AppProvider: ParentComponent = (props) => {
   const [pendingRotation, setPendingRotation] = createSignal<number>(0);
   const [isRotating, setIsRotating] = createSignal<boolean>(false);
   const [theme, setTheme] = createSignal<ThemeKey>('auto');
+  /** グリッド表示パターンの状態管理（初期値: 'off'） */
+  const [gridPattern, setGridPattern] = createSignal<GridPattern>('off');
 
   let rotationTimer: number | undefined;
   let pendingFlush = false;
@@ -271,6 +286,8 @@ export const AppProvider: ParentComponent = (props) => {
     setTheme: handleThemeChange,
     loadNextImage,
     loadPreviousImage,
+    gridPattern,
+    setGridPattern,
   };
 
   return (

@@ -1,14 +1,16 @@
 import type { Component } from 'solid-js';
-import { createSignal, createEffect, onMount, onCleanup } from 'solid-js';
-import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
+import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { listen } from '@tauri-apps/api/event';
+import { TauriEvent } from '@tauri-apps/api/event';
 import { useAppState } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
-import { listen, TauriEvent } from '@tauri-apps/api/event';
-import { convertFileToAssetUrlWithCacheBust, isSupportedImageFile } from '../../lib/fileUtils';
+import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
 import {
-  registerCalculateAndSetScreenFit,
-  registerResetImagePosition
-} from '../../lib/imageViewerApi';
+  convertFileToAssetUrlWithCacheBust,
+  isSupportedImageFile
+} from '../../lib/fileUtils';
+import { registerCalculateAndSetScreenFit, registerResetImagePosition } from '../../lib/imageViewerApi';
+import GridOverlay from './GridOverlay';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -24,7 +26,8 @@ const ImageViewer: Component = () => {
     setZoomScale,
     rotation,
     loadNextImage,
-    loadPreviousImage
+    loadPreviousImage,
+    gridPattern, // グリッド表示パターンを取得
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -423,27 +426,32 @@ const ImageViewer: Component = () => {
         </span>
       </button>
       {imageSrc() ? (
-        <img
-          ref={(el: HTMLImageElement) => (imgEl = el)}
-          src={imageSrc()!}
-          alt="Displayed Image"
-          onLoad={() => {
-            measureAll();
-            setPosition((prev) => clampToBounds(prev));
-            calculateAndSetScreenFit();
-          }}
-          onWheel={handleWheelZoom}
-          onMouseDown={handleMouseDown}
-          onDragStart={(e) => e.preventDefault()}
-          style={{
-            transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
-            'transform-origin': 'center',
-            'max-width': '100%',
-            'max-height': '100%',
-            'object-fit': 'contain',
-            cursor: isDragging() ? 'grabbing' : 'grab'
-          }}
-        />
+        <>
+          {/* 画像本体 */}
+          <img
+            ref={(el: HTMLImageElement) => (imgEl = el)}
+            src={imageSrc()!}
+            alt="Displayed Image"
+            onLoad={() => {
+              measureAll();
+              setPosition((prev) => clampToBounds(prev));
+              calculateAndSetScreenFit();
+            }}
+            onWheel={handleWheelZoom}
+            onMouseDown={handleMouseDown}
+            onDragStart={(e) => e.preventDefault()}
+            style={{
+              transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
+              'transform-origin': 'center',
+              'max-width': '100%',
+              'max-height': '100%',
+              'object-fit': 'contain',
+              cursor: isDragging() ? 'grabbing' : 'grab'
+            }}
+          />
+          {/* グリッドオーバーレイ: 画像の表示サイズに合わせてグリッド線を描画 */}
+          <GridOverlay displaySize={displaySize()} gridPattern={gridPattern()} />
+        </>
       ) : (
         <div class="rounded-md border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-secondary)]">
           No image selected
