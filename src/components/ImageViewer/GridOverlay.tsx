@@ -1,5 +1,5 @@
 import type { Component, JSX } from 'solid-js';
-import { Show } from 'solid-js';
+import { createEffect, createMemo, onMount } from 'solid-js';
 import type { GridPattern } from '../../context/AppStateContext';
 
 interface GridOverlayProps {
@@ -13,10 +13,9 @@ interface GridOverlayProps {
  * GridOverlay コンポーネント
  * 
  * 画像の上に重ねて表示されるグリッド線を描画します。
- * 画像のズームや回転に追従するため、親要素と同じ transform を適用します。
+ * Canvasを使ってグリッドを描画し、画像のズームや回転に追従します。
  * 
- * グリッド線は CSS の background-image (linear-gradient) で実装し、
- * pointer-events: none により下の画像のドラッグ操作を妨げません。
+ * Canvasは pointer-events: none により下の画像のドラッグ操作を妨げません。
  */
 const GridOverlay: Component<GridOverlayProps> = (props) => {
   /**
@@ -36,56 +35,97 @@ const GridOverlay: Component<GridOverlayProps> = (props) => {
     }
   };
 
-  /**
-   * グリッド線のスタイルを生成
-   * 各分割線を linear-gradient で描画し、背景として重ねる
-   */
-  const gridStyle = (): JSX.CSSProperties => {
+  const gridData = createMemo(() => {
     const size = props.displaySize;
     if (!size || props.gridPattern === 'off') {
-      return {};
+      return { size: null, cols: 0, rows: 0 };
     }
 
     const [cols, rows] = getGridDivisions();
     if (cols === 0 || rows === 0) {
-      return {};
+      return { size, cols: 0, rows: 0 };
     }
 
-    const colWidth = 100 / cols;
-    const rowHeight = 100 / rows;
+    return { size, cols, rows };
+  });
 
-    // 縦線を生成（横方向の分割）
-    const verticalLines = Array.from({ length: cols - 1 }, (_, i) => {
-      const position = (i + 1) * colWidth;
-      return `linear-gradient(90deg, transparent ${position - 0.05}%, rgba(255, 255, 255, 0.5) ${position - 0.05}%, rgba(255, 255, 255, 0.5) ${position + 0.05}%, transparent ${position + 0.05}%)`;
-    });
+  let canvasRef: HTMLCanvasElement | undefined;
 
-    // 横線を生成（縦方向の分割）
-    const horizontalLines = Array.from({ length: rows - 1 }, (_, i) => {
-      const position = (i + 1) * rowHeight;
-      return `linear-gradient(180deg, transparent ${position - 0.05}%, rgba(255, 255, 255, 0.5) ${position - 0.05}%, rgba(255, 255, 255, 0.5) ${position + 0.05}%, transparent ${position + 0.05}%)`;
-    });
+  const drawGrid = () => {
+    if (!canvasRef) return;
 
-    return {
-      width: `${size.width}px`,
-      height: `${size.height}px`,
-      'background-image': [...verticalLines, ...horizontalLines].join(', '),
-      'pointer-events': 'none' as const,
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)', // 中央配置
-    };
+    const ctx = canvasRef.getContext('2d');
+    if (!ctx) return;
+
+    const { size, cols, rows } = gridData();
+    if (!size || cols === 0 || rows === 0) {
+      ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
+      return;
+    }
+
+    // Canvasサイズを設定
+    canvasRef.width = size.width;
+    canvasRef.height = size.height;
+
+    // 高解像度対応
+    const dpr = window.devicePixelRatio || 1;
+    canvasRef.width = size.width * dpr;
+    canvasRef.height = size.height * dpr;
+    canvasRef.style.width = `${size.width}px`;
+    canvasRef.style.height = `${size.height}px`;
+    ctx.scale(dpr, dpr);
+
+    // 背景をクリア
+    ctx.clearRect(0, 0, size.width, size.height);
+
+    // 線を描画
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.lineCap = 'square';
+
+    // 縦線
+    for (let i = 1; i < cols; i++) {
+      const x = Math.round((i * size.width) / cols);
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, size.height);
+      ctx.stroke();
+    }
+
+    // 横線
+    for (let j = 1; j < rows; j++) {
+      const y = Math.round((j * size.height) / rows);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(size.width, y);
+      ctx.stroke();
+    }
+  };
+
+  onMount(() => {
+    drawGrid();
+  });
+
+  createEffect(() => {
+    drawGrid();
+  });
+
+  const overlayStyle: JSX.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    'pointer-events': 'none',
+    'z-index': 5,
   };
 
   return (
-    <Show when={props.gridPattern !== 'off' && props.displaySize}>
-      <div
-        class="grid-overlay"
-        style={gridStyle()}
-        aria-hidden="true"
-      />
-    </Show>
+    <canvas
+      ref={canvasRef}
+      class="grid-overlay"
+      style={overlayStyle}
+      aria-hidden="true"
+    />
   );
 };
 
