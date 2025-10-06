@@ -427,30 +427,40 @@ const ImageViewer: Component = () => {
       </button>
       {imageSrc() ? (
         <>
-          {/* 画像本体 */}
-          <img
-            ref={(el: HTMLImageElement) => (imgEl = el)}
-            src={imageSrc()!}
-            alt="Displayed Image"
-            onLoad={() => {
-              measureAll();
-              setPosition((prev) => clampToBounds(prev));
-              calculateAndSetScreenFit();
-            }}
-            onWheel={handleWheelZoom}
-            onMouseDown={handleMouseDown}
-            onDragStart={(e) => e.preventDefault()}
+          {/* 画像とグリッドをまとめるラッパー: transformを親要素で管理 */}
+          <div
             style={{
+              position: 'relative',
               transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
               'transform-origin': 'center',
               'max-width': '100%',
               'max-height': '100%',
-              'object-fit': 'contain',
-              cursor: isDragging() ? 'grabbing' : 'grab'
+              cursor: isDragging() ? 'grabbing' : 'grab',
             }}
-          />
-          {/* グリッドオーバーレイ: 画像の表示サイズに合わせてグリッド線を描画 */}
-          <GridOverlay displaySize={displaySize()} gridPattern={gridPattern()} />
+            onWheel={handleWheelZoom}
+            onMouseDown={handleMouseDown}
+          >
+            {/* 画像本体 */}
+            <img
+              ref={(el: HTMLImageElement) => (imgEl = el)}
+              src={imageSrc()!}
+              alt="Displayed Image"
+              onLoad={() => {
+                measureAll();
+                setPosition((prev) => clampToBounds(prev));
+                calculateAndSetScreenFit();
+              }}
+              onDragStart={(e) => e.preventDefault()}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                'object-fit': 'contain',
+              }}
+            />
+            {/* グリッドオーバーレイ: 画像と同じ領域に重ねて表示 */}
+            <GridOverlay gridPattern={gridPattern()} />
+          </div>
         </>
       ) : (
         <div class="rounded-md border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-secondary)]">
