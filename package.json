@@ -8,8 +8,11 @@
     "dev": "npm run tauri dev",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri"
-    
+    "tauri": "tauri",
+    "build-all": "npm run build && npm run tauri build",
+    "tauri:build": "npm run build && npm run tauri build",
+    "tauri:build:mac": "npm run build && npm run tauri build -- --target universal-apple-darwin",
+    "tauri:build:linux": "npm run build && npm run tauri build -- --target x86_64-unknown-linux-gnu"
   },
   "license": "MIT",
   "dependencies": {
