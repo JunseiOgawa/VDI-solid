@@ -2,6 +2,7 @@ use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
 mod img;
+mod peaking;
 
 /// ウィンドウを表示するコマンド
 ///
@@ -130,7 +131,8 @@ pub fn run() {
             img::rotate_image,
             img::create_image_backup,
             img::restore_image_from_backup,
-            img::cleanup_image_backup
+            img::cleanup_image_backup,
+            peaking::focus_peaking
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更

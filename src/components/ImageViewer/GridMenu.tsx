@@ -1,17 +1,16 @@
 import type { Component } from 'solid-js';
 import { For } from 'solid-js';
 import type { GridPattern } from '../../context/AppStateContext';
-import { CONFIG } from '../../config/config';
 
 interface GridMenuProps {
   /** 現在選択されているグリッドパターン */
   currentPattern: GridPattern;
   /** グリッドパターン変更時のコールバック */
   onPatternChange: (pattern: GridPattern) => void;
-  /** グリッド永続化が有効かどうか */
-  persistEnabled: boolean;
-  /** グリッド永続化の有効/無効を切り替えるコールバック */
-  onPersistChange: (enabled: boolean) => void;
+  /** 現在のグリッド線不透明度 */
+  currentOpacity: number;
+  /** グリッド線不透明度変更時のコールバック */
+  onOpacityChange: (opacity: number) => void;
 }
 
 /** グリッドパターンの選択肢リスト */
@@ -39,6 +38,11 @@ const GridMenu: Component<GridMenuProps> = (props) => {
     props.onPatternChange(pattern);
   };
 
+  const handleOpacityChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    props.onOpacityChange(parseFloat(target.value));
+  };
+
   return (
     <div class="min-w-[220px] rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-secondary)] shadow-lg">
       <div class="border-b border-[var(--border-secondary)] px-4 py-2">
@@ -62,6 +66,22 @@ const GridMenu: Component<GridMenuProps> = (props) => {
             </button>
           )}
         </For>
+      </div>
+      <div class="border-t border-[var(--border-secondary)] px-4 py-3">
+        <label class="flex flex-col gap-2">
+          <span class="text-xs font-medium text-[var(--text-primary)]">
+            不透明度: {Math.round(props.currentOpacity * 100)}%
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={props.currentOpacity}
+            onInput={handleOpacityChange}
+            class="w-full cursor-pointer accent-[var(--accent-primary)]"
+          />
+        </label>
       </div>
     </div>
   );

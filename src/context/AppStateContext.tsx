@@ -49,6 +49,10 @@ export interface AppState {
   gridOpacity: () => number;
   /** グリッド線の不透明度を設定 (0.0-1.0) */
   setGridOpacity: (opacity: number) => void;
+  /** グリッド永続化が有効かどうかを取得 */
+  gridPersistEnabled: () => boolean;
+  /** グリッド永続化の有効/無効を設定 */
+  setGridPersistEnabled: (enabled: boolean) => void;
   
   // ピーキング関連
   /** ピーキング機能の有効/無効 */
@@ -123,6 +127,8 @@ export const AppProvider: ParentComponent = (props) => {
   const [gridPattern, setGridPattern] = createSignal<GridPattern>('off');
   /** グリッド線の不透明度（0.0-1.0、初期値は CONFIG から取得） */
   const [gridOpacity, setGridOpacity] = createSignal<number>(CONFIG.grid.defaultOpacity);
+  /** グリッドの永続化を有効化するかのフラグ */
+  const [gridPersistEnabled, setGridPersistEnabled] = createSignal<boolean>(false);
 
   // ピーキング関連Signal（新規追加）
   const [peakingEnabled, setPeakingEnabled] = createSignal<boolean>(false);
@@ -367,9 +373,11 @@ export const AppProvider: ParentComponent = (props) => {
     loadNextImage,
     loadPreviousImage,
     gridPattern,
-    setGridPattern,
+    setGridPattern: handleGridPatternChange,
     gridOpacity,
     setGridOpacity,
+    gridPersistEnabled,
+    setGridPersistEnabled: handleGridPersistChange,
     peakingEnabled,
     setPeakingEnabled,
     peakingIntensity,
