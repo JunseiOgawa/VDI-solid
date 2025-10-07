@@ -302,6 +302,20 @@ export const AppProvider: ParentComponent = (props) => {
     if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
+    
+    // グリッド永続化設定を復元
+    const savedGridPersist = localStorage.getItem('vdi-grid-persist');
+    const persistEnabled = savedGridPersist === 'true';
+    setGridPersistEnabled(persistEnabled);
+    
+    // 永続化が有効な場合はパターンを復元
+    if (persistEnabled) {
+      const savedGridPattern = localStorage.getItem('vdi-grid-pattern');
+      if (savedGridPattern && ['off', '3x3', '5x3', '4x4'].includes(savedGridPattern)) {
+        setGridPattern(savedGridPattern as GridPattern);
+      }
+    }
+    
     setCurrentImagePath('public/sen19201080.png', { filePath: null });
   });
 
@@ -313,6 +327,27 @@ export const AppProvider: ParentComponent = (props) => {
   const handleThemeChange = (newTheme: ThemeKey) => {
     setTheme(newTheme);
     localStorage.setItem('vdi-theme', newTheme);
+  };
+
+  const handleGridPatternChange = (pattern: GridPattern) => {
+    setGridPattern(pattern);
+    if (gridPersistEnabled()) {
+      localStorage.setItem('vdi-grid-pattern', pattern);
+    }
+  };
+
+  const handleGridPersistChange = (enabled: boolean) => {
+    setGridPersistEnabled(enabled);
+    localStorage.setItem('vdi-grid-persist', enabled ? 'true' : 'false');
+    
+    if (enabled) {
+      // 有効化時は現在のパターンを保存
+      localStorage.setItem('vdi-grid-pattern', gridPattern());
+    } else {
+      // 無効化時はグリッドをoffにしてストレージをクリア
+      setGridPattern('off');
+      localStorage.removeItem('vdi-grid-pattern');
+    }
   };
 
   const appState: AppState = {
