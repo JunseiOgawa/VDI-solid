@@ -1,4 +1,4 @@
-use image::{DynamicImage, GenericImageView, ImageBuffer, Luma};
+use image::{GenericImageView, ImageBuffer, Luma};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 

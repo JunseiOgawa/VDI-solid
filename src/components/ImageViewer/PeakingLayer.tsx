@@ -143,7 +143,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
         </div>
       </Show>
 
-      {/* SVG描画 */}
+      {/* SVG描画 roundで丸め込み */}
       <Show when={peakingData()}>
         {(data) => (
           <svg
@@ -159,6 +159,8 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
                 points={edgeToPolylinePoints(edge)}
                 stroke={props.color}
                 stroke-width="1.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
                 fill="none"
                 opacity={props.opacity}
                 style={{

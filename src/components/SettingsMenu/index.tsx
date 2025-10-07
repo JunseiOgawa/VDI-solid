@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, For } from 'solid-js';
+import { createSignal, For, onCleanup } from 'solid-js';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { AVAILABLE_THEMES, type ThemeKey } from '../../lib/theme';
 
@@ -22,6 +22,33 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const [showThemeSubmenu, setShowThemeSubmenu] = createSignal(false);
   const [showPeakingSubmenu, setShowPeakingSubmenu] = createSignal(false);
 
+  // Debounceユーティリティ関数
+  function createDebounce<T extends (...args: any[]) => void>(
+    fn: T,
+    delay: number
+  ): [(...args: Parameters<T>) => void, () => void] {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    
+    const debouncedFn = (...args: Parameters<T>) => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        fn(...args);
+        timeoutId = undefined;
+      }, delay);
+    };
+    
+    const cleanup = () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+    };
+    
+    return [debouncedFn, cleanup];
+  }
+
   const handleRevealInExplorer = async () => {
     if (props.currentImagePath) {
       try {
@@ -39,6 +66,33 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const togglePeakingSubmenu = () => {
     setShowPeakingSubmenu(!showPeakingSubmenu());
   };
+
+  // 一時表示用Signal
+  const [tempIntensity, setTempIntensity] = createSignal(props.peakingIntensity);
+  const [tempOpacity, setTempOpacity] = createSignal(props.peakingOpacity);
+
+  // Debounced関数の作成
+  const [debouncedIntensityChange, cleanupIntensity] = createDebounce(
+    (value: number) => {
+      console.log(`[Debounce] Intensity changed to ${value}`);
+      props.onPeakingIntensityChange(value);
+    },
+    500
+  );
+
+  const [debouncedOpacityChange, cleanupOpacity] = createDebounce(
+    (value: number) => {
+      console.log(`[Debounce] Opacity changed to ${value}`);
+      props.onPeakingOpacityChange(value);
+    },
+    500
+  );
+
+  // クリーンアップ
+  onCleanup(() => {
+    cleanupIntensity();
+    cleanupOpacity();
+  });
 
   // 色プリセット
   const colorPresets = [
@@ -116,15 +170,19 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
                 <span>強度</span>
-                <span class="text-[var(--text-muted)]">{props.peakingIntensity}</span>
+                <span class="text-[var(--text-muted)]">{tempIntensity()}</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="255"
                 step="5"
-                value={props.peakingIntensity}
-                onInput={(e) => props.onPeakingIntensityChange(Number(e.currentTarget.value))}
+                value={tempIntensity()}
+                onInput={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  setTempIntensity(value);
+                  debouncedIntensityChange(value);
+                }}
                 class="w-full"
                 disabled={!props.peakingEnabled}
               />
@@ -156,15 +214,19 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
                 <span>不透明度</span>
-                <span class="text-[var(--text-muted)]">{(props.peakingOpacity * 100).toFixed(0)}%</span>
+                <span class="text-[var(--text-muted)]">{(tempOpacity() * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.05"
-                value={props.peakingOpacity}
-                onInput={(e) => props.onPeakingOpacityChange(Number(e.currentTarget.value))}
+                value={tempOpacity()}
+                onInput={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  setTempOpacity(value);
+                  debouncedOpacityChange(value);
+                }}
                 class="w-full"
                 disabled={!props.peakingEnabled}
               />
