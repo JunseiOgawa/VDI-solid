@@ -33,6 +33,7 @@ const ImageViewer: Component = () => {
     peakingIntensity,
     peakingColor,
     peakingOpacity,
+    peakingBlink,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -460,6 +461,7 @@ const ImageViewer: Component = () => {
               peakingIntensity={peakingIntensity()}
               peakingColor={peakingColor()}
               peakingOpacity={peakingOpacity()}
+              peakingBlink={peakingBlink()}
             />
           </div>
         </>

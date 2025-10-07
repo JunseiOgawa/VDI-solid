@@ -9,6 +9,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri"
+    
   },
   "license": "MIT",
   "dependencies": {

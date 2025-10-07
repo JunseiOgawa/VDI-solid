@@ -67,6 +67,10 @@ export interface AppState {
   peakingOpacity: () => number;
   /** ピーキング不透明度を設定 */
   setPeakingOpacity: (opacity: number) => void;
+  /** ピーキング点滅の有効/無効 */
+  peakingBlink: () => boolean;
+  /** ピーキング点滅の有効/無効を設定 */
+  setPeakingBlink: (enabled: boolean) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -125,6 +129,7 @@ export const AppProvider: ParentComponent = (props) => {
   const [peakingIntensity, _setPeakingIntensity] = createSignal<number>(60);
   const [peakingColor, setPeakingColor] = createSignal<string>('lime');
   const [peakingOpacity, _setPeakingOpacity] = createSignal<number>(0.5);
+  const [peakingBlink, setPeakingBlink] = createSignal<boolean>(false);
 
   // バリデーション付きセッター
   const setPeakingIntensity = (intensity: number) => {
@@ -338,6 +343,8 @@ export const AppProvider: ParentComponent = (props) => {
     setPeakingColor,
     peakingOpacity,
     setPeakingOpacity,
+    peakingBlink,
+    setPeakingBlink,
   };
 
   return (

@@ -27,6 +27,8 @@ interface ImageManagerProps {
   peakingColor: string;
   /** ピーキング不透明度（0.0-1.0） */
   peakingOpacity: number;
+  /** ピーキング点滅 */
+  peakingBlink: boolean;
 }
 
 /**
@@ -73,6 +75,7 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
           intensity={props.peakingIntensity}
           color={props.peakingColor}
           opacity={props.peakingOpacity}
+          blink={props.peakingBlink}
         />
       </Show>
 

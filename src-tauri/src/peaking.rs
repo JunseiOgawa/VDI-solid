@@ -1,4 +1,4 @@
-use image::{GenericImageView, ImageBuffer, Luma};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Luma};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,6 +11,9 @@ lazy_static::lazy_static! {
     static ref CANCEL_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
     static ref REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 }
+
+/// ダウンサンプリング閾値（幅または高さがこの値以上の場合にダウンサンプリング）
+const DOWNSAMPLE_THRESHOLD: u32 = 2000;
 
 /// ユニークなリクエストIDを生成
 fn generate_unique_request_id(base_key: &str) -> String {
@@ -64,6 +67,64 @@ fn register_cancel_flag(request_id: &str, base_key: &str) -> Arc<AtomicBool> {
 fn unregister_cancel_flag(request_id: &str) {
     let mut map = CANCEL_FLAGS.lock().unwrap();
     map.remove(request_id);
+}
+
+/// 画像サイズが閾値以上の場合、ダウンサンプリングを実行
+/// 戻り値: (処理用画像, スケール率のOption)
+fn downsample_if_needed(
+    img: &DynamicImage,
+    threshold: u32
+) -> (DynamicImage, Option<(f32, f32)>) {
+    let (width, height) = img.dimensions();
+    
+    if width < threshold && height < threshold {
+        // ダウンサンプリング不要
+        return (img.clone(), None);
+    }
+    
+    // ダウンサンプリング実行
+    let target_max = 1920;
+    let scale_factor = if width > height {
+        target_max as f32 / width as f32
+    } else {
+        target_max as f32 / height as f32
+    };
+    
+    let new_width = (width as f32 * scale_factor) as u32;
+    let new_height = (height as f32 * scale_factor) as u32;
+    
+    println!(
+        "[Downsample] {}x{} -> {}x{} (scale: {:.2})",
+        width, height, new_width, new_height, scale_factor
+    );
+    
+    let downsampled = img.resize(
+        new_width,
+        new_height,
+        image::imageops::FilterType::Lanczos3 // 高品質リサイズ
+    );
+    
+    let scale_back_x = width as f32 / new_width as f32;
+    let scale_back_y = height as f32 / new_height as f32;
+    
+    (downsampled, Some((scale_back_x, scale_back_y)))
+}
+
+/// エッジ座標を元のサイズにスケールバック
+fn scale_back_edges(
+    edges: &mut Vec<Vec<EdgePoint>>,
+    scale: Option<(f32, f32)>
+) {
+    if let Some((scale_x, scale_y)) = scale {
+        println!("[ScaleBack] Applying scale: x={:.2}, y={:.2}", scale_x, scale_y);
+        
+        for edge in edges.iter_mut() {
+            for point in edge.iter_mut() {
+                point.x = (point.x * scale_x).round();
+                point.y = (point.y * scale_y).round();
+            }
+        }
+    }
 }
 
 /// Sobelフィルタを適用してエッジを検出（並列化版）
@@ -250,9 +311,8 @@ pub async fn focus_peaking(
         unregister_cancel_flag(&unique_request_id);
         format!("Failed to load image: {}", e)
     })?;
-    let (width, height) = img.dimensions();
-    let gray_img = img.to_luma8();
-    println!("[Peaking] 画像読み込み: {:?}", load_start.elapsed());
+    let (original_width, original_height) = img.dimensions();
+    println!("[Peaking] 画像読み込み: {:?}, サイズ: {}x{}", load_start.elapsed(), original_width, original_height);
 
     // キャンセルチェック1
     if cancel_flag.load(Ordering::Relaxed) {
@@ -260,6 +320,15 @@ pub async fn focus_peaking(
         unregister_cancel_flag(&unique_request_id);
         return Err("Cancelled".to_string());
     }
+
+    // ダウンサンプリング（必要な場合）
+    let downsample_start = Instant::now();
+    let (processing_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
+    if scale.is_some() {
+        println!("[Peaking] ダウンサンプリング: {:?}", downsample_start.elapsed());
+    }
+    
+    let gray_img = processing_img.to_luma8();
 
     // Sobelフィルタ適用
     let sobel_start = Instant::now();
@@ -275,8 +344,11 @@ pub async fn focus_peaking(
 
     // エッジ座標抽出
     let extract_start = Instant::now();
-    let edges = extract_edge_points(&edge_img, threshold, cancel_flag.clone())?;
+    let mut edges = extract_edge_points(&edge_img, threshold, cancel_flag.clone())?;
     println!("[Peaking] エッジ抽出: {:?}", extract_start.elapsed());
+    
+    // 座標スケールバック（ダウンサンプリングした場合）
+    scale_back_edges(&mut edges, scale);
 
     // 総エッジポイント数を制限
     let total_points: usize = edges.iter().map(|e| e.len()).sum();
@@ -302,18 +374,18 @@ pub async fn focus_peaking(
     unregister_cancel_flag(&unique_request_id);
 
     println!(
-        "[Peaking] 処理完了: {} - 合計時間: {:?}, {}x{}, {} edge groups, {} total points",
+        "[Peaking] 処理完了: {} - 合計時間: {:?}, 元サイズ: {}x{}, {} edge groups, {} total points",
         unique_request_id,
         total_start.elapsed(),
-        width,
-        height,
+        original_width,
+        original_height,
         filtered_edges.len(),
         filtered_edges.iter().map(|e| e.len()).sum::<usize>()
     );
 
     Ok(PeakingResult {
-        width,
-        height,
+        width: original_width,
+        height: original_height,
         edges: filtered_edges,
     })
 }

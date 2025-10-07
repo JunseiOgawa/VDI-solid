@@ -30,6 +30,8 @@ const Titlebar: Component = () => {
     setPeakingColor,
     peakingOpacity,
     setPeakingOpacity,
+    peakingBlink,
+    setPeakingBlink,
   } = useAppState();
 
   const baseZoomButtonClasses =
@@ -213,6 +215,8 @@ const Titlebar: Component = () => {
               onPeakingColorChange={setPeakingColor}
               peakingOpacity={peakingOpacity()}
               onPeakingOpacityChange={setPeakingOpacity}
+              peakingBlink={peakingBlink()}
+              onPeakingBlinkChange={setPeakingBlink}
             />
           </div>
         )}

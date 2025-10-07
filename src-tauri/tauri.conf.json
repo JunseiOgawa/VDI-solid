@@ -17,6 +17,7 @@
         "title": "VDI-solid",
         "width": 800,
         "height": 600,
+        "visible": false,
         "minWidth": 400,
         "minHeight": 300,
         "transparent": true,

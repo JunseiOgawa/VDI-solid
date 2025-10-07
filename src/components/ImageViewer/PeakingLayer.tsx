@@ -17,6 +17,8 @@ interface PeakingLayerProps {
   color: string;
   /** 不透明度 (0.0-1.0) */
   opacity: number;
+  /** 点滅有効化 */
+  blink: boolean;
 }
 
 // キャッシュ（モジュールスコープ）
@@ -35,6 +37,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   const [peakingData, setPeakingData] = createSignal<PeakingResult | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [blinkVisible, setBlinkVisible] = createSignal(true);
   let abortController: AbortController | null = null;
 
   /**
@@ -118,6 +121,43 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
     }
   });
 
+  // 点滅エフェクト
+  createEffect(() => {
+    if (props.blink) {
+      // 点滅モード
+      console.log('[PeakingLayer] Blink mode activated');
+      
+      const timer = setInterval(() => {
+        setBlinkVisible(prev => {
+          const next = !prev;
+          console.log('[PeakingLayer] Blink toggle:', next);
+          return next;
+        });
+      }, 500);
+      
+      // クリーンアップ
+      onCleanup(() => {
+        console.log('[PeakingLayer] Clearing blink timer');
+        clearInterval(timer);
+      });
+    } else {
+      // 通常モード（常に表示）
+      setBlinkVisible(true);
+    }
+  });
+
+  // 不透明度計算
+  const finalOpacity = () => {
+    const baseOpacity = props.opacity;
+    
+    // 点滅モードで非表示状態の場合は0
+    if (props.blink && !blinkVisible()) {
+      return 0;
+    }
+    
+    return baseOpacity;
+  };
+
   return (
     <div
       style={{
@@ -188,7 +228,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
                 stroke-linejoin="round"
                 stroke-linecap="round"
                 fill="none"
-                opacity={props.opacity}
+                opacity={finalOpacity()}
                 style={{
                   'vector-effect': 'non-scaling-stroke', // 線幅をズームで変えない
                 }}

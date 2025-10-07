@@ -16,6 +16,8 @@ interface SettingsMenuProps {
   onPeakingColorChange: (color: string) => void;
   peakingOpacity: number;
   onPeakingOpacityChange: (opacity: number) => void;
+  peakingBlink: boolean;
+  onPeakingBlinkChange: (enabled: boolean) => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
@@ -231,6 +233,18 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
                 disabled={!props.peakingEnabled}
               />
             </div>
+
+            {/* 点滅設定 */}
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={props.peakingBlink}
+                onChange={(e) => props.onPeakingBlinkChange(e.currentTarget.checked)}
+                class="h-4 w-4 cursor-pointer"
+                disabled={!props.peakingEnabled}
+              />
+              <span>ピーキング点滅</span>
+            </label>
           </div>
         )}
 

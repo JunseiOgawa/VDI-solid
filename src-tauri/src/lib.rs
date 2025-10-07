@@ -2,7 +2,15 @@ use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
 mod img;
-mod peaking;
+
+/// ウィンドウを表示するコマンド
+///
+/// フロントエンドの初期化が完了した後に呼び出され、
+/// 非表示で起動していたウィンドウを表示します。
+#[tauri::command]
+fn show_window(window: tauri::Window) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())
+}
 
 /// OSのテーマ設定（ライト/ダークモード）を取得するコマンド
 ///
@@ -118,11 +126,11 @@ pub fn run() {
             img::get_next_image,
             img::get_previous_image,
             get_system_theme,
+            show_window,
             img::rotate_image,
             img::create_image_backup,
             img::restore_image_from_backup,
-            img::cleanup_image_backup,
-            peaking::focus_peaking
+            img::cleanup_image_backup
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更
