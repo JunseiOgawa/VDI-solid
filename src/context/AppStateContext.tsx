@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { convertFileToAssetUrlWithCacheBust } from '../lib/fileUtils';
 import { fetchNextImagePath, fetchPreviousImagePath } from '../lib/tauri';
 import { createThemeController, isThemeKey, type ThemeKey } from '../lib/theme';
+import { CONFIG } from '../config/config';
 
 // 画像回転のためのrust関数の呼び出しに使用するオプション
 interface SetImagePathOptions {
@@ -43,6 +44,10 @@ export interface AppState {
   gridPattern: () => GridPattern;
   /** グリッド表示パターンを設定 */
   setGridPattern: (pattern: GridPattern) => void;
+  /** グリッド線の不透明度を取得 (0.0-1.0) */
+  gridOpacity: () => number;
+  /** グリッド線の不透明度を設定 (0.0-1.0) */
+  setGridOpacity: (opacity: number) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -93,6 +98,8 @@ export const AppProvider: ParentComponent = (props) => {
   const [theme, setTheme] = createSignal<ThemeKey>('auto');
   /** グリッド表示パターンの状態管理（初期値: 'off'） */
   const [gridPattern, setGridPattern] = createSignal<GridPattern>('off');
+  /** グリッド線の不透明度（0.0-1.0、初期値は CONFIG から取得） */
+  const [gridOpacity, setGridOpacity] = createSignal<number>(CONFIG.grid.defaultOpacity);
 
   let rotationTimer: number | undefined;
   let pendingFlush = false;
@@ -288,6 +295,8 @@ export const AppProvider: ParentComponent = (props) => {
     loadPreviousImage,
     gridPattern,
     setGridPattern,
+    gridOpacity,
+    setGridOpacity,
   };
 
   return (

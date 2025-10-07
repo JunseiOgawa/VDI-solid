@@ -5,6 +5,8 @@ import type { GridPattern } from '../../context/AppStateContext';
 interface GridOverlayProps {
   /** グリッドパターン（'off' の場合は何も描画しない） */
   gridPattern: GridPattern;
+  /** グリッド線の不透明度 (0.0-1.0) */
+  gridOpacity: number;
 }
 
 /**
@@ -80,8 +82,8 @@ const GridOverlay: Component<GridOverlayProps> = (props) => {
     // 背景をクリア
     ctx.clearRect(0, 0, width, height);
 
-    // 線を描画
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    // 線を描画（不透明度は props から取得）
+    ctx.strokeStyle = `rgba(255, 255, 255, ${props.gridOpacity})`;
     ctx.lineWidth = 1;
     ctx.lineCap = 'square';
 
@@ -121,8 +123,9 @@ const GridOverlay: Component<GridOverlayProps> = (props) => {
   });
 
   createEffect(() => {
-    // グリッドパターンが変更されたら再描画
+    // グリッドパターンまたは不透明度が変更されたら再描画
     props.gridPattern;
+    props.gridOpacity;
     drawGrid();
   });
 

@@ -12,6 +12,11 @@ export interface AppConfig {
   rotation: {
     step: number;
   };
+  grid: {
+    defaultOpacity: number;
+    minOpacity: number;
+    maxOpacity: number;
+  };
 }
 
 export const CONFIG: AppConfig = {
@@ -25,5 +30,10 @@ export const CONFIG: AppConfig = {
   },
   rotation: {
     step: 90,
+  },
+  grid: {
+    defaultOpacity: 0.5,
+    minOpacity: 0.1,
+    maxOpacity: 1.0,
   },
 };

@@ -28,6 +28,7 @@ const ImageViewer: Component = () => {
     loadNextImage,
     loadPreviousImage,
     gridPattern, // グリッド表示パターンを取得
+    gridOpacity, // グリッド線の不透明度を取得
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -459,7 +460,7 @@ const ImageViewer: Component = () => {
               }}
             />
             {/* グリッドオーバーレイ: 画像と同じ領域に重ねて表示 */}
-            <GridOverlay gridPattern={gridPattern()} />
+            <GridOverlay gridPattern={gridPattern()} gridOpacity={gridOpacity()} />
           </div>
         </>
       ) : (
