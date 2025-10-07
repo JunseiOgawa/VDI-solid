@@ -76,18 +76,34 @@ export function countTotalEdgePoints(result: PeakingResult): number {
  * Rustのfocus_peakingコマンドを呼び出す
  * @param imagePath - 画像ファイルパス
  * @param threshold - エッジ検出閾値 (0-255)
+ * @param requestId - リクエストID（キャンセル管理用、オプション）
+ * @param signal - AbortSignal（キャンセル用、オプション）
  * @returns ピーキング結果
  * @throws エラーメッセージ（Rustから返却）
  */
 export async function invokeFocusPeaking(
   imagePath: string,
-  threshold: number
+  threshold: number,
+  requestId?: string,
+  signal?: AbortSignal
 ): Promise<PeakingResult> {
+  // 既にキャンセルされている場合
+  if (signal?.aborted) {
+    throw new Error('Request was aborted before execution');
+  }
+
   try {
     const result = await invoke<PeakingResult>('focus_peaking', {
       imagePath,
       threshold,
+      requestId: requestId || `${imagePath}:${threshold}`,
     });
+    
+    // 処理完了後にキャンセルされていた場合
+    if (signal?.aborted) {
+      throw new Error('Request was aborted after execution');
+    }
+    
     return result;
   } catch (error) {
     console.error('[PeakingUtils] Failed to invoke focus_peaking:', error);

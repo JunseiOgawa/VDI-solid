@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, createEffect, Show } from 'solid-js';
+import { createSignal, createEffect, Show, onCleanup } from 'solid-js';
 import {
   invokeFocusPeaking,
   edgeToPolylinePoints,
@@ -35,6 +35,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   const [peakingData, setPeakingData] = createSignal<PeakingResult | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  let abortController: AbortController | null = null;
 
   /**
    * キャッシュに追加（サイズ制限付き）
@@ -50,7 +51,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   };
 
   /**
-   * ピーキングデータの取得（キャッシュ対応）
+   * ピーキングデータの取得（キャッシュ対応 + AbortController）
    */
   createEffect(() => {
     const path = props.imagePath;
@@ -71,25 +72,50 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
       return;
     }
 
+    // 前回のリクエストをキャンセル
+    if (abortController) {
+      abortController.abort();
+      console.log('[PeakingLayer] 前回のリクエストをキャンセル');
+    }
+
+    // 新しいAbortControllerを作成
+    abortController = new AbortController();
+    const signal = abortController.signal;
+
     // Rust処理呼び出し
     setIsLoading(true);
     setError(null);
 
-    invokeFocusPeaking(path, intensity)
+    invokeFocusPeaking(path, intensity, cacheKey, signal)
       .then((result) => {
-        addToCache(cacheKey, result);
-        setPeakingData(result);
-        console.log(
-          `[PeakingLayer] Loaded ${countTotalEdgePoints(result)} edge points for ${cacheKey}`
-        );
+        // キャンセルされていなければ結果を設定
+        if (!signal.aborted) {
+          addToCache(cacheKey, result);
+          setPeakingData(result);
+          console.log(
+            `[PeakingLayer] Loaded ${countTotalEdgePoints(result)} edge points for ${cacheKey}`
+          );
+        }
       })
       .catch((err) => {
-        console.error('[PeakingLayer] Failed to load peaking data:', err);
-        setError(String(err));
+        if (signal.aborted) {
+          console.log('[PeakingLayer] リクエストがキャンセルされました');
+        } else {
+          console.error('[PeakingLayer] Failed to load peaking data:', err);
+          setError(String(err));
+        }
       })
       .finally(() => {
         setIsLoading(false);
       });
+  });
+
+  // クリーンアップ
+  onCleanup(() => {
+    if (abortController) {
+      abortController.abort();
+      console.log('[PeakingLayer] クリーンアップでキャンセル');
+    }
   });
 
   return (

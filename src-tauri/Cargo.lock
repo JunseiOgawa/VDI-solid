@@ -4488,6 +4488,8 @@ name = "vdi"
 version = "0.1.0"
 dependencies = [
  "image",
+ "lazy_static",
+ "rayon",
  "serde",
  "serde_json",
  "tauri",
