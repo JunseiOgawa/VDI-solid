@@ -17,8 +17,8 @@ Execute all prompts/requests according to the following procedures and rules.
 
 Always incorporate the following MCP instructions in every implementation, design, and review phase:
 
-- `#serena`
-- `#Context7`
+#serena
+#Context7
 
 - Check and cite the latest specifications for APIs, libraries, development environments, testing, etc., using Context7 MCP.
 - Delegate codebase structure analysis and change impact analysis of existing modules/functions to SerenaMCP.

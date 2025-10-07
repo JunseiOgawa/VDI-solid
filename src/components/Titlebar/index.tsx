@@ -11,7 +11,26 @@ const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
   /** グリッドメニューの表示状態を管理 */
   const [showGridMenu, setShowGridMenu] = createSignal(false);
-  const { zoomScale, setZoomScale, theme, setTheme, currentImagePath, enqueueRotation, gridPattern, setGridPattern, gridOpacity, setGridOpacity } = useAppState();
+  const { 
+    zoomScale, 
+    setZoomScale, 
+    theme, 
+    setTheme, 
+    currentImagePath, 
+    enqueueRotation, 
+    gridPattern, 
+    setGridPattern, 
+    gridOpacity, 
+    setGridOpacity,
+    peakingEnabled,
+    setPeakingEnabled,
+    peakingIntensity,
+    setPeakingIntensity,
+    peakingColor,
+    setPeakingColor,
+    peakingOpacity,
+    setPeakingOpacity,
+  } = useAppState();
 
   const baseZoomButtonClasses =
     'no-drag inline-flex h-7 items-center justify-center border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] shadow-[inset_0_1px_2px_var(--shadow)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]';
@@ -186,6 +205,14 @@ const Titlebar: Component = () => {
                 setShowSettings(false);
               }}
               currentImagePath={currentImagePath()}
+              peakingEnabled={peakingEnabled()}
+              onPeakingEnabledChange={setPeakingEnabled}
+              peakingIntensity={peakingIntensity()}
+              onPeakingIntensityChange={setPeakingIntensity}
+              peakingColor={peakingColor()}
+              onPeakingColorChange={setPeakingColor}
+              peakingOpacity={peakingOpacity()}
+              onPeakingOpacityChange={setPeakingOpacity}
             />
           </div>
         )}

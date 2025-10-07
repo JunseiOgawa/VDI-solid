@@ -10,7 +10,7 @@ import {
   isSupportedImageFile
 } from '../../lib/fileUtils';
 import { registerCalculateAndSetScreenFit, registerResetImagePosition } from '../../lib/imageViewerApi';
-import GridOverlay from './GridOverlay';
+import ImageManager from './ImageManager';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -27,8 +27,12 @@ const ImageViewer: Component = () => {
     rotation,
     loadNextImage,
     loadPreviousImage,
-    gridPattern, // グリッド表示パターンを取得
-    gridOpacity, // グリッド線の不透明度を取得
+    gridPattern,
+    gridOpacity,
+    peakingEnabled,
+    peakingIntensity,
+    peakingColor,
+    peakingOpacity,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -428,7 +432,7 @@ const ImageViewer: Component = () => {
       </button>
       {imageSrc() ? (
         <>
-          {/* 画像とグリッドをまとめるラッパー: transformを親要素で管理 */}
+          {/* 画像、ピーキング、グリッドを統合管理するImageManager */}
           <div
             style={{
               position: 'relative',
@@ -441,26 +445,22 @@ const ImageViewer: Component = () => {
             onWheel={handleWheelZoom}
             onMouseDown={handleMouseDown}
           >
-            {/* 画像本体 */}
-            <img
-              ref={(el: HTMLImageElement) => (imgEl = el)}
+            <ImageManager
               src={imageSrc()!}
-              alt="Displayed Image"
+              imagePath={currentImageFilePath()}
               onLoad={() => {
                 measureAll();
                 setPosition((prev) => clampToBounds(prev));
                 calculateAndSetScreenFit();
               }}
-              onDragStart={(e) => e.preventDefault()}
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                'object-fit': 'contain',
-              }}
+              imgRef={(el: HTMLImageElement) => (imgEl = el)}
+              gridPattern={gridPattern()}
+              gridOpacity={gridOpacity()}
+              peakingEnabled={peakingEnabled()}
+              peakingIntensity={peakingIntensity()}
+              peakingColor={peakingColor()}
+              peakingOpacity={peakingOpacity()}
             />
-            {/* グリッドオーバーレイ: 画像と同じ領域に重ねて表示 */}
-            <GridOverlay gridPattern={gridPattern()} gridOpacity={gridOpacity()} />
           </div>
         </>
       ) : (

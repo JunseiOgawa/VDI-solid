@@ -3,6 +3,7 @@ import { createContext, createSignal, onCleanup, onMount, useContext } from 'sol
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileToAssetUrlWithCacheBust } from '../lib/fileUtils';
 import { fetchNextImagePath, fetchPreviousImagePath } from '../lib/tauri';
+import { clampIntensity, clampOpacity } from '../lib/peakingUtils';
 import { createThemeController, isThemeKey, type ThemeKey } from '../lib/theme';
 import { CONFIG } from '../config/config';
 
@@ -48,6 +49,24 @@ export interface AppState {
   gridOpacity: () => number;
   /** グリッド線の不透明度を設定 (0.0-1.0) */
   setGridOpacity: (opacity: number) => void;
+  
+  // ピーキング関連
+  /** ピーキング機能の有効/無効 */
+  peakingEnabled: () => boolean;
+  /** ピーキング機能の有効/無効を設定 */
+  setPeakingEnabled: (enabled: boolean) => void;
+  /** エッジ検出閾値 (0-255) */
+  peakingIntensity: () => number;
+  /** エッジ検出閾値を設定 */
+  setPeakingIntensity: (intensity: number) => void;
+  /** ピーキング表示色 */
+  peakingColor: () => string;
+  /** ピーキング表示色を設定 */
+  setPeakingColor: (color: string) => void;
+  /** ピーキング不透明度 (0.0-1.0) */
+  peakingOpacity: () => number;
+  /** ピーキング不透明度を設定 */
+  setPeakingOpacity: (opacity: number) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -100,6 +119,20 @@ export const AppProvider: ParentComponent = (props) => {
   const [gridPattern, setGridPattern] = createSignal<GridPattern>('off');
   /** グリッド線の不透明度（0.0-1.0、初期値は CONFIG から取得） */
   const [gridOpacity, setGridOpacity] = createSignal<number>(CONFIG.grid.defaultOpacity);
+
+  // ピーキング関連Signal（新規追加）
+  const [peakingEnabled, setPeakingEnabled] = createSignal<boolean>(false);
+  const [peakingIntensity, _setPeakingIntensity] = createSignal<number>(60);
+  const [peakingColor, setPeakingColor] = createSignal<string>('lime');
+  const [peakingOpacity, _setPeakingOpacity] = createSignal<number>(0.5);
+
+  // バリデーション付きセッター
+  const setPeakingIntensity = (intensity: number) => {
+    _setPeakingIntensity(clampIntensity(intensity));
+  };
+  const setPeakingOpacity = (opacity: number) => {
+    _setPeakingOpacity(clampOpacity(opacity));
+  };
 
   let rotationTimer: number | undefined;
   let pendingFlush = false;
@@ -297,6 +330,14 @@ export const AppProvider: ParentComponent = (props) => {
     setGridPattern,
     gridOpacity,
     setGridOpacity,
+    peakingEnabled,
+    setPeakingEnabled,
+    peakingIntensity,
+    setPeakingIntensity,
+    peakingColor,
+    setPeakingColor,
+    peakingOpacity,
+    setPeakingOpacity,
   };
 
   return (
