@@ -171,27 +171,9 @@ const ImageViewer: Component = () => {
     // スケールが大きく変わるのでキャッシュをクリア
     clearBoundaryCache();
 
-    const naturalWidth = imgEl.naturalWidth || imgEl.width || 0;
-    const naturalHeight = imgEl.naturalHeight || imgEl.height || 0;
-    if (!naturalWidth || !naturalHeight) return null;
-
-    let container = containerSize();
-    if (!container.width || !container.height) {
-      updateContainerMetrics();
-      container = containerSize();
-    }
-    if (!container.width || !container.height) return null;
-
-    const normalizedRotation = ((rotation() % 360) + 360) % 360;
-    const quarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
-    const effectiveWidth = quarterTurn ? naturalHeight : naturalWidth;
-    const effectiveHeight = quarterTurn ? naturalWidth : naturalHeight;
-
-  const scaleX = container.width / effectiveWidth;
-  const scaleY = container.height / effectiveHeight;
-  let targetScale = Math.min(scaleX, scaleY);
-
-    targetScale = Math.min(CONFIG.zoom.maxScale, Math.max(CONFIG.zoom.minScale, targetScale));
+    // 画像要素は object-fit: contain により既にコンテナ内に収まるよう表示されるため、
+    // スクリーンフィット時は zoom = 1.0 に設定するだけで、画像全体が画面内に収まる
+    const targetScale = 1.0;
     const previousScale = zoomScale();
     const predictedDisplay = getDisplaySizeForScale(targetScale, previousScale);
 
