@@ -4,8 +4,10 @@ import type { Size } from './boundaryUtils';
 /**
  * 画像をコンテナ内にアスペクト比を保持して収めるための縮尺（スケール）を計算します。
  *
- * イメージとコンテナのアスペクト比を比較し、画像が横長の場合は横幅基準（container.width / image.width）で、
- * そうでない場合は縦幅基準（container.height / image.height）でスケールを算出します。
+ * イメージとコンテナのアスペクト比を比較し、画像のアスペクト比がコンテナより大きい（コンテナに対して横長）場合は
+ * 横幅基準（container.width / image.width）で、小さい（コンテナに対して縦長）場合は
+ * 縦幅基準（container.height / image.height）でスケールを算出します。
+ * これにより画像全体がコンテナ内に収まります。
  * いずれかの幅または高さが 0 または falsy（未定義など）の場合は null を返します。
  *
  * @param imageSize - { width, height } を持つ画像サイズ
@@ -31,6 +33,6 @@ export function computeFitScale(imageSize: Size, containerSize: Size): number | 
   const imageAspect = iw / ih;
   const containerAspect = cw / ch;
 
-  // 横長なら横幅基準、縦長なら縦幅基準でスケールを算出
+  // コンテナに対して画像が横長なら横幅基準、縦長なら縦幅基準でスケールを算出
   return imageAspect > containerAspect ? (cw / iw) : (ch / ih);
 }
