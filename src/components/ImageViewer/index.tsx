@@ -486,9 +486,36 @@ const ImageViewer: Component = () => {
           {/* 画像、ピーキング、グリッドを統合管理するImageManager */}
           <div
             style={{
-              position: 'relative',
-              transform: `translate(${position().x}px, ${position().y}px) scale(${zoomScale()}) rotate(${rotation()}deg)`,
-              'transform-origin': 'center',
+              // フレックス中央寄せの影響を受けないよう、絶対配置でコンテナ左上を原点にする
+              position: 'absolute',
+              left: '0px',
+              top: '0px',
+              transform: (() => {
+                const container = containerSize();
+                const display = displaySize();
+                const scale = zoomScale();
+                
+                // displaySizeが取得できない場合はnaturalSizeを使用
+                let effectiveWidth = 0;
+                let effectiveHeight = 0;
+                
+                if (display) {
+                  effectiveWidth = display.width;
+                  effectiveHeight = display.height;
+                } else if (imgEl) {
+                  const natural = naturalSize();
+                  effectiveWidth = natural.width * scale;
+                  effectiveHeight = natural.height * scale;
+                }
+                
+                // transform-origin: 0 0 を基準に中心配置を計算
+                // コンテナ中心 + ユーザー移動量 - (表示サイズ / 2)
+                const centerX = container.width / 2 + position().x - effectiveWidth / 2;
+                const centerY = container.height / 2 + position().y - effectiveHeight / 2;
+                
+                return `translate(${centerX}px, ${centerY}px) scale(${scale}) rotate(${rotation()}deg)`;
+              })(),
+              'transform-origin': '0 0',
               'max-width': '100%',
               'max-height': '100%',
               cursor: isDragging() ? 'grabbing' : 'grab',
