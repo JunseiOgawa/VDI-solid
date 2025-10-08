@@ -49,6 +49,22 @@ const ImageViewer: Component = () => {
   let imgEl: HTMLImageElement | undefined;
   let resizeObserver: ResizeObserver | undefined;
 
+  // 境界計算キャッシュ用変数
+  let cachedBoundary: ReturnType<typeof useBoundaryConstraint> | null = null;
+  let lastScale = 0;
+  let lastRotation = 0;
+  let lastContainerWidth = 0;
+  let lastContainerHeight = 0;
+
+  // キャッシュクリア関数
+  const clearBoundaryCache = () => {
+    cachedBoundary = null;
+    lastScale = 0;
+    lastRotation = 0;
+    lastContainerWidth = 0;
+    lastContainerHeight = 0;
+  };
+
   const naturalSize = () => {
     if (!imgEl) return { width: 0, height: 0 };
     return {
@@ -113,20 +129,47 @@ const ImageViewer: Component = () => {
     if (!display || display.width === 0 || display.height === 0) {
       return { x: 0, y: 0 };
     }
-    const { clampPosition: applyClamp } = useBoundaryConstraint({
-      containerSize: container,
-      imageSize: natural,
-      displaySize: display,
-      scale,
-      maxTravelFactor: scale < 1.0 ? 2 : 1
-    });
 
-    return applyClamp(candidate);
+    // 境界計算のキャッシュ最適化
+    const currentRotation = rotation();
+    const needsRecalculation = 
+      cachedBoundary === null ||
+      lastScale !== scale ||
+      lastRotation !== currentRotation ||
+      lastContainerWidth !== container.width ||
+      lastContainerHeight !== container.height;
+
+    if (needsRecalculation) {
+      // 境界計算を実行してキャッシュ
+      cachedBoundary = useBoundaryConstraint({
+        containerSize: container,
+        imageSize: natural,
+        displaySize: display,
+        scale,
+        maxTravelFactor: scale < 1.0 ? 2 : 1
+      });
+      
+      // キャッシュキーを更新
+      lastScale = scale;
+      lastRotation = currentRotation;
+      lastContainerWidth = container.width;
+      lastContainerHeight = container.height;
+    }
+
+    // キャッシュが存在することを保証
+    if (!cachedBoundary) {
+      return candidate;
+    }
+
+    return cachedBoundary.clampPosition(candidate);
   };
 
   // スクリーンフィットの算出と適用を行う関数
   const calculateAndSetScreenFit = () => {
     if (!imgEl) return null;
+
+    // スケールが大きく変わるのでキャッシュをクリア
+    clearBoundaryCache();
 
     const naturalWidth = imgEl.naturalWidth || imgEl.width || 0;
     const naturalHeight = imgEl.naturalHeight || imgEl.height || 0;
@@ -171,6 +214,9 @@ const ImageViewer: Component = () => {
 
   // 画像位置と計測データをリセットする関数（コンポーネントスコープに切り出し）
   const resetImagePosition = () => {
+    // リセット時にキャッシュをクリア
+    clearBoundaryCache();
+    
     setPosition({ x: 0, y: 0 });
     setDisplaySize(null);
     setBaseSize(null);
@@ -366,6 +412,10 @@ const ImageViewer: Component = () => {
     setPosition({ x: 0, y: 0 });
     setDisplaySize(null);
     setBaseSize(null);
+    
+    // 画像変更時にキャッシュをクリア
+    clearBoundaryCache();
+    
     if (path) {
       setImageSrc(path);
     } else {
