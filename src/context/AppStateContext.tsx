@@ -322,7 +322,7 @@ export const AppProvider: ParentComponent = (props) => {
       }
     }
     
-    setCurrentImagePath('public/sen19201080.png', { filePath: null });
+    setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
   onCleanup(() => {

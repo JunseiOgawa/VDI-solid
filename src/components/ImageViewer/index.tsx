@@ -95,6 +95,13 @@ const ImageViewer: Component = () => {
   };
 
   const getDisplaySizeForScale = (scale: number, referenceScale?: number) => {
+    // 常にnaturalSizeを基準に計算（baseSizeは不正確な場合があるため）
+    const natural = naturalSize();
+    if (natural.width > 0 && natural.height > 0) {
+      return { width: natural.width * scale, height: natural.height * scale };
+    }
+
+    // フォールバック: naturalSizeが取得できない場合のみbaseSizeやdisplaySizeを使用
     const base = baseSize();
     if (base) {
       return { width: base.width * scale, height: base.height * scale };
@@ -109,8 +116,7 @@ const ImageViewer: Component = () => {
       return currentDisplay;
     }
 
-    const natural = naturalSize();
-    return { width: natural.width * scale, height: natural.height * scale };
+    return { width: 0, height: 0 };
   };
 
   const clampToBounds = (
@@ -191,9 +197,22 @@ const ImageViewer: Component = () => {
   const scaleY = container.height / effectiveHeight;
   let targetScale = Math.min(scaleX, scaleY);
 
+    console.log('[ScreenFit DEBUG] Container:', container);
+    console.log('[ScreenFit DEBUG] Natural size:', { width: naturalWidth, height: naturalHeight });
+    console.log('[ScreenFit DEBUG] Effective size:', { width: effectiveWidth, height: effectiveHeight });
+    console.log('[ScreenFit DEBUG] scaleX:', scaleX, 'scaleY:', scaleY);
+    console.log('[ScreenFit DEBUG] targetScale (before clamp):', targetScale);
+
     targetScale = Math.min(CONFIG.zoom.maxScale, Math.max(CONFIG.zoom.minScale, targetScale));
+
+    console.log('[ScreenFit DEBUG] targetScale (after clamp):', targetScale);
+    console.log('[ScreenFit DEBUG] minScale:', CONFIG.zoom.minScale, 'maxScale:', CONFIG.zoom.maxScale);
     const previousScale = zoomScale();
+    console.log('[ScreenFit DEBUG] previousScale:', previousScale);
+    console.log('[ScreenFit DEBUG] baseSize:', baseSize());
+    console.log('[ScreenFit DEBUG] displaySize (before):', displaySize());
     const predictedDisplay = getDisplaySizeForScale(targetScale, previousScale);
+    console.log('[ScreenFit DEBUG] predictedDisplay:', predictedDisplay);
 
     setZoomScale(targetScale);
     setDisplaySize(predictedDisplay);
@@ -494,11 +513,11 @@ const ImageViewer: Component = () => {
                 const container = containerSize();
                 const display = displaySize();
                 const scale = zoomScale();
-                
+
                 // displaySizeが取得できない場合はnaturalSizeを使用
                 let effectiveWidth = 0;
                 let effectiveHeight = 0;
-                
+
                 if (display) {
                   effectiveWidth = display.width;
                   effectiveHeight = display.height;
@@ -507,12 +526,12 @@ const ImageViewer: Component = () => {
                   effectiveWidth = natural.width * scale;
                   effectiveHeight = natural.height * scale;
                 }
-                
+
                 // transform-origin: 0 0 を基準に中心配置を計算
                 // コンテナ中心 + ユーザー移動量 - (表示サイズ / 2)
                 const centerX = container.width / 2 + position().x - effectiveWidth / 2;
                 const centerY = container.height / 2 + position().y - effectiveHeight / 2;
-                
+
                 return `translate(${centerX}px, ${centerY}px) scale(${scale}) rotate(${rotation()}deg)`;
               })(),
               'transform-origin': '0 0',
