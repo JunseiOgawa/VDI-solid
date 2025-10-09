@@ -511,28 +511,51 @@ const ImageViewer: Component = () => {
               top: '0px',
               transform: (() => {
                 const container = containerSize();
-                const display = displaySize();
                 const scale = zoomScale();
+                const currentRotation = rotation();
+                const display = displaySize();
+                const natural = naturalSize();
+                const positionValue = position();
 
-                // displaySizeが取得できない場合はnaturalSizeを使用
-                let effectiveWidth = 0;
-                let effectiveHeight = 0;
+                const safeScale = scale === 0 ? 1 : scale;
 
-                if (display) {
-                  effectiveWidth = display.width;
-                  effectiveHeight = display.height;
-                } else if (imgEl) {
-                  const natural = naturalSize();
-                  effectiveWidth = natural.width * scale;
-                  effectiveHeight = natural.height * scale;
+                // 現在の表示サイズ（スケール適用後）を取得
+                let displayWidth = display?.width ?? 0;
+                let displayHeight = display?.height ?? 0;
+
+                if (displayWidth === 0 || displayHeight === 0) {
+                  displayWidth = natural.width * safeScale;
+                  displayHeight = natural.height * safeScale;
                 }
 
-                // transform-origin: 0 0 を基準に中心配置を計算
-                // コンテナ中心 + ユーザー移動量 - (表示サイズ / 2)
-                const centerX = container.width / 2 + position().x - effectiveWidth / 2;
-                const centerY = container.height / 2 + position().y - effectiveHeight / 2;
+                // 元の画像サイズ（スケール前）を算出
+                let baseWidth = displayWidth / safeScale;
+                let baseHeight = displayHeight / safeScale;
 
-                return `translate(${centerX}px, ${centerY}px) scale(${scale}) rotate(${rotation()}deg)`;
+                if (!isFinite(baseWidth) || baseWidth === 0 || !isFinite(baseHeight) || baseHeight === 0) {
+                  baseWidth = natural.width;
+                  baseHeight = natural.height;
+                }
+
+                const centerX = container.width / 2 + positionValue.x;
+                const centerY = container.height / 2 + positionValue.y;
+
+                const transformString = `translate(${centerX}px, ${centerY}px) rotate(${currentRotation}deg) scale(${scale}) translate(${-baseWidth / 2}px, ${-baseHeight / 2}px)`;
+
+                // デバッグ用ログ
+                console.log('[Transform Debug] ================');
+                console.log('[Transform] Container size:', container);
+                console.log('[Transform] Display size:', { width: displayWidth, height: displayHeight });
+                console.log('[Transform] Natural size:', natural);
+                console.log('[Transform] Base size (pre-scale):', { width: baseWidth, height: baseHeight });
+                console.log('[Transform] Scale:', scale);
+                console.log('[Transform] Rotation:', currentRotation);
+                console.log('[Transform] Position:', positionValue);
+                console.log('[Transform] Center translation:', { x: centerX, y: centerY });
+                console.log('[Transform] Final transform:', transformString);
+                console.log('[Transform Debug] ================');
+
+                return transformString;
               })(),
               'transform-origin': '0 0',
               'max-width': '100%',

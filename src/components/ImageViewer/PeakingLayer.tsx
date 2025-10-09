@@ -75,6 +75,9 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
       return;
     }
 
+    // キャッシュミス時は古いデータをクリア
+    setPeakingData(null);
+
     // 前回のリクエストをキャンセル
     if (abortController) {
       abortController.abort();

@@ -19,10 +19,6 @@
         "-y",
         "@upstash/context7-mcp@latest"
       ]
-    },
-    "chrome-devtools": {
-      "command": "npx",
-      "args": ["chrome-devtools-mcp@latest"]
     }
   }
 }

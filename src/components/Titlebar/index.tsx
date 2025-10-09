@@ -69,12 +69,22 @@ const Titlebar: Component = () => {
 
   /** グリッドメニューの開閉を切り替え */
   const toggleGridMenu = () => {
-    setShowGridMenu(!showGridMenu());
+    const newState = !showGridMenu();
+    setShowGridMenu(newState);
+    // グリッドメニューを開く時、ピーキングメニューを閉じる
+    if (newState) {
+      setShowPeakingMenu(false);
+    }
   };
 
   /** フォーカスピーキングメニューの開閉を切り替え */
   const togglePeakingMenu = () => {
-    setShowPeakingMenu(!showPeakingMenu());
+    const newState = !showPeakingMenu();
+    setShowPeakingMenu(newState);
+    // ピーキングメニューを開く時、グリッドメニューを閉じる
+    if (newState) {
+      setShowGridMenu(false);
+    }
   };
 
   // メニュー外クリックで全メニューを閉じる処理
