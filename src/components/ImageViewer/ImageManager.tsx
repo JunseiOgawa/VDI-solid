@@ -44,27 +44,78 @@ interface ImageManagerProps {
  * (将来: レイヤー4, 5が来ても問題なく冗長化)
  */
 const ImageManager: Component<ImageManagerProps> = (props) => {
+  let wrapperRef: HTMLDivElement | undefined;
+  let imgRef: HTMLImageElement | undefined;
+
+  const handleImgRef = (el: HTMLImageElement) => {
+    imgRef = el;
+    if (props.imgRef) {
+      props.imgRef(el);
+    }
+  };
+
+  const handleLoad = () => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[ImageManager] 画像読み込み完了');
+
+    if (imgRef) {
+      const rect = imgRef.getBoundingClientRect();
+      console.log('[ImageManager] img.naturalWidth:', imgRef.naturalWidth);
+      console.log('[ImageManager] img.naturalHeight:', imgRef.naturalHeight);
+      console.log('[ImageManager] img.width:', imgRef.width);
+      console.log('[ImageManager] img.height:', imgRef.height);
+      console.log('[ImageManager] img.clientWidth:', imgRef.clientWidth);
+      console.log('[ImageManager] img.clientHeight:', imgRef.clientHeight);
+      console.log('[ImageManager] img.getBoundingClientRect():', {
+        width: rect.width,
+        height: rect.height
+      });
+      const computedStyle = getComputedStyle(imgRef);
+      console.log('[ImageManager] img computed style:', {
+        width: computedStyle.width,
+        height: computedStyle.height,
+        display: computedStyle.display,
+        objectFit: computedStyle.objectFit
+      });
+    }
+
+    if (wrapperRef) {
+      const wrapperRect = wrapperRef.getBoundingClientRect();
+      console.log('[ImageManager] wrapper.clientWidth:', wrapperRef.clientWidth);
+      console.log('[ImageManager] wrapper.clientHeight:', wrapperRef.clientHeight);
+      console.log('[ImageManager] wrapper.getBoundingClientRect():', {
+        width: wrapperRect.width,
+        height: wrapperRect.height
+      });
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    if (props.onLoad) {
+      props.onLoad();
+    }
+  };
+
   return (
     <div
+      ref={(el) => (wrapperRef = el)}
       style={{
         position: 'relative',
-        display: 'block',
-        width: '100%',
-        height: '100%',
+        display: 'inline-block',
       }}
     >
       {/* Layer 1: 基礎画像 */}
       <img
-        ref={props.imgRef}
+        ref={handleImgRef}
         src={props.src}
         alt="Displayed Image"
-        onLoad={props.onLoad}
+        onLoad={handleLoad}
         onDragStart={(e) => e.preventDefault()}
         style={{
           display: 'block',
-          width: '100%',
-          height: '100%',
-          'object-fit': 'contain',
+          width: 'auto',
+          height: 'auto',
+          'max-width': 'none',
+          'max-height': 'none',
         }}
       />
 
