@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, For, onCleanup } from 'solid-js';
+import { createSignal, For } from 'solid-js';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { AVAILABLE_THEMES, type ThemeKey } from '../../lib/theme';
 
@@ -7,49 +7,10 @@ interface SettingsMenuProps {
   theme: ThemeKey;
   onThemeChange: (theme: ThemeKey) => void;
   currentImagePath?: string;
-  // ピーキング設定
-  peakingEnabled: boolean;
-  onPeakingEnabledChange: (enabled: boolean) => void;
-  peakingIntensity: number;
-  onPeakingIntensityChange: (intensity: number) => void;
-  peakingColor: string;
-  onPeakingColorChange: (color: string) => void;
-  peakingOpacity: number;
-  onPeakingOpacityChange: (opacity: number) => void;
-  peakingBlink: boolean;
-  onPeakingBlinkChange: (enabled: boolean) => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const [showThemeSubmenu, setShowThemeSubmenu] = createSignal(false);
-  const [showPeakingSubmenu, setShowPeakingSubmenu] = createSignal(false);
-
-  // Debounceユーティリティ関数
-  function createDebounce<T extends (...args: any[]) => void>(
-    fn: T,
-    delay: number
-  ): [(...args: Parameters<T>) => void, () => void] {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    
-    const debouncedFn = (...args: Parameters<T>) => {
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => {
-        fn(...args);
-        timeoutId = undefined;
-      }, delay);
-    };
-    
-    const cleanup = () => {
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-        timeoutId = undefined;
-      }
-    };
-    
-    return [debouncedFn, cleanup];
-  }
 
   const handleRevealInExplorer = async () => {
     if (props.currentImagePath) {
@@ -64,46 +25,6 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const toggleThemeSubmenu = () => {
     setShowThemeSubmenu(!showThemeSubmenu());
   };
-
-  const togglePeakingSubmenu = () => {
-    setShowPeakingSubmenu(!showPeakingSubmenu());
-  };
-
-  // 一時表示用Signal
-  const [tempIntensity, setTempIntensity] = createSignal(props.peakingIntensity);
-  const [tempOpacity, setTempOpacity] = createSignal(props.peakingOpacity);
-
-  // Debounced関数の作成
-  const [debouncedIntensityChange, cleanupIntensity] = createDebounce(
-    (value: number) => {
-      console.log(`[Debounce] Intensity changed to ${value}`);
-      props.onPeakingIntensityChange(value);
-    },
-    500
-  );
-
-  const [debouncedOpacityChange, cleanupOpacity] = createDebounce(
-    (value: number) => {
-      console.log(`[Debounce] Opacity changed to ${value}`);
-      props.onPeakingOpacityChange(value);
-    },
-    500
-  );
-
-  // クリーンアップ
-  onCleanup(() => {
-    cleanupIntensity();
-    cleanupOpacity();
-  });
-
-  // 色プリセット
-  const colorPresets = [
-    { name: 'ライム', value: 'lime' },
-    { name: 'レッド', value: 'red' },
-    { name: 'シアン', value: 'cyan' },
-    { name: 'イエロー', value: 'yellow' },
-    { name: 'マゼンタ', value: 'magenta' },
-  ];
 
   return (
     <div class="min-w-[160px] rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-1 text-sm text-[var(--text-secondary)] shadow-[0_4px_12px_var(--shadow)] transition-colors duration-150">
@@ -140,111 +61,6 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
                 </button>
               )}
             </For>
-          </div>
-        )}
-
-        <hr class="my-1 border-t border-[var(--border-primary)]" />
-
-        {/* フォーカスピーキング設定 */}
-        <button
-          class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-          onClick={togglePeakingSubmenu}
-        >
-          <span>フォーカスピーキング</span>
-          <span class="text-xs text-[var(--text-muted)]">{showPeakingSubmenu() ? '▾' : '▸'}</span>
-        </button>
-
-        {/* サブメニュー: ピーキング設定 */}
-        {showPeakingSubmenu() && (
-          <div class="ml-3 mt-1 space-y-3 px-3 py-2">
-            {/* ON/OFF */}
-            <label class="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={props.peakingEnabled}
-                onChange={(e) => props.onPeakingEnabledChange(e.currentTarget.checked)}
-                class="h-4 w-4 cursor-pointer"
-              />
-              <span>有効化</span>
-            </label>
-
-            {/* 強度スライダー */}
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs">
-                <span>強度</span>
-                <span class="text-[var(--text-muted)]">{tempIntensity()}</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                step="5"
-                value={tempIntensity()}
-                onInput={(e) => {
-                  const value = Number(e.currentTarget.value);
-                  setTempIntensity(value);
-                  debouncedIntensityChange(value);
-                }}
-                class="w-full"
-                disabled={!props.peakingEnabled}
-              />
-            </div>
-
-            {/* 色選択 */}
-            <div class="space-y-1">
-              <span class="text-xs">色</span>
-              <div class="flex gap-2">
-                <For each={colorPresets}>
-                  {(preset) => (
-                    <button
-                      type="button"
-                      class="h-6 w-6 rounded border-2 transition-all"
-                      style={{
-                        'background-color': preset.value,
-                        'border-color': props.peakingColor === preset.value ? 'var(--text-primary)' : 'transparent',
-                      }}
-                      title={preset.name}
-                      onClick={() => props.onPeakingColorChange(preset.value)}
-                      disabled={!props.peakingEnabled}
-                    />
-                  )}
-                </For>
-              </div>
-            </div>
-
-            {/* 不透明度スライダー */}
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs">
-                <span>不透明度</span>
-                <span class="text-[var(--text-muted)]">{(tempOpacity() * 100).toFixed(0)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={tempOpacity()}
-                onInput={(e) => {
-                  const value = Number(e.currentTarget.value);
-                  setTempOpacity(value);
-                  debouncedOpacityChange(value);
-                }}
-                class="w-full"
-                disabled={!props.peakingEnabled}
-              />
-            </div>
-
-            {/* 点滅設定 */}
-            <label class="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={props.peakingBlink}
-                onChange={(e) => props.onPeakingBlinkChange(e.currentTarget.checked)}
-                class="h-4 w-4 cursor-pointer"
-                disabled={!props.peakingEnabled}
-              />
-              <span>ピーキング点滅</span>
-            </label>
           </div>
         )}
 

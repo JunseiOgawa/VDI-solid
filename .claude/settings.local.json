@@ -12,7 +12,9 @@
       "mcp__serena__list_memories",
       "mcp__serena__read_memory",
       "mcp__serena__find_file",
-      "mcp__serena__find_referencing_symbols"
+      "mcp__serena__find_referencing_symbols",
+      "Bash(cat:*)",
+      "Bash(npm run build:vite:*)"
     ],
     "deny": [],
     "ask": []

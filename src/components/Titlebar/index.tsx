@@ -1,9 +1,10 @@
 import type { Component } from 'solid-js';
-import { createSignal } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAppState } from '../../context/AppStateContext';
 import SettingsMenu from '../SettingsMenu';
 import GridMenu from '../ImageViewer/GridMenu';
+import PeakingMenu from '../ImageViewer/PeakingMenu';
 import { handleScreenFit } from './screenfit';
 import { callResetImagePosition } from '../../lib/imageViewerApi';
 
@@ -11,16 +12,19 @@ const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
   /** グリッドメニューの表示状態を管理 */
   const [showGridMenu, setShowGridMenu] = createSignal(false);
-  const { 
-    zoomScale, 
-    setZoomScale, 
-    theme, 
-    setTheme, 
-    currentImagePath, 
-    enqueueRotation, 
-    gridPattern, 
-    setGridPattern, 
-    gridOpacity, 
+  /** フォーカスピーキングメニューの表示状態を管理 */
+  const [showPeakingMenu, setShowPeakingMenu] = createSignal(false);
+
+  const {
+    zoomScale,
+    setZoomScale,
+    theme,
+    setTheme,
+    currentImagePath,
+    enqueueRotation,
+    gridPattern,
+    setGridPattern,
+    gridOpacity,
     setGridOpacity,
     peakingEnabled,
     setPeakingEnabled,
@@ -68,13 +72,45 @@ const Titlebar: Component = () => {
     setShowGridMenu(!showGridMenu());
   };
 
+  /** フォーカスピーキングメニューの開閉を切り替え */
+  const togglePeakingMenu = () => {
+    setShowPeakingMenu(!showPeakingMenu());
+  };
+
+  // メニュー外クリックで全メニューを閉じる処理
+  onMount(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      // メニューボタンまたはメニュー内のクリックは無視
+      if (
+        target.closest('#gridBtn') ||
+        target.closest('#peakingBtn') ||
+        target.closest('[data-menu="grid"]') ||
+        target.closest('[data-menu="peaking"]')
+      ) {
+        return;
+      }
+
+      // メニュー外のクリックは全メニューを閉じる
+      setShowGridMenu(false);
+      setShowPeakingMenu(false);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+
+    onCleanup(() => {
+      document.removeEventListener('click', handleClickOutside);
+    });
+  });
+
   return (
     <div class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300" data-tauri-drag-region>
       {/* 左側: ズームボタン群 */}
       <div class="no-drag flex items-center gap-1">
 
         {/*ズームアウトボタン*/}
-        
+
         <button
           id="zoomOutBtn"
           class={`${baseZoomButtonClasses} rounded-l-lg`}
@@ -139,7 +175,7 @@ const Titlebar: Component = () => {
         </button>
 
         {/*回転ボタン*/}
-        
+
         <button
           id="rotateBtn"
           class="no-drag ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
@@ -150,7 +186,7 @@ const Titlebar: Component = () => {
         </button>
 
         {/*グリッドボタン: グリッド表示メニューを開閉*/}
-        
+
         <button
           id="gridBtn"
           class="no-drag relative ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
@@ -169,7 +205,7 @@ const Titlebar: Component = () => {
 
         {/* グリッドメニュー - 設定メニューと同様にドロップダウン表示 */}
         {showGridMenu() && (
-          <div class="no-drag absolute left-0 top-full z-50 mt-1">
+          <div class="no-drag absolute left-0 top-full z-50 mt-1" data-menu="grid">
             <GridMenu
               currentPattern={gridPattern()}
               onPatternChange={(pattern) => {
@@ -180,6 +216,39 @@ const Titlebar: Component = () => {
               onOpacityChange={(opacity) => {
                 setGridOpacity(opacity);
               }}
+            />
+          </div>
+        )}
+
+        {/*フォーカスピーキングボタン: フォーカスピーキング設定メニューを開閉*/}
+
+        <button
+          id="peakingBtn"
+          class="no-drag relative ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+          classList={{
+            'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]': peakingEnabled(),
+          }}
+          onClick={togglePeakingMenu}
+          aria-label="フォーカスピーキング"
+          title="フォーカスピーキング"
+        >
+          <img class="h-4 w-4" src="/focus_ca_h.svg" alt="フォーカスピーキング" />
+        </button>
+
+        {/* フォーカスピーキングメニュー - グリッドメニューと同様にドロップダウン表示 */}
+        {showPeakingMenu() && (
+          <div class="no-drag absolute left-0 top-full z-50 mt-1" data-menu="peaking">
+            <PeakingMenu
+              peakingEnabled={peakingEnabled()}
+              onPeakingEnabledChange={setPeakingEnabled}
+              peakingIntensity={peakingIntensity()}
+              onPeakingIntensityChange={setPeakingIntensity}
+              peakingColor={peakingColor()}
+              onPeakingColorChange={setPeakingColor}
+              peakingOpacity={peakingOpacity()}
+              onPeakingOpacityChange={setPeakingOpacity}
+              peakingBlink={peakingBlink()}
+              onPeakingBlinkChange={setPeakingBlink}
             />
           </div>
         )}
@@ -207,16 +276,6 @@ const Titlebar: Component = () => {
                 setShowSettings(false);
               }}
               currentImagePath={currentImagePath()}
-              peakingEnabled={peakingEnabled()}
-              onPeakingEnabledChange={setPeakingEnabled}
-              peakingIntensity={peakingIntensity()}
-              onPeakingIntensityChange={setPeakingIntensity}
-              peakingColor={peakingColor()}
-              onPeakingColorChange={setPeakingColor}
-              peakingOpacity={peakingOpacity()}
-              onPeakingOpacityChange={setPeakingOpacity}
-              peakingBlink={peakingBlink()}
-              onPeakingBlinkChange={setPeakingBlink}
             />
           </div>
         )}
