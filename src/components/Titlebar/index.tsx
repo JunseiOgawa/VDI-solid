@@ -118,8 +118,8 @@ const Titlebar: Component = () => {
 
   return (
     <div class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300" data-tauri-drag-region>
-      {/* 左側: ズームボタン群 */}
-      <div class="no-drag flex items-center gap-1">
+      {/* 左側: ズームボタン群 　わざとgap-0*/}
+      <div class="no-drag flex items-center gap-0">
 
         {/*ズームアウトボタン*/}
 
@@ -244,7 +244,7 @@ const Titlebar: Component = () => {
           aria-label="フォーカスピーキング"
           title="フォーカスピーキング"
         >
-          <img class="h-4 w-4" src="/focus_ca_h.svg" alt="フォーカスピーキング" />
+          <img class="h-4 w-4" src="public\peaking_focus.svg" alt="フォーカスピーキング" />
         </button>
 
         {/* フォーカスピーキングメニュー - グリッドメニューと同様にドロップダウン表示 */}

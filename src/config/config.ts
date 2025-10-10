@@ -28,8 +28,8 @@ export const CONFIG: AppConfig = {
     maxScale: 10,
     step: 0.1,
     wheelSensitivity: 1.0,
-    minWheelSensitivity: 0.1,
-    maxWheelSensitivity: 5.0,
+    minWheelSensitivity: 0.05,
+    maxWheelSensitivity: 2.0,
   },
   ui: {
     headerFooterHeight: 120,

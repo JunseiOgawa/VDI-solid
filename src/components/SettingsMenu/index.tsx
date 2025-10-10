@@ -84,13 +84,13 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               type="range"
               min={CONFIG.zoom.minWheelSensitivity}
               max={CONFIG.zoom.maxWheelSensitivity}
-              step="0.1"
+              step="0.01"
               value={props.wheelSensitivity}
               onInput={handleWheelSensitivityChange}
               class="w-full cursor-pointer accent-[var(--accent-primary)]"
             />
             <span class="text-xs text-[var(--text-muted)]">
-              VRコントローラー使用時は低めに設定
+              VRコントローラー使用時は低めに設定推奨
             </span>
           </label>
         </div>
