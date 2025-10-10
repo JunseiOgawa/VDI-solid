@@ -1514,3 +1514,357 @@ createEffect(() => {
 - `src/components/SettingsMenu/index.tsx`
 - `src/components/ImageViewer/ImageManager.tsx`
 - `src-tauri/src/lib.rs`
+
+---
+
+# フォーカスピーキング・グリッド線・ヒストグラム機能のMultiMenu統合
+
+## 概要
+
+現在独立して配置されているフォーカスピーキングボタン、グリッドボタン、および設定メニュー内のヒストグラム機能を、1つのMultiMenuボタンに統合します。セグメントコントロール型のUIを採用し、UIUX重視の設計で実装します。
+
+## 背景
+
+### 現在の実装状況
+
+- **グリッド機能**: Titlebarにグリッドボタンが存在し、クリックでGridMenuプルダウンが表示
+- **フォーカスピーキング機能**: Titlebarにピーキングボタンが存在し、クリックでPeakingMenuプルダウンが表示
+- **ヒストグラム機能**: SettingsMenuの中に設定項目が存在
+
+### 問題点
+
+- ボタンが増えすぎてTitlebarが煩雑になっている
+- 関連する機能（画像解析補助機能）が分散している
+- 視覚的に統一感がない
+
+### 要件
+
+1. グリッド、ピーキング、ヒストグラムの3機能を1つのMultiMenuボタンに統合
+2. セグメントコントロール型のUIでタブ切り替え
+3. 統合ボタンには有効化されている機能数をバッジ表示
+4. 各セグメントでON/OFF状態を視覚的に表現
+5. トランジション効果でスムーズな切り替え
+6. メニュー外クリックで自動的に閉じる
+
+## 設計
+
+### コンポーネント構成
+
+#### 1. MultiMenuコンポーネント（新規作成）
+
+**ファイルパス**: `src/components/ImageViewer/MultiMenu.tsx`
+
+**役割**: グリッド、ピーキング、ヒストグラムの統合メニュー
+
+**Props**:
+```typescript
+interface MultiMenuProps {
+  // グリッド関連
+  gridPattern: GridPattern;
+  onGridPatternChange: (pattern: GridPattern) => void;
+  gridOpacity: number;
+  onGridOpacityChange: (opacity: number) => void;
+
+  // ピーキング関連
+  peakingEnabled: boolean;
+  onPeakingEnabledChange: (enabled: boolean) => void;
+  peakingIntensity: number;
+  onPeakingIntensityChange: (intensity: number) => void;
+  peakingColor: string;
+  onPeakingColorChange: (color: string) => void;
+  peakingOpacity: number;
+  onPeakingOpacityChange: (opacity: number) => void;
+  peakingBlink: boolean;
+  onPeakingBlinkChange: (enabled: boolean) => void;
+
+  // ヒストグラム関連
+  histogramEnabled: boolean;
+  onHistogramEnabledChange: (enabled: boolean) => void;
+  histogramDisplayType: 'rgb' | 'luminance';
+  onHistogramDisplayTypeChange: (type: 'rgb' | 'luminance') => void;
+  histogramPosition: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  onHistogramPositionChange: (position: ...) => void;
+  histogramSize: number;
+  onHistogramSizeChange: (size: number) => void;
+  histogramOpacity: number;
+  onHistogramOpacityChange: (opacity: number) => void;
+}
+```
+
+**UIレイアウト**:
+```tsx
+<div class="multi-menu">
+  {/* セグメントコントロール */}
+  <div class="segment-control">
+    <button class="segment" data-active={activeSegment === 'grid'}>
+      グリッド {gridPattern !== 'off' && <span class="dot" />}
+    </button>
+    <button class="segment" data-active={activeSegment === 'peaking'}>
+      ピーキング {peakingEnabled && <span class="dot" />}
+    </button>
+    <button class="segment" data-active={activeSegment === 'histogram'}>
+      ヒストグラム {histogramEnabled && <span class="dot" />}
+    </button>
+  </div>
+
+  {/* コンテンツエリア */}
+  <div class="content-area">
+    {/* アクティブなセグメントに応じて表示 */}
+    <Show when={activeSegment === 'grid'}>
+      <GridMenuContent {...gridProps} />
+    </Show>
+    <Show when={activeSegment === 'peaking'}>
+      <PeakingMenuContent {...peakingProps} />
+    </Show>
+    <Show when={activeSegment === 'histogram'}>
+      <HistogramMenuContent {...histogramProps} />
+    </Show>
+  </div>
+</div>
+```
+
+**デザイン仕様**:
+- 最小幅: 280px
+- セグメントコントロール高さ: 36px
+- コンテンツエリア: 最大高さ70vh、縦スクロール対応
+- トランジション: 200msのイージング
+- セグメント選択時: アクセントカラー背景
+- 機能ON時: セグメント上部に小さいドット表示
+
+#### 2. GridMenuContent / PeakingMenuContent / HistogramMenuContentコンポーネント（新規作成）
+
+**役割**: 既存のGridMenu、PeakingMenuの内容をコンテンツ部分として切り出し、新規でHistogramMenuContentを作成
+
+**ファイルパス**:
+- `src/components/ImageViewer/GridMenuContent.tsx`
+- `src/components/ImageViewer/PeakingMenuContent.tsx`
+- `src/components/ImageViewer/HistogramMenuContent.tsx`
+
+#### 3. Titlebarコンポーネント（修正）
+
+**ファイルパス**: `src/components/Titlebar/index.tsx`
+
+**変更内容**:
+1. グリッドボタンとピーキングボタンを削除
+2. MultiMenuボタンを追加
+3. アクティブな機能数をバッジ表示
+
+```tsx
+<button
+  id="multiMenuBtn"
+  class="relative ml-2 inline-flex h-7 items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+  classList={{
+    'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]': activeFeaturesCount > 0,
+  }}
+  onClick={toggleMultiMenu}
+  aria-label="画像解析機能"
+  title="画像解析機能"
+>
+  <svg>{/* 統合アイコン: グリッド＋ピーキングの組み合わせ */}</svg>
+  {activeFeaturesCount > 0 && (
+    <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[10px] font-bold text-white">
+      {activeFeaturesCount}
+    </span>
+  )}
+</button>
+```
+
+#### 4. SettingsMenuコンポーネント（修正）
+
+**ファイルパス**: `src/components/SettingsMenu/index.tsx`
+
+**変更内容**:
+- ヒストグラム関連のUI要素を削除（MultiMenuに統合されるため）
+- ヒストグラムのpropsは引き続き受け取り、MultiMenuに渡す
+
+### 統合ボタンアイコンのデザイン
+
+```svg
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- グリッド線（左半分） -->
+  <g opacity="0.8">
+    <path d="M1 2h6v6H1V2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <path d="M1 4.5h6M4 2v6" stroke="currentColor" stroke-width="0.8"/>
+  </g>
+
+  <!-- ピーキング波形（右半分） -->
+  <g opacity="0.8">
+    <path d="M10 4L11.5 6.5L13 4L14.5 8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- ヒストグラム（下部） -->
+  <g opacity="0.6">
+    <rect x="9" y="11" width="1" height="3" fill="currentColor"/>
+    <rect x="11" y="10" width="1" height="4" fill="currentColor"/>
+    <rect x="13" y="12" width="1" height="2" fill="currentColor"/>
+    <rect x="15" y="11" width="1" height="3" fill="currentColor"/>
+  </g>
+</svg>
+```
+
+### アクティブ機能数の計算ロジック
+
+```typescript
+const activeFeaturesCount = computed(() => {
+  let count = 0;
+  if (gridPattern() !== 'off') count++;
+  if (peakingEnabled()) count++;
+  if (histogramEnabled()) count++;
+  return count;
+});
+```
+
+### セグメント切り替えのトランジション
+
+```css
+.content-area {
+  overflow: hidden;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.segment-content {
+  animation: slideIn 200ms ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+```
+
+## 実装上の注意点
+
+### 1. 既存コンポーネントの再利用
+
+- GridMenuとPeakingMenuのロジックを可能な限り再利用
+- コンテンツ部分のみを切り出してMultiMenuに統合
+
+### 2. 状態管理
+
+- すべてAppStateContextで管理（変更なし）
+- MultiMenuは純粋にプレゼンテーション層として機能
+
+### 3. アクセシビリティ
+
+- キーボードナビゲーション対応（左右矢印キーでセグメント切り替え）
+- 適切なaria属性の設定
+- フォーカス管理
+
+### 4. パフォーマンス
+
+- Show コンポーネントで非表示時はDOM削除
+- デバウンス処理は既存の実装を維持
+
+## 影響範囲の分析
+
+### 新規作成ファイル
+
+1. `src/components/ImageViewer/MultiMenu.tsx`
+2. `src/components/ImageViewer/GridMenuContent.tsx`
+3. `src/components/ImageViewer/PeakingMenuContent.tsx`
+4. `src/components/ImageViewer/HistogramMenuContent.tsx`
+
+### 修正ファイル
+
+1. `src/components/Titlebar/index.tsx` - MultiMenuボタンの追加、既存ボタンの削除
+2. `src/components/SettingsMenu/index.tsx` - ヒストグラムUIの削除
+
+### 削除予定ファイル（オプション）
+
+- `src/components/ImageViewer/GridMenu.tsx` - GridMenuContentに置き換え
+- `src/components/ImageViewer/PeakingMenu.tsx` - PeakingMenuContentに置き換え
+
+### 影響する機能
+
+- ✅ **UIレイアウト**: 統合メニューへの変更
+- ✅ **ボタン配置**: Titlebar左側のボタン数が減少
+
+### 影響しない機能
+
+- ✅ **グリッド機能**: ロジックは変更なし
+- ✅ **ピーキング機能**: ロジックは変更なし
+- ✅ **ヒストグラム機能**: ロジックは変更なし
+- ✅ **設定の永続化**: 変更なし
+
+### リスク評価
+
+**リスクレベル**: 中
+
+- UI構造の大幅な変更
+- 既存コンポーネントのリファクタリングが必要
+- ユーザーの慣れ親しんだUIが変わる可能性
+
+## テストケース
+
+### 機能テスト
+
+1. MultiMenuボタンのクリックでメニューが開閉すること
+2. セグメントクリックで適切なコンテンツが表示されること
+3. 各機能のON/OFF切り替えが正しく動作すること
+4. バッジ表示が正しく更新されること
+5. メニュー外クリックで自動的に閉じること
+
+### UIテスト
+
+1. セグメントコントロールが正しく表示されること
+2. アクティブなセグメントが視覚的に区別されること
+3. 機能ON時のドット表示が正しく機能すること
+4. トランジション効果が滑らかであること
+5. 縦スクロールが正しく動作すること
+
+### アクセシビリティテスト
+
+1. キーボードナビゲーションが正しく機能すること
+2. スクリーンリーダーで適切に読み上げられること
+
+## 実装計画
+
+実装は以下の順序で進めます:
+
+1. **コンテンツコンポーネントの作成**
+   - GridMenuContent.tsx
+   - PeakingMenuContent.tsx
+   - HistogramMenuContent.tsx
+
+2. **MultiMenuコンポーネントの作成**
+   - 基本構造の実装
+   - セグメントコントロールの実装
+   - コンテンツ切り替えロジックの実装
+
+3. **Titlebarの更新**
+   - MultiMenuボタンの追加
+   - 既存ボタンの削除
+   - バッジ表示の実装
+
+4. **SettingsMenuの更新**
+   - ヒストグラムUIの削除
+
+5. **スタイリング**
+   - セグメントコントロールのスタイル
+   - トランジション効果
+
+6. **テストと最適化**
+   - 動作確認
+   - UIテスト
+   - 最適化
+
+## 成果物
+
+### 新規作成
+
+- `src/components/ImageViewer/MultiMenu.tsx`
+- `src/components/ImageViewer/GridMenuContent.tsx`
+- `src/components/ImageViewer/PeakingMenuContent.tsx`
+- `src/components/ImageViewer/HistogramMenuContent.tsx`
+
+### 修正
+
+- `src/components/Titlebar/index.tsx`
+- `src/components/SettingsMenu/index.tsx`
