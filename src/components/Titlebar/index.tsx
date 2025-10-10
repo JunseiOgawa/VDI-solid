@@ -36,6 +36,8 @@ const Titlebar: Component = () => {
     setPeakingOpacity,
     peakingBlink,
     setPeakingBlink,
+    wheelSensitivity,
+    setWheelSensitivity,
   } = useAppState();
 
   const baseZoomButtonClasses =
@@ -286,6 +288,8 @@ const Titlebar: Component = () => {
                 setShowSettings(false);
               }}
               currentImagePath={currentImagePath()}
+              wheelSensitivity={wheelSensitivity()}
+              onWheelSensitivityChange={setWheelSensitivity}
             />
           </div>
         )}

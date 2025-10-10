@@ -34,6 +34,7 @@ const ImageViewer: Component = () => {
     peakingColor,
     peakingOpacity,
     peakingBlink,
+    wheelSensitivity,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -357,7 +358,11 @@ const ImageViewer: Component = () => {
   const handleWheelZoom = (event: WheelEvent) => {
     event.preventDefault();
     const previousScale = zoomScale();
-    const delta = event.deltaY > 0 ? -CONFIG.zoom.step : CONFIG.zoom.step; // 上で拡大、下で縮小
+
+    // 感度を適用したステップ幅を計算
+    const adjustedStep = CONFIG.zoom.step * wheelSensitivity();
+    const delta = event.deltaY > 0 ? -adjustedStep : adjustedStep; // 上で拡大、下で縮小
+
     const newScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, previousScale + delta));
     if (newScale === previousScale) return;
 
@@ -458,7 +463,7 @@ const ImageViewer: Component = () => {
       )}
       <button
         type="button"
-        class="absolute inset-y-0 left-0 z-20 flex w-[30%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+        class="absolute inset-y-0 left-0 z-20 flex w-[15%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
@@ -480,7 +485,7 @@ const ImageViewer: Component = () => {
       </button>
       <button
         type="button"
-        class="absolute inset-y-0 right-0 z-20 flex w-[30%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+        class="absolute inset-y-0 right-0 z-20 flex w-[15%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}

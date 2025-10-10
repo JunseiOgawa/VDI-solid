@@ -365,3 +365,180 @@ GridOverlayとPeakingLayerの再描画タイミングに漏れがないか検証
 - AbortController機能は変更しない
 - ローディング表示は既存の実装を利用
 - GridOverlayは変更不要（現在の実装で問題なし）
+
+---
+
+# ホイール感度設定機能の追加 タスク一覧
+
+## タスク概要
+
+VRゴーグルのコントローラーや高速なマウスホイール操作に対応するため、ホイールによるズーム操作の感度を調整可能にする機能を追加します。
+
+## 実装タスク
+
+### 1. 設計フェーズ
+
+- [x] 現在の実装状況の分析
+  - [x] ImageViewerのhandleWheelZoom関数を確認
+  - [x] 問題点の特定（VRコントローラーでの高速スクロール問題）
+- [x] 設計書の作成
+  - [x] 問題の根本原因の文書化
+  - [x] 解決策の詳細設計
+  - [x] 影響範囲の分析
+- [x] タスクの洗い出し
+
+### 2. 実装フェーズ
+
+#### ステップ1: configファイルの更新
+
+**ファイル**: `src/config/config.ts`
+
+- [ ] AppConfigインターフェースにwheelSensitivityパラメータを追加
+  - [ ] `wheelSensitivity: number`（デフォルト感度）
+  - [ ] `minWheelSensitivity: number`（最小感度）
+  - [ ] `maxWheelSensitivity: number`（最大感度）
+- [ ] CONFIG定数にデフォルト値を設定
+  - [ ] `wheelSensitivity: 1.0`（従来の動作と同じ）
+  - [ ] `minWheelSensitivity: 0.1`（10倍遅い）
+  - [ ] `maxWheelSensitivity: 5.0`（5倍速い）
+
+#### ステップ2: AppStateContextの更新
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [ ] AppStateインターフェースにwheelSensitivityを追加
+  - [ ] `wheelSensitivity: () => number`
+  - [ ] `setWheelSensitivity: (sensitivity: number) => void`
+- [ ] wheelSensitivity Signalの追加
+  - [ ] `createSignal<number>(CONFIG.zoom.wheelSensitivity)`
+- [ ] localStorageからの復元処理を追加
+  - [ ] `onMount`内でlocalStorageから読み込み
+  - [ ] 値のバリデーション（範囲チェック）
+- [ ] 永続化処理の実装
+  - [ ] `handleWheelSensitivityChange`関数を作成
+  - [ ] 値のクランプ処理
+  - [ ] localStorageへの保存
+- [ ] appState objectに追加
+  - [ ] `wheelSensitivity`
+  - [ ] `setWheelSensitivity: handleWheelSensitivityChange`
+
+#### ステップ3: SettingsMenuの更新
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+- [ ] SettingsMenuPropsインターフェースを更新
+  - [ ] `wheelSensitivity: number`を追加
+  - [ ] `onWheelSensitivityChange: (sensitivity: number) => void`を追加
+- [ ] イベントハンドラの実装
+  - [ ] `handleWheelSensitivityChange`関数を作成
+- [ ] UIコンポーネントの追加
+  - [ ] スライダーのlabel要素を追加
+  - [ ] 現在値の表示（`{props.wheelSensitivity.toFixed(1)}x`）
+  - [ ] rangeスライダーを追加（min, max, step設定）
+  - [ ] 説明文を追加（「VRコントローラー使用時は低めに設定」）
+- [ ] UIの配置
+  - [ ] テーマ設定の後に配置
+  - [ ] 適切な区切り線（hr）を追加
+
+#### ステップ4: Titlebarの更新
+
+**ファイル**: `src/components/Titlebar/index.tsx`
+
+- [ ] useAppStateからwheelSensitivityを取得
+  - [ ] `wheelSensitivity`
+  - [ ] `setWheelSensitivity`
+- [ ] SettingsMenuコンポーネントにpropsを追加
+  - [ ] `wheelSensitivity={wheelSensitivity()}`
+  - [ ] `onWheelSensitivityChange={setWheelSensitivity}`
+
+#### ステップ5: ImageViewerの更新
+
+**ファイル**: `src/components/ImageViewer/index.tsx`
+
+- [ ] useAppStateからwheelSensitivityを取得
+  - [ ] `wheelSensitivity`を追加
+- [ ] handleWheelZoom関数の修正
+  - [ ] 感度を適用したステップ幅を計算
+  - [ ] `const adjustedStep = CONFIG.zoom.step * wheelSensitivity()`
+  - [ ] deltaの計算に使用
+
+### 3. テストフェーズ
+
+#### 機能テスト
+
+- [ ] ホイール感度の動作確認
+  - [ ] 感度を変更してホイールズーム操作が変化することを確認
+  - [ ] 感度0.1、0.5、1.0、2.0、5.0での動作を確認
+- [ ] 永続化の確認
+  - [ ] 感度の設定値が正しくlocalStorageに保存されることを確認
+  - [ ] アプリを再起動しても設定値が保持されることを確認
+- [ ] バリデーションの確認
+  - [ ] 感度の範囲（0.1～5.0）が正しく制限されることを確認
+
+#### UIテスト
+
+- [ ] 設定メニューの表示確認
+  - [ ] 設定メニューにホイール感度スライダーが表示されることを確認
+  - [ ] スライダーの現在値が正しく表示されることを確認
+  - [ ] 説明文が表示されることを確認
+- [ ] 操作性の確認
+  - [ ] スライダーを操作すると即座にズーム動作が変化することを確認
+  - [ ] スライダーの動きが滑らかであることを確認
+
+#### 既存機能の動作確認
+
+- [ ] 他の機能への影響確認
+  - [ ] ボタンによるズーム操作が影響を受けていないことを確認
+  - [ ] ドラッグ機能が影響を受けていないことを確認
+  - [ ] 画像の回転が影響を受けていないことを確認
+  - [ ] グリッド表示が影響を受けていないことを確認
+  - [ ] ピーキング機能が影響を受けていないことを確認
+
+### 4. コードフォーマット
+
+- [ ] コードフォーマッターの適用
+  - [ ] config.ts
+  - [ ] AppStateContext.tsx
+  - [ ] SettingsMenu/index.tsx
+  - [ ] Titlebar/index.tsx
+  - [ ] ImageViewer/index.tsx
+
+### 5. 最終確認
+
+- [ ] 設計書との整合性確認
+- [ ] コミット前の最終動作確認
+- [ ] ユーザーへの確認依頼
+
+## 変更ファイル
+
+### 修正
+- `src/config/config.ts`
+- `src/context/AppStateContext.tsx`
+- `src/components/SettingsMenu/index.tsx`
+- `src/components/Titlebar/index.tsx`
+- `src/components/ImageViewer/index.tsx`
+
+## 実装の詳細
+
+### 感度計算ロジック
+
+```typescript
+// ImageViewer/index.tsx のhandleWheelZoom関数内
+const adjustedStep = CONFIG.zoom.step * wheelSensitivity();
+const delta = event.deltaY > 0 ? -adjustedStep : adjustedStep;
+```
+
+- 感度 `0.1` の場合: ステップ幅 `0.1 * 0.1 = 0.01`（10倍遅い）
+- 感度 `1.0` の場合: ステップ幅 `0.1 * 1.0 = 0.1`（デフォルト）
+- 感度 `5.0` の場合: ステップ幅 `0.1 * 5.0 = 0.5`（5倍速い）
+
+### VRコントローラー使用時の推奨設定
+
+VRコントローラーで操作する場合、感度を`0.1`～`0.3`程度に設定することを推奨します。
+
+## 注意事項
+
+- デフォルト値は従来の動作と同じ（1.0）
+- 設定値の範囲を制限して極端な値を防ぐ
+- 既存の機能には影響を与えない（ホイールズームのみ変更）
+- コミットは行わず、実装完了後にユーザーへ確認を求める

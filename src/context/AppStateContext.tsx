@@ -75,6 +75,12 @@ export interface AppState {
   peakingBlink: () => boolean;
   /** ピーキング点滅の有効/無効を設定 */
   setPeakingBlink: (enabled: boolean) => void;
+
+  // ホイール感度関連
+  /** ホイール感度 (0.1-5.0) */
+  wheelSensitivity: () => number;
+  /** ホイール感度を設定 */
+  setWheelSensitivity: (sensitivity: number) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -136,6 +142,9 @@ export const AppProvider: ParentComponent = (props) => {
   const [peakingColor, setPeakingColor] = createSignal<string>('lime');
   const [peakingOpacity, _setPeakingOpacity] = createSignal<number>(0.5);
   const [peakingBlink, setPeakingBlink] = createSignal<boolean>(false);
+
+  // ホイール感度関連Signal
+  const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(CONFIG.zoom.wheelSensitivity);
 
   // バリデーション付きセッター
   const setPeakingIntensity = (intensity: number) => {
@@ -308,12 +317,12 @@ export const AppProvider: ParentComponent = (props) => {
     if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
-    
+
     // グリッド永続化設定を復元
     const savedGridPersist = localStorage.getItem('vdi-grid-persist');
     const persistEnabled = savedGridPersist === 'true';
     setGridPersistEnabled(persistEnabled);
-    
+
     // 永続化が有効な場合はパターンを復元
     if (persistEnabled) {
       const savedGridPattern = localStorage.getItem('vdi-grid-pattern');
@@ -321,7 +330,16 @@ export const AppProvider: ParentComponent = (props) => {
         setGridPattern(savedGridPattern as GridPattern);
       }
     }
-    
+
+    // ホイール感度設定を復元
+    const savedWheelSensitivity = localStorage.getItem('vdi-wheel-sensitivity');
+    if (savedWheelSensitivity) {
+      const sensitivity = parseFloat(savedWheelSensitivity);
+      if (!isNaN(sensitivity)) {
+        setWheelSensitivity(Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity)));
+      }
+    }
+
     setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
@@ -345,7 +363,7 @@ export const AppProvider: ParentComponent = (props) => {
   const handleGridPersistChange = (enabled: boolean) => {
     setGridPersistEnabled(enabled);
     localStorage.setItem('vdi-grid-persist', enabled ? 'true' : 'false');
-    
+
     if (enabled) {
       // 有効化時は現在のパターンを保存
       localStorage.setItem('vdi-grid-pattern', gridPattern());
@@ -354,6 +372,12 @@ export const AppProvider: ParentComponent = (props) => {
       setGridPattern('off');
       localStorage.removeItem('vdi-grid-pattern');
     }
+  };
+
+  const handleWheelSensitivityChange = (sensitivity: number) => {
+    const clampedSensitivity = Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity));
+    setWheelSensitivity(clampedSensitivity);
+    localStorage.setItem('vdi-wheel-sensitivity', clampedSensitivity.toString());
   };
 
   const appState: AppState = {
@@ -388,6 +412,8 @@ export const AppProvider: ParentComponent = (props) => {
     setPeakingOpacity,
     peakingBlink,
     setPeakingBlink,
+    wheelSensitivity,
+    setWheelSensitivity: handleWheelSensitivityChange,
   };
 
   return (

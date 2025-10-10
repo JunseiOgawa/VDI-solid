@@ -584,3 +584,351 @@ createEffect(() => {
 ### Solid.jsのcreateEffectについて
 
 createEffectは依存する値（この場合はprops.imagePathとprops.intensity）が変更されるたびに実行されます。新しい画像に切り替わると、imagePathが変わるため、createEffectが再実行され、新しいピーキングデータの取得が開始されます。
+
+---
+
+# ホイール感度設定機能の追加
+
+## 概要
+
+VRゴーグルのコントローラーや高速なマウスホイール操作に対応するため、ホイールによるズーム操作の感度を調整可能にする機能を追加します。
+
+## 背景
+
+### 現在の実装状況
+
+- ImageViewerのhandleWheelZoom関数でホイールイベントを処理
+- `event.deltaY`の値に関係なく、一定のステップ幅（CONFIG.zoom.step = 0.1）でズームを変更
+- VRコントローラーの大きなdeltaY値が連続的に発生すると、ズーム操作が非常に速くなり制御が困難
+
+### 問題点
+
+```typescript
+const handleWheelZoom = (event: WheelEvent) => {
+  event.preventDefault();
+  const previousScale = zoomScale();
+  const delta = event.deltaY > 0 ? -CONFIG.zoom.step : CONFIG.zoom.step;
+  const newScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, previousScale + delta));
+  // ...
+};
+```
+
+現在の実装では、deltaYの値が100でも10000でも同じステップ幅（0.1）で処理されるため、VRコントローラーのような大きなdeltaY値を連続的に送るデバイスでは、ズーム操作が非常に速くなります。
+
+### 要件
+
+1. ホイール操作の感度を設定可能にする
+2. 設定メニュー（SettingsMenu）にスライダーを追加してユーザーが調整できるようにする
+3. 設定値をlocalStorageに永続化する
+4. VRコントローラーなどの高速なホイール操作でも細かくズーム制御できるようにする
+
+## 設計
+
+### 1. configファイルの更新
+
+**ファイルパス**: `src/config/config.ts`
+
+**変更内容**:
+```typescript
+export interface AppConfig {
+  zoom: {
+    minScale: number;
+    maxScale: number;
+    step: number;
+    wheelSensitivity: number; // 新規追加: デフォルト感度
+    minWheelSensitivity: number; // 新規追加: 最小感度
+    maxWheelSensitivity: number; // 新規追加: 最大感度
+  };
+  // ...
+}
+
+export const CONFIG: AppConfig = {
+  zoom: {
+    minScale: 0.1,
+    maxScale: 10,
+    step: 0.1,
+    wheelSensitivity: 1.0, // デフォルト値（従来の動作）
+    minWheelSensitivity: 0.1, // 最小感度（10倍遅い）
+    maxWheelSensitivity: 5.0, // 最大感度（5倍速い）
+  },
+  // ...
+};
+```
+
+### 2. AppStateContextの更新
+
+**ファイルパス**: `src/context/AppStateContext.tsx`
+
+**変更内容**:
+
+```typescript
+export interface AppState {
+  // 既存の定義...
+
+  // ホイール感度関連
+  wheelSensitivity: () => number;
+  setWheelSensitivity: (sensitivity: number) => void;
+}
+
+export const AppProvider: ParentComponent = (props) => {
+  // 既存のSignal定義...
+
+  const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(CONFIG.zoom.wheelSensitivity);
+
+  // localStorageから復元
+  onMount(() => {
+    // 既存の復元処理...
+
+    const savedWheelSensitivity = localStorage.getItem('vdi-wheel-sensitivity');
+    if (savedWheelSensitivity) {
+      const sensitivity = parseFloat(savedWheelSensitivity);
+      if (!isNaN(sensitivity)) {
+        setWheelSensitivity(Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity)));
+      }
+    }
+  });
+
+  // 永続化処理
+  const handleWheelSensitivityChange = (sensitivity: number) => {
+    const clampedSensitivity = Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity));
+    setWheelSensitivity(clampedSensitivity);
+    localStorage.setItem('vdi-wheel-sensitivity', clampedSensitivity.toString());
+  };
+
+  const appState: AppState = {
+    // 既存の定義...
+    wheelSensitivity,
+    setWheelSensitivity: handleWheelSensitivityChange,
+  };
+
+  return <AppContext.Provider value={appState}>{props.children}</AppContext.Provider>;
+};
+```
+
+### 3. SettingsMenuの更新
+
+**ファイルパス**: `src/components/SettingsMenu/index.tsx`
+
+**変更内容**:
+
+```typescript
+interface SettingsMenuProps {
+  theme: ThemeKey;
+  onThemeChange: (theme: ThemeKey) => void;
+  currentImagePath?: string;
+  wheelSensitivity: number; // 新規追加
+  onWheelSensitivityChange: (sensitivity: number) => void; // 新規追加
+}
+
+const SettingsMenu: Component<SettingsMenuProps> = (props) => {
+  // 既存の実装...
+
+  const handleWheelSensitivityChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    props.onWheelSensitivityChange(parseFloat(target.value));
+  };
+
+  return (
+    <div class="...">
+      <div class="py-1">
+        {/* テーマ設定 - 既存 */}
+
+        {/* ホイール感度設定 - 新規追加 */}
+        <div class="px-3 py-2">
+          <label class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-[var(--text-primary)]">
+              ホイール感度: {props.wheelSensitivity.toFixed(1)}x
+            </span>
+            <input
+              type="range"
+              min={CONFIG.zoom.minWheelSensitivity}
+              max={CONFIG.zoom.maxWheelSensitivity}
+              step="0.1"
+              value={props.wheelSensitivity}
+              onInput={handleWheelSensitivityChange}
+              class="w-full cursor-pointer accent-[var(--accent-primary)]"
+            />
+            <span class="text-xs text-[var(--text-muted)]">
+              VRコントローラー使用時は低めに設定
+            </span>
+          </label>
+        </div>
+
+        <hr class="my-1 border-t border-[var(--border-primary)]" />
+
+        {/* エクスプローラで開く - 既存 */}
+      </div>
+    </div>
+  );
+};
+```
+
+### 4. Titlebarの更新
+
+**ファイルパス**: `src/components/Titlebar/index.tsx`
+
+**変更内容**:
+
+```typescript
+const Titlebar: Component = () => {
+  const {
+    // 既存の定義...
+    wheelSensitivity,
+    setWheelSensitivity,
+  } = useAppState();
+
+  return (
+    <div>
+      {/* 設定メニュー */}
+      {showSettings() && (
+        <div class="...">
+          <SettingsMenu
+            theme={theme()}
+            onThemeChange={(newTheme) => {
+              setTheme(newTheme);
+              setShowSettings(false);
+            }}
+            currentImagePath={currentImagePath()}
+            wheelSensitivity={wheelSensitivity()}
+            onWheelSensitivityChange={setWheelSensitivity}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+### 5. ImageViewerの更新
+
+**ファイルパス**: `src/components/ImageViewer/index.tsx`
+
+**変更内容**:
+
+```typescript
+const ImageViewer: Component = () => {
+  const {
+    // 既存の定義...
+    wheelSensitivity,
+  } = useAppState();
+
+  // ホイールズーム機能の改善
+  const handleWheelZoom = (event: WheelEvent) => {
+    event.preventDefault();
+    const previousScale = zoomScale();
+
+    // 感度を適用したステップ幅を計算
+    // wheelSensitivityが小さいほど、ズーム変化が小さくなる
+    const adjustedStep = CONFIG.zoom.step / wheelSensitivity();
+    const delta = event.deltaY > 0 ? -adjustedStep : adjustedStep;
+
+    const newScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, previousScale + delta));
+    if (newScale === previousScale) return;
+
+    setZoomScale(newScale);
+    const predictedDisplay = getDisplaySizeForScale(newScale, previousScale);
+    setDisplaySize(predictedDisplay);
+    setPosition((prev) => clampToBounds(prev, { scale: newScale, display: predictedDisplay, referenceScale: previousScale }));
+
+    requestAnimationFrame(() => {
+      measureAll();
+      setPosition((prev) => clampToBounds(prev));
+    });
+  };
+};
+```
+
+## 動作仕様
+
+### ホイール感度の計算
+
+ホイール感度が`1.0`の場合、従来通りの動作（ステップ幅0.1）になります。
+
+- 感度 `0.1` の場合: ステップ幅 `0.1 / 0.1 = 1.0`（10倍遅い）
+- 感度 `0.5` の場合: ステップ幅 `0.1 / 0.5 = 0.2`（2倍遅い）
+- 感度 `1.0` の場合: ステップ幅 `0.1 / 1.0 = 0.1`（デフォルト）
+- 感度 `2.0` の場合: ステップ幅 `0.1 / 2.0 = 0.05`（2倍速い）
+- 感度 `5.0` の場合: ステップ幅 `0.1 / 5.0 = 0.02`（5倍速い）
+
+**修正**:
+上記の計算式は逆でした。正しくは以下の通りです：
+
+- 感度 `0.1` の場合: ステップ幅 `0.1 / 0.1 = 1.0`ではなく、`0.1 * 0.1 = 0.01`（10倍遅い）
+- 感度 `1.0` の場合: ステップ幅 `0.1 * 1.0 = 0.1`（デフォルト）
+- 感度 `5.0` の場合: ステップ幅 `0.1 * 5.0 = 0.5`（5倍速い）
+
+**実装時は掛け算に修正**:
+```typescript
+const adjustedStep = CONFIG.zoom.step * wheelSensitivity();
+```
+
+### VRコントローラー使用時の推奨設定
+
+VRコントローラーで操作する場合、感度を`0.1`～`0.3`程度に設定することを推奨します。これにより、大きなdeltaY値が連続的に発生しても、細かくズーム制御できます。
+
+## 影響範囲の分析
+
+### 変更ファイル
+
+1. `src/config/config.ts`
+2. `src/context/AppStateContext.tsx`
+3. `src/components/SettingsMenu/index.tsx`
+4. `src/components/Titlebar/index.tsx`
+5. `src/components/ImageViewer/index.tsx`
+
+### 影響する機能
+
+- ✅ **ホイールズーム機能**: 改善される（問題の修正対象）
+- ✅ **設定の永続化**: 新規機能（wheelSensitivityの保存）
+
+### 影響しない機能
+
+- ✅ **ボタンによるズーム操作**: 変更なし（従来通り1.2倍/0.83倍で動作）
+- ✅ **ドラッグ機能**: 変更なし
+- ✅ **画像の回転**: 変更なし
+- ✅ **グリッド表示**: 変更なし
+- ✅ **ピーキング機能**: 変更なし
+
+### リスク評価
+
+**リスクレベル**: 低
+
+- 既存の機能には影響を与えない（ホイールズームのみ変更）
+- 設定値の範囲を制限しているため、極端な値は設定できない
+- デフォルト値は従来の動作と同じ（1.0）
+
+## テストケース
+
+### 機能テスト
+
+1. 感度を変更してホイールズーム操作が変化すること
+2. 感度の設定値が正しくlocalStorageに保存されること
+3. アプリを再起動しても設定値が保持されること
+4. 感度の範囲（0.1～5.0）が正しく制限されること
+
+### UIテスト
+
+1. 設定メニューにホイール感度スライダーが表示されること
+2. スライダーの現在値が正しく表示されること
+3. スライダーを操作すると即座にズーム動作が変化すること
+4. UIの説明文が表示されること
+
+## 実装計画
+
+実装は以下の順序で進めます:
+
+1. `src/config/config.ts`にwheelSensitivityパラメータを追加
+2. `src/context/AppStateContext.tsx`にwheelSensitivity状態と永続化処理を追加
+3. `src/components/SettingsMenu/index.tsx`にスライダーUIを追加
+4. `src/components/Titlebar/index.tsx`でpropsを追加
+5. `src/components/ImageViewer/index.tsx`のhandleWheelZoom関数を修正
+6. 動作確認
+7. コミット作成
+
+## 成果物
+
+- `src/config/config.ts` (修正)
+- `src/context/AppStateContext.tsx` (修正)
+- `src/components/SettingsMenu/index.tsx` (修正)
+- `src/components/Titlebar/index.tsx` (修正)
+- `src/components/ImageViewer/index.tsx` (修正)

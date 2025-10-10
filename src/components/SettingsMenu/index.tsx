@@ -2,11 +2,14 @@ import type { Component } from 'solid-js';
 import { createSignal, For } from 'solid-js';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { AVAILABLE_THEMES, type ThemeKey } from '../../lib/theme';
+import { CONFIG } from '../../config/config';
 
 interface SettingsMenuProps {
   theme: ThemeKey;
   onThemeChange: (theme: ThemeKey) => void;
   currentImagePath?: string;
+  wheelSensitivity: number;
+  onWheelSensitivityChange: (sensitivity: number) => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
@@ -24,6 +27,11 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
 
   const toggleThemeSubmenu = () => {
     setShowThemeSubmenu(!showThemeSubmenu());
+  };
+
+  const handleWheelSensitivityChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    props.onWheelSensitivityChange(parseFloat(target.value));
   };
 
   return (
@@ -63,6 +71,29 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
             </For>
           </div>
         )}
+
+        <hr class="my-1 border-t border-[var(--border-primary)]" />
+
+        {/* ホイール感度設定 */}
+        <div class="px-3 py-2">
+          <label class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-[var(--text-primary)]">
+              ホイール感度: {props.wheelSensitivity.toFixed(1)}x
+            </span>
+            <input
+              type="range"
+              min={CONFIG.zoom.minWheelSensitivity}
+              max={CONFIG.zoom.maxWheelSensitivity}
+              step="0.1"
+              value={props.wheelSensitivity}
+              onInput={handleWheelSensitivityChange}
+              class="w-full cursor-pointer accent-[var(--accent-primary)]"
+            />
+            <span class="text-xs text-[var(--text-muted)]">
+              VRコントローラー使用時は低めに設定
+            </span>
+          </label>
+        </div>
 
         <hr class="my-1 border-t border-[var(--border-primary)]" />
 

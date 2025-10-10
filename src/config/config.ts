@@ -5,6 +5,9 @@ export interface AppConfig {
     minScale: number;
     maxScale: number;
     step: number;
+    wheelSensitivity: number;
+    minWheelSensitivity: number;
+    maxWheelSensitivity: number;
   };
   ui: {
     headerFooterHeight: number;
@@ -24,6 +27,9 @@ export const CONFIG: AppConfig = {
     minScale: 0.1,
     maxScale: 10,
     step: 0.1,
+    wheelSensitivity: 1.0,
+    minWheelSensitivity: 0.1,
+    maxWheelSensitivity: 5.0,
   },
   ui: {
     headerFooterHeight: 120,
