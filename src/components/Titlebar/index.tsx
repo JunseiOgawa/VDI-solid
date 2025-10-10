@@ -18,7 +18,7 @@ const Titlebar: Component = () => {
     setZoomScale,
     theme,
     setTheme,
-    currentImagePath,
+    currentImageFilePath,
     enqueueRotation,
     gridPattern,
     setGridPattern,
@@ -84,12 +84,17 @@ const Titlebar: Component = () => {
 
   /** エクスプローラで開く */
   const handleRevealInExplorer = async () => {
-    if (currentImagePath()) {
+    const filePath = currentImageFilePath();
+    if (filePath) {
       try {
-        await revealItemInDir(currentImagePath()!);
+        console.log("[Explorer] Opening file in explorer:", filePath);
+        await revealItemInDir(filePath);
+        console.log("[Explorer] Successfully opened in explorer");
       } catch (error) {
         console.error("Failed to open in explorer:", error);
       }
+    } else {
+      console.warn("[Explorer] No file path available");
     }
   };
 
@@ -212,11 +217,11 @@ const Titlebar: Component = () => {
 
         <button
           id="explorerBtn"
-          class="no-drag ml-2 inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+          class="no-drag ml-2 inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="エクスプローラで開く"
           title="エクスプローラで開く"
           onClick={handleRevealInExplorer}
-          disabled={!currentImagePath()}
+          disabled={!currentImageFilePath()}
         >
           <svg
             width="16"
