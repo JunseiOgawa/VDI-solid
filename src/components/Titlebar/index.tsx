@@ -17,7 +17,6 @@ const Titlebar: Component = () => {
     setZoomScale,
     theme,
     setTheme,
-    currentImageFilePath,
     enqueueRotation,
     gridPattern,
     setGridPattern,
