@@ -11,6 +11,8 @@ import type { PeakingResult } from '../../lib/peakingUtils';
 interface PeakingLayerProps {
   /** 画像ファイルパス */
   imagePath: string;
+  /** 画像ソースURL（キャッシュバスト用） */
+  imageSrc: string;
   /** エッジ検出閾値 (0-255) */
   intensity: number;
   /** 表示色 */
@@ -38,6 +40,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [blinkVisible, setBlinkVisible] = createSignal(true);
+  const [lastImageSrc, setLastImageSrc] = createSignal<string>('');
   let abortController: AbortController | null = null;
 
   /**
@@ -55,14 +58,35 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
 
   /**
    * ピーキングデータの取得（キャッシュ対応 + AbortController）
+   * imageSrcも監視することで、画像ファイルが更新された際に再計算される
    */
   createEffect(() => {
     const path = props.imagePath;
+    const src = props.imageSrc;
     const intensity = props.intensity;
 
     if (!path) {
       setPeakingData(null);
+      setLastImageSrc('');
       return;
+    }
+
+    // imageSrcが変更された場合のみ、該当パスのキャッシュを削除
+    // これにより回転保存などでファイルが更新された際に再計算される
+    const prevSrc = lastImageSrc();
+    if (src && src !== prevSrc) {
+      const keysToDelete: string[] = [];
+      peakingCache.forEach((_, key) => {
+        if (key.startsWith(`${path}:`)) {
+          keysToDelete.push(key);
+        }
+      });
+
+      if (keysToDelete.length > 0) {
+        keysToDelete.forEach(key => peakingCache.delete(key));
+        console.log(`[PeakingLayer] imageSrc changed from "${prevSrc}" to "${src}", cleared ${keysToDelete.length} cache entries for: ${path}`);
+      }
+      setLastImageSrc(src);
     }
 
     const cacheKey = generatePeakingCacheKey(path, intensity);

@@ -29,6 +29,8 @@ interface ImageManagerProps {
   peakingOpacity: number;
   /** ピーキング点滅 */
   peakingBlink: boolean;
+  /** 画像ソースURL（null可、キャッシュバスト付き） */
+  imageSrc: string | null;
 }
 
 /**
@@ -120,9 +122,10 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
       />
 
       {/* Layer 2: フォーカスピーキング */}
-      <Show when={props.peakingEnabled && props.imagePath}>
+      <Show when={props.peakingEnabled && props.imagePath && props.imageSrc}>
         <PeakingLayer
           imagePath={props.imagePath!}
+          imageSrc={props.imageSrc!}
           intensity={props.peakingIntensity}
           color={props.peakingColor}
           opacity={props.peakingOpacity}

@@ -4,6 +4,7 @@ import { CONFIG } from '../../config/config';
 
 interface HistogramLayerProps {
   imagePath: string | null;
+  imageSrc: string | null;
   enabled: boolean;
   displayType: 'rgb' | 'luminance';
   position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
@@ -124,11 +125,12 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
   // ヒストグラムデータの取得とキャッシュ管理
   createEffect(() => {
     const imagePath = props.imagePath;
+    const imageSrc = props.imageSrc;
     const enabled = props.enabled;
     const displayType = props.displayType;
 
     // 有効でない、または画像パスがない場合はクリア
-    if (!enabled || !imagePath) {
+    if (!enabled || !imagePath || !imageSrc) {
       setHistogramData(null);
       setIsLoading(false);
       if (abortController) {
@@ -138,8 +140,8 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       return;
     }
 
-    // キャッシュキー
-    const cacheKey = `${imagePath}:${displayType}`;
+    // キャッシュキー（画像srcを含めることで回転時に自動的にキャッシュミス）
+    const cacheKey = `${imageSrc}:${displayType}`;
 
     // キャッシュチェック
     const cached = histogramCache.get(cacheKey);

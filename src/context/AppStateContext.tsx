@@ -159,11 +159,11 @@ export const AppProvider: ParentComponent = (props) => {
   const [gridPersistEnabled, setGridPersistEnabled] = createSignal<boolean>(false);
 
   // ピーキング関連Signal（新規追加）
-  const [peakingEnabled, setPeakingEnabled] = createSignal<boolean>(false);
-  const [peakingIntensity, _setPeakingIntensity] = createSignal<number>(60);
-  const [peakingColor, setPeakingColor] = createSignal<string>('lime');
-  const [peakingOpacity, _setPeakingOpacity] = createSignal<number>(0.5);
-  const [peakingBlink, setPeakingBlink] = createSignal<boolean>(false);
+  const [peakingEnabled, setPeakingEnabledSignal] = createSignal<boolean>(false);
+  const [peakingIntensity, setPeakingIntensitySignal] = createSignal<number>(60);
+  const [peakingColor, setPeakingColorSignal] = createSignal<string>('lime');
+  const [peakingOpacity, setPeakingOpacitySignal] = createSignal<number>(0.5);
+  const [peakingBlink, setPeakingBlinkSignal] = createSignal<boolean>(false);
 
   // ホイール感度関連Signal
   const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(CONFIG.zoom.wheelSensitivity);
@@ -175,12 +175,32 @@ export const AppProvider: ParentComponent = (props) => {
   const [histogramSize, setHistogramSize] = createSignal<number>(CONFIG.histogram.size);
   const [histogramOpacity, setHistogramOpacity] = createSignal<number>(CONFIG.histogram.opacity);
 
-  // バリデーション付きセッター
-  const setPeakingIntensity = (intensity: number) => {
-    _setPeakingIntensity(clampIntensity(intensity));
+  // ピーキング設定の永続化付きセッター
+  const setPeakingEnabled = (enabled: boolean) => {
+    setPeakingEnabledSignal(enabled);
+    localStorage.setItem('vdi-peaking-enabled', enabled ? 'true' : 'false');
   };
+
+  const setPeakingIntensity = (intensity: number) => {
+    const clampedIntensity = clampIntensity(intensity);
+    setPeakingIntensitySignal(clampedIntensity);
+    localStorage.setItem('vdi-peaking-intensity', clampedIntensity.toString());
+  };
+
+  const setPeakingColor = (color: string) => {
+    setPeakingColorSignal(color);
+    localStorage.setItem('vdi-peaking-color', color);
+  };
+
   const setPeakingOpacity = (opacity: number) => {
-    _setPeakingOpacity(clampOpacity(opacity));
+    const clampedOpacityValue = clampOpacity(opacity);
+    setPeakingOpacitySignal(clampedOpacityValue);
+    localStorage.setItem('vdi-peaking-opacity', clampedOpacityValue.toString());
+  };
+
+  const setPeakingBlink = (enabled: boolean) => {
+    setPeakingBlinkSignal(enabled);
+    localStorage.setItem('vdi-peaking-blink', enabled ? 'true' : 'false');
   };
 
   let rotationTimer: number | undefined;
@@ -367,6 +387,38 @@ export const AppProvider: ParentComponent = (props) => {
       if (!isNaN(sensitivity)) {
         setWheelSensitivity(Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity)));
       }
+    }
+
+    // フォーカスピーキング設定を復元
+    const savedPeakingEnabled = localStorage.getItem('vdi-peaking-enabled');
+    if (savedPeakingEnabled !== null) {
+      setPeakingEnabled(savedPeakingEnabled === 'true');
+    }
+
+    const savedPeakingIntensity = localStorage.getItem('vdi-peaking-intensity');
+    if (savedPeakingIntensity) {
+      const intensity = parseInt(savedPeakingIntensity, 10);
+      if (!Number.isNaN(intensity)) {
+        setPeakingIntensity(intensity);
+      }
+    }
+
+    const savedPeakingColor = localStorage.getItem('vdi-peaking-color');
+    if (savedPeakingColor) {
+      setPeakingColor(savedPeakingColor);
+    }
+
+    const savedPeakingOpacity = localStorage.getItem('vdi-peaking-opacity');
+    if (savedPeakingOpacity) {
+      const opacity = parseFloat(savedPeakingOpacity);
+      if (!Number.isNaN(opacity)) {
+        setPeakingOpacity(opacity);
+      }
+    }
+
+    const savedPeakingBlink = localStorage.getItem('vdi-peaking-blink');
+    if (savedPeakingBlink !== null) {
+      setPeakingBlink(savedPeakingBlink === 'true');
     }
 
     // ヒストグラム設定を復元

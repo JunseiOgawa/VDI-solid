@@ -579,6 +579,7 @@ const ImageViewer: Component = () => {
             <ImageManager
               src={imageSrc()!}
               imagePath={currentImageFilePath()}
+              imageSrc={imageSrc()}
               onLoad={() => {
                 measureAll();
                 setPosition((prev) => clampToBounds(prev));
@@ -599,6 +600,7 @@ const ImageViewer: Component = () => {
           <Show when={histogramEnabled() && currentImageFilePath()}>
             <HistogramLayer
               imagePath={currentImageFilePath()!}
+              imageSrc={imageSrc()}
               enabled={histogramEnabled()}
               displayType={histogramDisplayType()}
               position={histogramPosition()}
