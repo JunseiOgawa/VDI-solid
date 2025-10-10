@@ -18,7 +18,7 @@
         "width": 800,
         "height": 600,
         "visible": false,
-        "minWidth": 400,
+        "minWidth": 500,
         "minHeight": 300,
         "transparent": true,
         "decorations": false
