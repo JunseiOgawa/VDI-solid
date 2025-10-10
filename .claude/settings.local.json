@@ -14,7 +14,10 @@
       "mcp__serena__find_file",
       "mcp__serena__find_referencing_symbols",
       "Bash(cat:*)",
-      "Bash(npm run build:vite:*)"
+      "Bash(npm run build:vite:*)",
+      "Bash(npm run:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

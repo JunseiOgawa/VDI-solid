@@ -135,7 +135,6 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
 
       {/* 将来のレイヤー追加位置 */}
       {/* Layer 4: ... */}
-      {/* Layer 5: ... */}
     </div>
   );
 };

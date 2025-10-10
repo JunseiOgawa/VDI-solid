@@ -542,3 +542,341 @@ VRコントローラーで操作する場合、感度を`0.1`～`0.3`程度に�
 - 設定値の範囲を制限して極端な値を防ぐ
 - 既存の機能には影響を与えない（ホイールズームのみ変更）
 - コミットは行わず、実装完了後にユーザーへ確認を求める
+
+---
+
+# カラーヒストグラム表示機能の追加 タスク一覧
+
+## タスク概要
+
+画像解析をサポートするため、checkerboard-bg要素の指定位置にレスポンシブ対応のカラーヒストグラムを表示する機能を追加します。ヒストグラム計算はRust側で処理し、ピーキング処理と並列実行することでパフォーマンスを確保します。
+
+## 実装タスク
+
+### 1. 設計フェーズ
+
+- [x] 現在の実装状況の分析
+  - [x] 既存のピーキング機能の実装状況を確認
+  - [x] 並列処理の実装パターンを確認
+- [x] 設計書の作成
+  - [x] 要件の詳細化
+  - [x] コンポーネント構成の設計
+  - [x] Rust側の実装設計
+  - [x] 影響範囲の分析
+- [x] タスクの洗い出し
+
+### 2. Rust側の実装
+
+#### ステップ1: histogram.rsモジュールの作成
+
+**ファイル**: `src-tauri/src/histogram.rs`
+
+- [ ] 基本構造の作成
+  - [ ] `HistogramResult`構造体の定義
+  - [ ] `HistogramData` enum の定義
+  - [ ] キャンセルフラグ用のlazy_static定義
+- [ ] ヒストグラム計算関数の実装
+  - [ ] `calculate_rgb_histogram`関数の実装
+  - [ ] `calculate_luminance_histogram`関数の実装
+  - [ ] 並列処理の実装（rayon使用）
+- [ ] キャンセル機能の実装
+  - [ ] `register_histogram_cancel_flag`関数の実装
+  - [ ] `unregister_histogram_cancel_flag`関数の実装
+  - [ ] ピーキング処理と同じパターンで実装
+- [ ] Tauri Commandの実装
+  - [ ] `calculate_histogram`コマンドの実装
+  - [ ] エラーハンドリングの実装
+  - [ ] ログ出力の実装
+
+#### ステップ2: lib.rsへの統合
+
+**ファイル**: `src-tauri/src/lib.rs`
+
+- [ ] histogramモジュールのインポート
+  - [ ] `mod histogram;`の追加
+- [ ] Tauriビルダーへのコマンド登録
+  - [ ] `invoke_handler`に`calculate_histogram`を追加
+
+### 3. configファイルの更新
+
+**ファイル**: `src/config/config.ts`
+
+- [ ] AppConfigインターフェースにヒストグラム設定を追加
+  - [ ] `histogram`セクションの追加
+  - [ ] デフォルトの表示タイプ
+  - [ ] デフォルトの表示位置
+  - [ ] デフォルトのサイズ
+  - [ ] デフォルトの透明度
+  - [ ] キャッシュサイズの設定
+- [ ] CONFIG定数にデフォルト値を設定
+  - [ ] `enabled: false`（デフォルトは非表示）
+  - [ ] `displayType: 'rgb'`
+  - [ ] `position: 'top-right'`
+  - [ ] `size: 1.0`
+  - [ ] `opacity: 0.8`
+  - [ ] `cacheSize: 5`（デフォルトのキャッシュサイズ）
+
+### 4. AppStateContextの更新
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [ ] AppStateインターフェースにヒストグラム状態を追加
+  - [ ] `histogramEnabled: () => boolean`
+  - [ ] `setHistogramEnabled: (enabled: boolean) => void`
+  - [ ] `histogramDisplayType: () => 'rgb' | 'luminance'`
+  - [ ] `setHistogramDisplayType: (type: 'rgb' | 'luminance') => void`
+  - [ ] `histogramPosition: () => 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'`
+  - [ ] `setHistogramPosition: (position: ...) => void`
+  - [ ] `histogramSize: () => number`
+  - [ ] `setHistogramSize: (size: number) => void`
+  - [ ] `histogramOpacity: () => number`
+  - [ ] `setHistogramOpacity: (opacity: number) => void`
+- [ ] Signal定義の追加
+  - [ ] `histogramEnabled` Signal
+  - [ ] `histogramDisplayType` Signal
+  - [ ] `histogramPosition` Signal
+  - [ ] `histogramSize` Signal
+  - [ ] `histogramOpacity` Signal
+- [ ] localStorageからの復元処理を追加
+  - [ ] `onMount`内でlocalStorageから各設定を読み込み
+  - [ ] 値のバリデーション（範囲チェック）
+- [ ] 永続化処理の実装
+  - [ ] 各setter関数でlocalStorageに保存
+  - [ ] キープレフィックス: `vdi-histogram-`
+- [ ] appState objectに追加
+  - [ ] すべてのヒストグラム関連のgetterとsetterを追加
+
+### 5. HistogramLayerコンポーネントの作成
+
+**ファイル**: `src/components/ImageViewer/HistogramLayer.tsx`
+
+- [ ] 基本コンポーネント構造の作成
+  - [ ] Props型定義
+  - [ ] コンポーネント骨格の実装
+- [ ] Canvas描画処理の実装
+  - [ ] `drawHistogram`関数の実装
+  - [ ] `drawHistogramLine`関数の実装
+  - [ ] RGB別表示の実装
+  - [ ] 輝度表示の実装
+- [ ] データ取得処理の実装
+  - [ ] `invokeCalculateHistogram`関数の実装
+  - [ ] createEffectでの自動更新
+  - [ ] エラーハンドリング
+- [ ] キャッシュ機能の実装
+  - [ ] キャッシュキーの生成
+  - [ ] キャッシュのMapを作成
+  - [ ] キャッシュサイズの制限（デフォルト5件、configで設定可能）
+- [ ] AbortController機能の実装
+  - [ ] 重複リクエストのキャンセル
+  - [ ] クリーンアップ処理
+- [ ] レスポンシブ対応の実装
+  - [ ] サイズプロパティの反映
+  - [ ] createEffectでの再描画
+- [ ] スタイリングの実装
+  - [ ] 位置プロパティの反映
+  - [ ] 透明度の反映
+  - [ ] pointer-events: noneの設定
+  - [ ] border、border-radius、box-shadowの設定
+
+### 6. ImageManagerの更新
+
+**ファイル**: `src/components/ImageViewer/ImageManager.tsx`
+
+- [ ] ImageManagerPropsインターフェースを更新
+  - [ ] ヒストグラム関連のpropsを追加
+- [ ] HistogramLayerの統合
+  - [ ] importの追加
+  - [ ] 条件付きレンダリング
+  - [ ] Props受け渡し
+- [ ] 並列実行の確認
+  - [ ] ピーキングとヒストグラムが並列実行されることを確認
+
+### 7. SettingsMenuの更新
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+- [ ] SettingsMenuPropsインターフェースを更新
+  - [ ] ヒストグラム関連のpropsを追加
+- [ ] イベントハンドラの実装
+  - [ ] `handleHistogramEnabledChange`関数
+  - [ ] `handleHistogramDisplayTypeChange`関数
+  - [ ] `handleHistogramPositionChange`関数
+  - [ ] `handleHistogramSizeChange`関数
+  - [ ] `handleHistogramOpacityChange`関数
+- [ ] UIコンポーネントの追加
+  - [ ] ヒストグラムセクションの追加
+  - [ ] ON/OFFチェックボックス
+  - [ ] 表示タイプ選択（select）
+  - [ ] 表示位置選択（select）
+  - [ ] サイズスライダー（range）
+  - [ ] 透明度スライダー（range）
+- [ ] UIの配置
+  - [ ] 適切な位置に配置
+  - [ ] 区切り線（hr）を追加
+
+### 8. Titlebarの更新
+
+**ファイル**: `src/components/Titlebar/index.tsx`
+
+- [ ] useAppStateからヒストグラム状態を取得
+  - [ ] すべてのヒストグラム関連のgetterとsetterを取得
+- [ ] SettingsMenuコンポーネントにpropsを追加
+  - [ ] すべてのヒストグラム関連のpropsを渡す
+
+### 9. ImageViewerの更新
+
+**ファイル**: `src/components/ImageViewer/index.tsx`
+
+- [ ] useAppStateからヒストグラム状態を取得
+  - [ ] すべてのヒストグラム関連のgetterを取得
+- [ ] ImageManagerにpropsを追加
+  - [ ] すべてのヒストグラム関連のpropsを渡す
+
+### 10. テストフェーズ
+
+#### 機能テスト
+
+- [ ] ヒストグラムの基本動作確認
+  - [ ] ON/OFF切り替えが正しく動作すること
+  - [ ] 表示タイプの切り替え（RGB別、輝度のみ）が正しく動作すること
+  - [ ] 表示位置の切り替え（4つの位置）が正しく動作すること
+  - [ ] サイズ調整が正しく反映されること
+  - [ ] 透明度調整が正しく反映されること
+- [ ] データ取得の確認
+  - [ ] 画像読み込み時に自動更新されること
+  - [ ] キャッシュ機能が正しく動作すること
+  - [ ] AbortController機能が正しく動作すること
+- [ ] 並列実行の確認
+  - [ ] ピーキング処理とヒストグラム処理が並列実行されること
+  - [ ] CPU負荷が適切であること
+- [ ] 永続化の確認
+  - [ ] 設定値が正しくlocalStorageに保存されること
+  - [ ] アプリを再起動しても設定値が保持されること
+
+#### UIテスト
+
+- [ ] ヒストグラムの表示確認
+  - [ ] ヒストグラムが指定位置に正しく表示されること
+  - [ ] Canvas描画が正しく行われること
+  - [ ] RGB別表示が正しく機能すること
+  - [ ] 輝度表示が正しく機能すること
+- [ ] レスポンシブ対応の確認
+  - [ ] サイズ調整が正しく反映されること
+  - [ ] 各画面サイズで正しく表示されること
+- [ ] 操作性の確認
+  - [ ] ヒストグラムが操作を妨げないこと（pointer-events: none）
+  - [ ] 設定メニューの操作が快適であること
+
+#### パフォーマンステスト
+
+- [ ] 処理速度の確認
+  - [ ] 大きな画像でもヒストグラム計算が高速であること
+  - [ ] ピーキング処理とヒストグラム処理が並列実行されること
+- [ ] メモリ管理の確認
+  - [ ] キャンセル機能が正しく動作すること
+  - [ ] メモリリークが発生しないこと
+  - [ ] キャッシュが適切に管理されること
+
+#### 既存機能の動作確認
+
+- [ ] 他の機能への影響確認
+  - [ ] ピーキング機能が正しく動作すること
+  - [ ] グリッド機能が正しく動作すること
+  - [ ] ズーム機能が影響を受けていないこと
+  - [ ] ドラッグ機能が影響を受けていないこと
+  - [ ] 回転機能が影響を受けていないこと
+
+### 11. コードフォーマット
+
+- [ ] コードフォーマッターの適用
+  - [ ] histogram.rs
+  - [ ] lib.rs
+  - [ ] config.ts
+  - [ ] AppStateContext.tsx
+  - [ ] HistogramLayer.tsx
+  - [ ] ImageManager.tsx
+  - [ ] SettingsMenu/index.tsx
+  - [ ] Titlebar/index.tsx
+  - [ ] ImageViewer/index.tsx
+
+### 12. ドキュメント作成
+
+- [ ] 使用方法のドキュメント作成
+  - [ ] ヒストグラム機能の説明
+  - [ ] 設定方法の説明
+  - [ ] トラブルシューティング
+
+### 13. 最終確認
+
+- [ ] 設計書との整合性確認
+- [ ] すべての機能が正しく動作することを確認
+- [ ] パフォーマンスが適切であることを確認
+- [ ] コミット前の最終動作確認
+- [ ] ユーザーへの確認依頼
+
+## 変更ファイル
+
+### 新規作成
+
+- `src/components/ImageViewer/HistogramLayer.tsx`
+- `src-tauri/src/histogram.rs`
+
+### 修正
+
+- `src/config/config.ts`
+- `src/context/AppStateContext.tsx`
+- `src/components/SettingsMenu/index.tsx`
+- `src/components/Titlebar/index.tsx`
+- `src/components/ImageViewer/ImageManager.tsx`
+- `src/components/ImageViewer/index.tsx`
+- `src-tauri/src/lib.rs`
+
+## 実装の詳細
+
+### ヒストグラムデータ構造
+
+```rust
+pub struct HistogramResult {
+    pub width: u32,
+    pub height: u32,
+    pub histogram_type: String,
+    pub data: HistogramData,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum HistogramData {
+    RGB { r: Vec<u32>, g: Vec<u32>, b: Vec<u32> },
+    Luminance { y: Vec<u32> },
+}
+```
+
+### Canvas描画処理
+
+- RGB別表示: 赤、緑、青の3本のラインを描画
+- 輝度表示: 白のラインを描画
+- 背景: 半透明の黒で塗りつぶし
+- 正規化: 最大値で正規化して高さに反映
+
+### キャッシュ機能
+
+- キャッシュキー: `${imagePath}:${displayType}`
+- キャッシュサイズ: デフォルト5件（configで設定可能）
+- LRU方式でキャッシュを管理
+
+### 並列実行
+
+- ピーキング処理とヒストグラム処理が**両方有効化されている場合のみ**並列実行される
+  - 無効化されている機能は処理を実行しない
+- ピーキング処理とヒストグラム処理は完全に独立
+- それぞれが独自のキャンセルフラグを持つ
+- Tauri側で並列実行される
+- 新しい画像が取り込まれた際は、処理が途中でも中断して新しい画像の処理を開始
+
+## 注意事項
+
+- 新規機能のため既存機能への影響は少ない
+- Rust側の並列処理によるCPU負荷増加に注意
+- Canvas描画によるメモリ使用量の増加に注意
+- キャッシュ機能でパフォーマンスを最適化
+- コミットは行わず、実装完了後にユーザーへ確認を求める

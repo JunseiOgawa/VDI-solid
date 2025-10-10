@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 import { TauriEvent } from '@tauri-apps/api/event';
 import { useAppState } from '../../context/AppStateContext';
@@ -11,6 +11,7 @@ import {
 } from '../../lib/fileUtils';
 import { registerCalculateAndSetScreenFit, registerResetImagePosition } from '../../lib/imageViewerApi';
 import ImageManager from './ImageManager';
+import HistogramLayer from './HistogramLayer';
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -35,6 +36,11 @@ const ImageViewer: Component = () => {
     peakingOpacity,
     peakingBlink,
     wheelSensitivity,
+    histogramEnabled,
+    histogramDisplayType,
+    histogramPosition,
+    histogramSize,
+    histogramOpacity,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -588,6 +594,18 @@ const ImageViewer: Component = () => {
               peakingBlink={peakingBlink()}
             />
           </div>
+
+          {/* ヒストグラムレイヤー - checkerboard-bgの直下に配置 */}
+          <Show when={histogramEnabled() && currentImageFilePath()}>
+            <HistogramLayer
+              imagePath={currentImageFilePath()!}
+              enabled={histogramEnabled()}
+              displayType={histogramDisplayType()}
+              position={histogramPosition()}
+              size={histogramSize()}
+              opacity={histogramOpacity()}
+            />
+          </Show>
         </>
       ) : (
         <div class="rounded-md border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-secondary)]">

@@ -38,6 +38,16 @@ const Titlebar: Component = () => {
     setPeakingBlink,
     wheelSensitivity,
     setWheelSensitivity,
+    histogramEnabled,
+    setHistogramEnabled,
+    histogramDisplayType,
+    setHistogramDisplayType,
+    histogramPosition,
+    setHistogramPosition,
+    histogramSize,
+    setHistogramSize,
+    histogramOpacity,
+    setHistogramOpacity,
   } = useAppState();
 
   const baseZoomButtonClasses =
@@ -290,6 +300,16 @@ const Titlebar: Component = () => {
               currentImagePath={currentImagePath()}
               wheelSensitivity={wheelSensitivity()}
               onWheelSensitivityChange={setWheelSensitivity}
+              histogramEnabled={histogramEnabled()}
+              onHistogramEnabledChange={setHistogramEnabled}
+              histogramDisplayType={histogramDisplayType()}
+              onHistogramDisplayTypeChange={setHistogramDisplayType}
+              histogramPosition={histogramPosition()}
+              onHistogramPositionChange={setHistogramPosition}
+              histogramSize={histogramSize()}
+              onHistogramSizeChange={setHistogramSize}
+              histogramOpacity={histogramOpacity()}
+              onHistogramOpacityChange={setHistogramOpacity}
             />
           </div>
         )}

@@ -20,6 +20,18 @@ export interface AppConfig {
     minOpacity: number;
     maxOpacity: number;
   };
+  histogram: {
+    enabled: boolean;
+    displayType: 'rgb' | 'luminance';
+    position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+    size: number;
+    opacity: number;
+    minSize: number;
+    maxSize: number;
+    minOpacity: number;
+    maxOpacity: number;
+    cacheSize: number;
+  };
 }
 
 export const CONFIG: AppConfig = {
@@ -41,5 +53,17 @@ export const CONFIG: AppConfig = {
     defaultOpacity: 0.5,
     minOpacity: 0.1,
     maxOpacity: 1.0,
+  },
+  histogram: {
+    enabled: false,
+    displayType: 'rgb',
+    position: 'top-right',
+    size: 1.0,
+    opacity: 0.8,
+    minSize: 0.5,
+    maxSize: 2.0,
+    minOpacity: 0.0,
+    maxOpacity: 1.0,
+    cacheSize: 5,
   },
 };

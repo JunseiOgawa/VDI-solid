@@ -81,6 +81,28 @@ export interface AppState {
   wheelSensitivity: () => number;
   /** ホイール感度を設定 */
   setWheelSensitivity: (sensitivity: number) => void;
+
+  // ヒストグラム関連
+  /** ヒストグラム機能の有効/無効 */
+  histogramEnabled: () => boolean;
+  /** ヒストグラム機能の有効/無効を設定 */
+  setHistogramEnabled: (enabled: boolean) => void;
+  /** ヒストグラム表示タイプ */
+  histogramDisplayType: () => 'rgb' | 'luminance';
+  /** ヒストグラム表示タイプを設定 */
+  setHistogramDisplayType: (type: 'rgb' | 'luminance') => void;
+  /** ヒストグラム表示位置 */
+  histogramPosition: () => 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  /** ヒストグラム表示位置を設定 */
+  setHistogramPosition: (position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left') => void;
+  /** ヒストグラムサイズ倍率 */
+  histogramSize: () => number;
+  /** ヒストグラムサイズ倍率を設定 */
+  setHistogramSize: (size: number) => void;
+  /** ヒストグラム不透明度 */
+  histogramOpacity: () => number;
+  /** ヒストグラム不透明度を設定 */
+  setHistogramOpacity: (opacity: number) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -145,6 +167,13 @@ export const AppProvider: ParentComponent = (props) => {
 
   // ホイール感度関連Signal
   const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(CONFIG.zoom.wheelSensitivity);
+
+  // ヒストグラム関連Signal
+  const [histogramEnabled, setHistogramEnabled] = createSignal<boolean>(CONFIG.histogram.enabled);
+  const [histogramDisplayType, setHistogramDisplayType] = createSignal<'rgb' | 'luminance'>(CONFIG.histogram.displayType);
+  const [histogramPosition, setHistogramPosition] = createSignal<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>(CONFIG.histogram.position);
+  const [histogramSize, setHistogramSize] = createSignal<number>(CONFIG.histogram.size);
+  const [histogramOpacity, setHistogramOpacity] = createSignal<number>(CONFIG.histogram.opacity);
 
   // バリデーション付きセッター
   const setPeakingIntensity = (intensity: number) => {
@@ -340,6 +369,38 @@ export const AppProvider: ParentComponent = (props) => {
       }
     }
 
+    // ヒストグラム設定を復元
+    const savedHistogramEnabled = localStorage.getItem('vdi-histogram-enabled');
+    if (savedHistogramEnabled !== null) {
+      setHistogramEnabled(savedHistogramEnabled === 'true');
+    }
+
+    const savedHistogramDisplayType = localStorage.getItem('vdi-histogram-display-type');
+    if (savedHistogramDisplayType && (savedHistogramDisplayType === 'rgb' || savedHistogramDisplayType === 'luminance')) {
+      setHistogramDisplayType(savedHistogramDisplayType);
+    }
+
+    const savedHistogramPosition = localStorage.getItem('vdi-histogram-position');
+    if (savedHistogramPosition && ['top-right', 'top-left', 'bottom-right', 'bottom-left'].includes(savedHistogramPosition)) {
+      setHistogramPosition(savedHistogramPosition as 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left');
+    }
+
+    const savedHistogramSize = localStorage.getItem('vdi-histogram-size');
+    if (savedHistogramSize) {
+      const size = parseFloat(savedHistogramSize);
+      if (!isNaN(size)) {
+        setHistogramSize(Math.max(CONFIG.histogram.minSize, Math.min(CONFIG.histogram.maxSize, size)));
+      }
+    }
+
+    const savedHistogramOpacity = localStorage.getItem('vdi-histogram-opacity');
+    if (savedHistogramOpacity) {
+      const opacity = parseFloat(savedHistogramOpacity);
+      if (!isNaN(opacity)) {
+        setHistogramOpacity(Math.max(CONFIG.histogram.minOpacity, Math.min(CONFIG.histogram.maxOpacity, opacity)));
+      }
+    }
+
     setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
@@ -380,6 +441,33 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-wheel-sensitivity', clampedSensitivity.toString());
   };
 
+  const handleHistogramEnabledChange = (enabled: boolean) => {
+    setHistogramEnabled(enabled);
+    localStorage.setItem('vdi-histogram-enabled', enabled ? 'true' : 'false');
+  };
+
+  const handleHistogramDisplayTypeChange = (type: 'rgb' | 'luminance') => {
+    setHistogramDisplayType(type);
+    localStorage.setItem('vdi-histogram-display-type', type);
+  };
+
+  const handleHistogramPositionChange = (position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left') => {
+    setHistogramPosition(position);
+    localStorage.setItem('vdi-histogram-position', position);
+  };
+
+  const handleHistogramSizeChange = (size: number) => {
+    const clampedSize = Math.max(CONFIG.histogram.minSize, Math.min(CONFIG.histogram.maxSize, size));
+    setHistogramSize(clampedSize);
+    localStorage.setItem('vdi-histogram-size', clampedSize.toString());
+  };
+
+  const handleHistogramOpacityChange = (opacity: number) => {
+    const clampedOpacity = Math.max(CONFIG.histogram.minOpacity, Math.min(CONFIG.histogram.maxOpacity, opacity));
+    setHistogramOpacity(clampedOpacity);
+    localStorage.setItem('vdi-histogram-opacity', clampedOpacity.toString());
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -414,6 +502,16 @@ export const AppProvider: ParentComponent = (props) => {
     setPeakingBlink,
     wheelSensitivity,
     setWheelSensitivity: handleWheelSensitivityChange,
+    histogramEnabled,
+    setHistogramEnabled: handleHistogramEnabledChange,
+    histogramDisplayType,
+    setHistogramDisplayType: handleHistogramDisplayTypeChange,
+    histogramPosition,
+    setHistogramPosition: handleHistogramPositionChange,
+    histogramSize,
+    setHistogramSize: handleHistogramSizeChange,
+    histogramOpacity,
+    setHistogramOpacity: handleHistogramOpacityChange,
   };
 
   return (

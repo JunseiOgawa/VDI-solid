@@ -932,3 +932,585 @@ VRコントローラーで操作する場合、感度を`0.1`～`0.3`程度に�
 - `src/components/SettingsMenu/index.tsx` (修正)
 - `src/components/Titlebar/index.tsx` (修正)
 - `src/components/ImageViewer/index.tsx` (修正)
+
+---
+
+# カラーヒストグラム表示機能の追加
+
+## 概要
+
+画像解析をサポートするため、checkerboard-bg要素の指定位置にレスポンシブ対応のカラーヒストグラムを表示する機能を追加します。ヒストグラム計算はRust側で処理し、ピーキング処理と並列実行することでパフォーマンスを確保します。
+
+## 背景
+
+### 現在の実装状況
+
+- 画像表示機能は`ImageViewer`コンポーネントで実装済み
+- ピーキング機能はRust側で並列処理され、フロントエンドで描画
+- 設定メニュー（SettingsMenu）で各種設定を管理
+
+### 要件
+
+1. ヒストグラム表示のON/OFF切り替え
+2. 表示タイプの切り替え（RGB別、輝度のみ）
+3. 表示位置の選択（右上、右下、左上、左下）
+4. サイズ調整可能（0.5x ~ 2.0x）
+5. 透明度調整可能（0% ~ 100%）
+6. 画像読み込み時に自動更新
+7. 関数化して手動呼び出し可能
+8. Rust側で処理、ピーキングと並列実行
+9. レスポンシブ対応
+
+## 設計
+
+### コンポーネント構成
+
+#### 1. HistogramLayerコンポーネント（新規作成）
+
+**ファイルパス**: `src/components/ImageViewer/HistogramLayer.tsx`
+
+**役割**: ヒストグラムの表示とCanvasによる描画
+
+**Props**:
+```typescript
+interface HistogramLayerProps {
+  imagePath: string | null;
+  enabled: boolean;
+  displayType: 'rgb' | 'luminance';
+  position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  size: number; // 0.5 ~ 2.0 の範囲
+  opacity: number; // 0.0 ~ 1.0 の範囲
+}
+```
+
+**機能**:
+- Rustから取得したヒストグラムデータをCanvas APIで描画
+- キャッシュ機能によるパフォーマンス最適化
+- AbortControllerによる重複リクエストのキャンセル
+- レスポンシブ対応（containerサイズに応じて調整）
+
+#### 2. Rustヒストグラム処理（新規作成）
+
+**ファイルパス**: `src-tauri/src/histogram.rs`
+
+**役割**: 画像からヒストグラムデータを計算
+
+**Tauri Command**:
+```rust
+#[tauri::command]
+pub async fn calculate_histogram(
+    image_path: String,
+    histogram_type: String, // "rgb" or "luminance"
+    request_id: Option<String>,
+) -> Result<HistogramResult, String>
+```
+
+**戻り値**:
+```rust
+pub struct HistogramResult {
+    pub width: u32,
+    pub height: u32,
+    pub histogram_type: String,
+    pub data: HistogramData,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum HistogramData {
+    RGB { r: Vec<u32>, g: Vec<u32>, b: Vec<u32> },
+    Luminance { y: Vec<u32> },
+}
+```
+
+**処理内容**:
+- 画像読み込み（`image` crate使用）
+- RGB/輝度ヒストグラムの計算（256階調）
+- 並列処理（rayon使用）
+- キャンセル機能（AtomicBoolによる実装）
+
+#### 3. AppStateContextの更新
+
+**ファイルパス**: `src/context/AppStateContext.tsx`
+
+**追加する状態**:
+```typescript
+export interface AppState {
+  // 既存の定義...
+
+  // ヒストグラム関連
+  histogramEnabled: () => boolean;
+  setHistogramEnabled: (enabled: boolean) => void;
+  histogramDisplayType: () => 'rgb' | 'luminance';
+  setHistogramDisplayType: (type: 'rgb' | 'luminance') => void;
+  histogramPosition: () => 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  setHistogramPosition: (position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left') => void;
+  histogramSize: () => number;
+  setHistogramSize: (size: number) => void;
+  histogramOpacity: () => number;
+  setHistogramOpacity: (opacity: number) => void;
+}
+```
+
+**永続化**:
+- すべての設定をlocalStorageに保存
+- キーのプレフィックス: `vdi-histogram-`
+
+#### 4. SettingsMenuの更新
+
+**ファイルパス**: `src/components/SettingsMenu/index.tsx`
+
+**追加するUI要素**:
+```typescript
+// ヒストグラムセクション
+<div class="px-3 py-2">
+  <div class="flex flex-col gap-2">
+    <span class="text-xs font-semibold text-[var(--text-primary)]">ヒストグラム</span>
+
+    {/* ON/OFFチェックボックス */}
+    <label class="flex items-center gap-2">
+      <input type="checkbox" ... />
+      <span>表示する</span>
+    </label>
+
+    {/* 表示タイプ選択 */}
+    <label class="flex flex-col gap-1">
+      <span>表示タイプ</span>
+      <select>
+        <option value="rgb">RGB別</option>
+        <option value="luminance">輝度のみ</option>
+      </select>
+    </label>
+
+    {/* 表示位置選択 */}
+    <label class="flex flex-col gap-1">
+      <span>表示位置</span>
+      <select>
+        <option value="top-right">右上</option>
+        <option value="top-left">左上</option>
+        <option value="bottom-right">右下</option>
+        <option value="bottom-left">左下</option>
+      </select>
+    </label>
+
+    {/* サイズスライダー */}
+    <label class="flex flex-col gap-1">
+      <span>サイズ: {size.toFixed(1)}x</span>
+      <input type="range" min="0.5" max="2.0" step="0.1" ... />
+    </label>
+
+    {/* 透明度スライダー */}
+    <label class="flex flex-col gap-1">
+      <span>透明度: {(opacity * 100).toFixed(0)}%</span>
+      <input type="range" min="0" max="1" step="0.05" ... />
+    </label>
+  </div>
+</div>
+```
+
+#### 5. ImageManagerの更新
+
+**ファイルパス**: `src/components/ImageViewer/ImageManager.tsx`
+
+**追加するProps**:
+```typescript
+interface ImageManagerProps {
+  // 既存のprops...
+
+  // ヒストグラム関連
+  histogramEnabled: boolean;
+  histogramDisplayType: 'rgb' | 'luminance';
+  histogramPosition: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  histogramSize: number;
+  histogramOpacity: number;
+}
+```
+
+**HistogramLayerの統合**:
+```tsx
+<div class="relative">
+  {/* 画像 */}
+  <img ... />
+
+  {/* グリッド */}
+  {props.gridPattern !== 'none' && <GridOverlay ... />}
+
+  {/* ピーキング */}
+  {props.peakingEnabled && <PeakingLayer ... />}
+
+  {/* ヒストグラム */}
+  {props.histogramEnabled && (
+    <HistogramLayer
+      imagePath={props.imagePath}
+      enabled={props.histogramEnabled}
+      displayType={props.histogramDisplayType}
+      position={props.histogramPosition}
+      size={props.histogramSize}
+      opacity={props.histogramOpacity}
+    />
+  )}
+</div>
+```
+
+### ヒストグラム描画の実装詳細
+
+#### Canvas描画処理
+
+```typescript
+const drawHistogram = (
+  ctx: CanvasRenderingContext2D,
+  histogramData: HistogramData,
+  displayType: 'rgb' | 'luminance',
+  width: number,
+  height: number
+) => {
+  // 背景を半透明の黒で塗りつぶし
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(0, 0, width, height);
+
+  if (displayType === 'rgb') {
+    // RGB別表示
+    const { r, g, b } = histogramData as { r: number[]; g: number[]; b: number[]; };
+    const max = Math.max(...r, ...g, ...b);
+
+    // Rチャンネル（赤）
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+    drawHistogramLine(ctx, r, max, width, height);
+
+    // Gチャンネル（緑）
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+    drawHistogramLine(ctx, g, max, width, height);
+
+    // Bチャンネル（青）
+    ctx.strokeStyle = 'rgba(0, 0, 255, 0.7)';
+    drawHistogramLine(ctx, b, max, width, height);
+  } else {
+    // 輝度のみ表示
+    const { y } = histogramData as { y: number[] };
+    const max = Math.max(...y);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    drawHistogramLine(ctx, y, max, width, height);
+  }
+};
+
+const drawHistogramLine = (
+  ctx: CanvasRenderingContext2D,
+  data: number[],
+  max: number,
+  width: number,
+  height: number
+) => {
+  ctx.beginPath();
+  const step = width / data.length;
+
+  data.forEach((value, index) => {
+    const x = index * step;
+    const y = height - (value / max) * height;
+
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+
+  ctx.stroke();
+};
+```
+
+#### レスポンシブ対応
+
+```typescript
+createEffect(() => {
+  const baseWidth = 256;
+  const baseHeight = 128;
+  const scaleFactor = props.size;
+
+  canvasWidth = baseWidth * scaleFactor;
+  canvasHeight = baseHeight * scaleFactor;
+
+  // Canvas要素のサイズを更新
+  if (canvasRef) {
+    canvasRef.width = canvasWidth;
+    canvasRef.height = canvasHeight;
+  }
+
+  // 再描画
+  redrawHistogram();
+});
+```
+
+### Rust実装の詳細
+
+#### ヒストグラム計算処理
+
+```rust
+// RGB別ヒストグラムの計算
+fn calculate_rgb_histogram(img: &DynamicImage) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
+    let rgb_img = img.to_rgb8();
+
+    // 256階調のヒストグラムを初期化
+    let mut hist_r = vec![0u32; 256];
+    let mut hist_g = vec![0u32; 256];
+    let mut hist_b = vec![0u32; 256];
+
+    // 並列処理でピクセルをカウント
+    rgb_img.enumerate_pixels().for_each(|(_x, _y, pixel)| {
+        hist_r[pixel[0] as usize] += 1;
+        hist_g[pixel[1] as usize] += 1;
+        hist_b[pixel[2] as usize] += 1;
+    });
+
+    (hist_r, hist_g, hist_b)
+}
+
+// 輝度ヒストグラムの計算
+fn calculate_luminance_histogram(img: &DynamicImage) -> Vec<u32> {
+    let rgb_img = img.to_rgb8();
+    let mut hist_y = vec![0u32; 256];
+
+    rgb_img.enumerate_pixels().for_each(|(_x, _y, pixel)| {
+        // ITU-R BT.709の輝度計算式
+        let y = (0.2126 * pixel[0] as f32
+               + 0.7152 * pixel[1] as f32
+               + 0.0722 * pixel[2] as f32) as u8;
+        hist_y[y as usize] += 1;
+    });
+
+    hist_y
+}
+```
+
+#### キャンセル機能
+
+```rust
+lazy_static::lazy_static! {
+    static ref HISTOGRAM_CANCEL_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> =
+        Mutex::new(HashMap::new());
+}
+
+// ピーキング処理と同じパターンでキャンセル機能を実装
+fn register_histogram_cancel_flag(request_id: &str, base_key: &str) -> Arc<AtomicBool> {
+    let flag = Arc::new(AtomicBool::new(false));
+    let mut map = HISTOGRAM_CANCEL_FLAGS.lock().unwrap();
+
+    // 同じベースキーの古いリクエストをすべてキャンセル
+    let base_prefix = format!("{}#", base_key);
+    let keys_to_cancel: Vec<String> = map
+        .keys()
+        .filter(|k| k.starts_with(&base_prefix) || k == &base_key)
+        .cloned()
+        .collect();
+
+    for key in keys_to_cancel {
+        if let Some(old_flag) = map.get(&key) {
+            old_flag.store(true, Ordering::Relaxed);
+        }
+    }
+
+    map.insert(request_id.to_string(), flag.clone());
+    flag
+}
+```
+
+### 並列実行の設計
+
+#### フロントエンド側
+
+```typescript
+// ImageManagerでピーキングとヒストグラムを並列実行
+createEffect(() => {
+  const path = props.imagePath;
+
+  // ピーキングとヒストグラムのリクエストを並列実行
+  if (props.peakingEnabled) {
+    // ピーキングデータ取得（非同期）
+    invokeFocusPeaking(path, intensity, cacheKey, signal);
+  }
+
+  if (props.histogramEnabled) {
+    // ヒストグラムデータ取得（非同期）
+    invokeCalculateHistogram(path, displayType, cacheKey, signal);
+  }
+});
+```
+
+#### Rust側
+
+- ピーキング処理とヒストグラム処理は完全に独立
+- それぞれが独自のキャンセルフラグを持つ
+- 並列実行によるCPU使用率の最適化
+
+### 配置とスタイリング
+
+#### HistogramLayerの配置
+
+```tsx
+<div
+  class="absolute"
+  style={{
+    [position.includes('top') ? 'top' : 'bottom']: '8px',
+    [position.includes('right') ? 'right' : 'left']: '8px',
+    opacity: opacity,
+    'pointer-events': 'none',
+    'z-index': 10,
+  }}
+>
+  <canvas
+    ref={canvasRef}
+    width={canvasWidth}
+    height={canvasHeight}
+    style={{
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      'border-radius': '4px',
+      'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.3)',
+    }}
+  />
+</div>
+```
+
+## 実装上の注意点
+
+### 1. パフォーマンス最適化
+
+- キャッシュ機能を実装（画像パスと表示タイプをキーに）
+- ピーキング処理とヒストグラム処理が**両方有効化されている場合のみ**並列実行
+  - 無効化されている機能は処理を実行しない
+- Canvas描画の最適化（requestAnimationFrameの活用）
+
+### 2. エラーハンドリング
+
+- Rust側でのエラーは適切にフロントエンドに返す
+- 画像読み込み失敗時は何も表示しない
+- キャンセル時のエラーは無視
+
+### 3. メモリ管理
+
+- 古いCanvasデータは適切にクリア
+- キャッシュサイズの制限（デフォルト5件、configで設定可能）
+
+### 4. レスポンシブ対応
+
+- containerサイズに応じてCanvasサイズを調整
+- ResizeObserverで監視（必要に応じて）
+
+### 5. ユーザビリティ
+
+- ヒストグラムはpointer-events: noneで操作を妨げない
+- 半透明の背景で視認性を確保
+- z-indexを適切に設定
+
+## 影響範囲の分析
+
+### 新規作成ファイル
+
+1. `src/components/ImageViewer/HistogramLayer.tsx`
+2. `src-tauri/src/histogram.rs`
+
+### 修正ファイル
+
+1. `src/config/config.ts` - ヒストグラム設定のデフォルト値を追加
+2. `src/context/AppStateContext.tsx` - ヒストグラム状態管理を追加
+3. `src/components/SettingsMenu/index.tsx` - ヒストグラム設定UIを追加
+4. `src/components/ImageViewer/ImageManager.tsx` - HistogramLayerの統合
+5. `src-tauri/src/lib.rs` - histogram moduleのインポートとコマンド登録
+
+### 影響する機能
+
+- ✅ **ヒストグラム表示**: 新規機能
+- ✅ **設定の永続化**: 新規機能
+
+### 影響しない機能
+
+- ✅ **ピーキング機能**: 独立して動作
+- ✅ **グリッド機能**: 独立して動作
+- ✅ **ズーム機能**: 変更なし
+- ✅ **ドラッグ機能**: 変更なし
+- ✅ **回転機能**: 変更なし
+
+### リスク評価
+
+**リスクレベル**: 中
+
+- 新規機能のため既存機能への影響は少ない
+- Rust側の並列処理によるCPU負荷増加の可能性
+- Canvas描画によるメモリ使用量の増加
+
+## テストケース
+
+### 機能テスト
+
+1. ヒストグラムのON/OFF切り替えが正しく動作すること
+2. 表示タイプの切り替え（RGB別、輝度のみ）が正しく動作すること
+3. 表示位置の切り替え（4つの位置）が正しく動作すること
+4. サイズ調整が正しく反映されること
+5. 透明度調整が正しく反映されること
+6. 画像読み込み時に自動更新されること
+7. キャッシュ機能が正しく動作すること
+8. ピーキング処理と並列実行されること
+
+### UIテスト
+
+1. ヒストグラムが指定位置に正しく表示されること
+2. レスポンシブ対応が正しく動作すること
+3. ヒストグラムが操作を妨げないこと（pointer-events: none）
+4. Canvas描画が正しく行われること
+
+### パフォーマンステスト
+
+1. 大きな画像でもヒストグラム計算が高速であること
+2. ピーキング処理とヒストグラム処理が並列実行されること
+3. キャンセル機能が正しく動作すること
+4. メモリリークが発生しないこと
+
+## 実装計画
+
+実装は以下の順序で進めます:
+
+1. **Rust側の実装**
+   - `src-tauri/src/histogram.rs`の作成
+   - ヒストグラム計算処理の実装
+   - キャンセル機能の実装
+   - `src-tauri/src/lib.rs`へのモジュール登録
+
+2. **config.tsの更新**
+   - ヒストグラム設定のデフォルト値を追加
+
+3. **AppStateContextの更新**
+   - ヒストグラム状態管理の追加
+   - 永続化処理の追加
+
+4. **HistogramLayerコンポーネントの作成**
+   - 基本コンポーネント構造の実装
+   - Canvas描画処理の実装
+   - キャッシュ機能の実装
+
+5. **ImageManagerの更新**
+   - HistogramLayerの統合
+   - Props受け渡し
+
+6. **SettingsMenuの更新**
+   - ヒストグラム設定UIの追加
+
+7. **テストと最適化**
+   - 動作確認
+   - パフォーマンステスト
+   - 最適化
+
+8. **ドキュメント作成**
+   - 使用方法のドキュメント
+
+## 成果物
+
+### 新規作成
+
+- `src/components/ImageViewer/HistogramLayer.tsx`
+- `src-tauri/src/histogram.rs`
+
+### 修正
+
+- `src/config/config.ts`
+- `src/context/AppStateContext.tsx`
+- `src/components/SettingsMenu/index.tsx`
+- `src/components/ImageViewer/ImageManager.tsx`
+- `src-tauri/src/lib.rs`
