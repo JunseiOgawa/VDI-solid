@@ -1868,3 +1868,305 @@ const activeFeaturesCount = computed(() => {
 
 - `src/components/Titlebar/index.tsx`
 - `src/components/SettingsMenu/index.tsx`
+
+---
+
+# フッターに解像度とファイルパス表示機能の追加
+
+## 概要
+
+ユーザビリティ向上のため、フッター表示を改善し、画像の解像度とファイルパスを適切な位置に表示する機能を追加します。
+
+## 背景
+
+### 現在の実装状況
+
+- **Footer**: 画面中央に画像のURL(アセットパス)とズーム率を表示
+- **問題点**:
+  - 実際のファイルパスが表示されていない
+  - 画像の解像度情報が表示されていない
+  - レイアウトが中央寄せで情報が見にくい
+
+### 要件
+
+1. フッター左下に現在の画像の解像度を表示(例: 1920×1080)
+2. フッター中央にPCの正しいファイルパス(currentImageFilePath)を表示
+3. フッター右下にズーム率を表示
+4. 画像が読み込まれていない場合は適切な表示を行う
+
+## 設計
+
+### 1. AppStateContextの更新
+
+**ファイルパス**: `src/context/AppStateContext.tsx`
+
+**追加する状態**:
+```typescript
+export interface AppState {
+  // 既存の定義...
+
+  // 画像解像度関連
+  imageResolution: () => { width: number; height: number } | null;
+  setImageResolution: (resolution: { width: number; height: number } | null) => void;
+}
+```
+
+**実装内容**:
+```typescript
+export const AppProvider: ParentComponent = (props) => {
+  // 既存のSignal定義...
+
+  const [imageResolution, setImageResolution] = createSignal<{ width: number; height: number } | null>(null);
+
+  const appState: AppState = {
+    // 既存の定義...
+    imageResolution,
+    setImageResolution,
+  };
+
+  return <AppContext.Provider value={appState}>{props.children}</AppContext.Provider>;
+};
+```
+
+### 2. ImageManagerの更新
+
+**ファイルパス**: `src/components/ImageViewer/ImageManager.tsx`
+
+**変更内容**:
+
+```typescript
+interface ImageManagerProps {
+  // 既存のprops...
+
+  // 解像度設定用コールバック
+  onResolutionChange?: (resolution: { width: number; height: number } | null) => void;
+}
+
+const ImageManager: Component<ImageManagerProps> = (props) => {
+  const handleLoad = () => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[ImageManager] 画像読み込み完了');
+
+    if (imgRef) {
+      const rect = imgRef.getBoundingClientRect();
+      console.log('[ImageManager] img.naturalWidth:', imgRef.naturalWidth);
+      console.log('[ImageManager] img.naturalHeight:', imgRef.naturalHeight);
+
+      // 解像度をAppStateContextに設定
+      if (props.onResolutionChange) {
+        props.onResolutionChange({
+          width: imgRef.naturalWidth,
+          height: imgRef.naturalHeight
+        });
+      }
+
+      // 既存のログ処理...
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    if (props.onLoad) {
+      props.onLoad();
+    }
+  };
+
+  return (
+    <div>
+      <img
+        ref={handleImgRef}
+        src={props.src}
+        alt="Displayed Image"
+        onLoad={handleLoad}
+        // 既存のprops...
+      />
+      {/* 既存のレイヤー... */}
+    </div>
+  );
+};
+```
+
+### 3. ImageViewerの更新
+
+**ファイルパス**: `src/components/ImageViewer/index.tsx`
+
+**変更内容**:
+
+```typescript
+const ImageViewer: Component = () => {
+  const {
+    // 既存の定義...
+    setImageResolution,
+  } = useAppState();
+
+  return (
+    <div>
+      {/* 既存のコンポーネント... */}
+
+      <ImageManager
+        // 既存のprops...
+        onResolutionChange={setImageResolution}
+      />
+    </div>
+  );
+};
+```
+
+### 4. Footerコンポーネントの更新
+
+**ファイルパス**: `src/components/Footer/index.tsx`
+
+**変更内容**:
+
+```typescript
+import type { Component } from 'solid-js';
+import { useAppState } from '../../context/AppStateContext';
+
+const Footer: Component = () => {
+  const { currentImagePath, currentImageFilePath, zoomScale, imageResolution } = useAppState();
+
+  return (
+    <footer class="border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)] transition-colors duration-300">
+      <div class="mx-auto flex h-8 max-w-full items-center justify-between px-4">
+        {/* 左下: 解像度 */}
+        <div class="flex-shrink-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {imageResolution() ? `${imageResolution()!.width}×${imageResolution()!.height}` : 'No resolution'}
+        </div>
+
+        {/* 中央: ファイルパス */}
+        <div class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center px-4">
+          {currentImageFilePath() || currentImagePath() || 'No image loaded'}
+        </div>
+
+        {/* 右下: ズーム率 */}
+        <div class="flex-shrink-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          Zoom: {Math.round(zoomScale() * 100)}%
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+```
+
+## UIレイアウト詳細
+
+### フッターの構造
+
+```
++------------------------------------------+
+| 解像度     |  ファイルパス  |  ズーム率  |
+| 1920×1080  | C:\...\image.png | Zoom: 100% |
++------------------------------------------+
+```
+
+- **左下**: 解像度(例: 1920×1080) - flex-shrink-0で固定幅
+- **中央**: ファイルパス(currentImageFilePath優先、なければcurrentImagePath) - flex-1で残りの幅を占有
+- **右下**: ズーム率(例: Zoom: 100%) - flex-shrink-0で固定幅
+
+### スタイリング方針
+
+- `justify-between`で3つの要素を均等配置
+- `text-ellipsis`でテキストがオーバーフローした場合は省略記号(...)を表示
+- `whitespace-nowrap`で改行を防ぐ
+- `px-4`で左右にパディングを追加
+- 中央要素には`px-4`を追加して左右の要素と適切な間隔を確保
+
+## 実装上の注意点
+
+### 1. 解像度の初期化
+
+- 画像が読み込まれていない場合は`null`を設定
+- 新しい画像が読み込まれる際に自動的に更新される
+
+### 2. ファイルパスの優先順位
+
+1. `currentImageFilePath()` - 実際のファイルパス(優先)
+2. `currentImagePath()` - アセットURL(フォールバック)
+3. `'No image loaded'` - 画像がない場合
+
+### 3. レスポンシブ対応
+
+- 中央のファイルパスは`flex-1`で可変幅
+- 左右の要素は`flex-shrink-0`で固定幅を維持
+- オーバーフローした場合は省略記号で対応
+
+### 4. パフォーマンス
+
+- 解像度はonLoad時に一度だけ取得
+- Signalを使用して効率的に状態管理
+
+## 影響範囲の分析
+
+### 変更ファイル
+
+1. `src/context/AppStateContext.tsx` - 画像解像度状態の追加
+2. `src/components/ImageViewer/ImageManager.tsx` - 解像度取得処理の追加
+3. `src/components/ImageViewer/index.tsx` - onResolutionChangeの追加
+4. `src/components/Footer/index.tsx` - レイアウト変更
+
+### 影響する機能
+
+- ✅ **フッター表示**: 改善される(問題の修正対象)
+
+### 影響しない機能
+
+- ✅ **画像表示**: 変更なし
+- ✅ **ズーム機能**: 変更なし
+- ✅ **ドラッグ機能**: 変更なし
+- ✅ **回転機能**: 変更なし
+- ✅ **グリッド機能**: 変更なし
+- ✅ **ピーキング機能**: 変更なし
+- ✅ **ヒストグラム機能**: 変更なし
+
+### リスク評価
+
+**リスクレベル**: 極めて低
+
+- 変更箇所が明確で少ない
+- 既存の機能に影響を与えない
+- 解像度取得は既存のonLoad処理を活用
+
+## テストケース
+
+### 機能テスト
+
+1. 画像読み込み時に解像度が正しく表示されること
+2. ファイルパスが正しく表示されること(currentImageFilePathが優先)
+3. ズーム率が正しく表示されること
+4. 画像がない場合に適切な表示がされること
+
+### UIテスト
+
+1. フッターのレイアウトが正しく表示されること
+   - 左下: 解像度
+   - 中央: ファイルパス
+   - 右下: ズーム率
+2. テキストがオーバーフローした場合に省略記号が表示されること
+3. レスポンシブ対応が正しく動作すること
+
+### エッジケース
+
+1. 非常に長いファイルパスでも正しく表示されること
+2. 異なる解像度の画像で正しく表示されること
+3. 画像を切り替えた時に解像度が更新されること
+
+## 実装計画
+
+実装は以下の順序で進めます:
+
+1. `src/context/AppStateContext.tsx`に画像解像度の状態を追加
+2. `src/components/ImageViewer/ImageManager.tsx`で解像度取得処理を追加
+3. `src/components/ImageViewer/index.tsx`でonResolutionChangeを追加
+4. `src/components/Footer/index.tsx`のレイアウトを変更
+5. ローカルで動作確認
+6. 各機能との組み合わせテスト
+7. コミット作成
+
+## 成果物
+
+### 修正
+
+- `src/context/AppStateContext.tsx`
+- `src/components/ImageViewer/ImageManager.tsx`
+- `src/components/ImageViewer/index.tsx`
+- `src/components/Footer/index.tsx`

@@ -8,6 +8,8 @@ interface SettingsMenuProps {
   onThemeChange: (theme: ThemeKey) => void;
   wheelSensitivity: number;
   onWheelSensitivityChange: (sensitivity: number) => void;
+  showFullPath: boolean;
+  onShowFullPathChange: (show: boolean) => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
@@ -20,6 +22,11 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const handleWheelSensitivityChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     props.onWheelSensitivityChange(parseFloat(target.value));
+  };
+
+  const handleShowFullPathChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    props.onShowFullPathChange(target.checked);
   };
 
   return (
@@ -83,6 +90,26 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               VRコントローラー使用時は低めに設定推奨
             </span>
           </label>
+        </div>
+
+        <hr class="my-1 border-t border-[var(--border-primary)]" />
+
+        {/* ファイルパス表示形式設定 */}
+        <div class="px-3 py-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={props.showFullPath}
+              onChange={handleShowFullPathChange}
+              class="cursor-pointer accent-[var(--accent-primary)]"
+            />
+            <span class="text-xs font-medium text-[var(--text-primary)]">
+              フルパスで表示
+            </span>
+          </label>
+          <span class="mt-1 text-xs text-[var(--text-muted)] block">
+            オフの場合はファイル名のみ表示
+          </span>
         </div>
 
       </div>

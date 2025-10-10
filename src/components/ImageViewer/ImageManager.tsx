@@ -13,6 +13,8 @@ interface ImageManagerProps {
   imgRef?: (el: HTMLImageElement) => void;
   /** 画像読み込み完了時のコールバック */
   onLoad?: () => void;
+  /** 画像解像度変更時のコールバック */
+  onResolutionChange?: (resolution: { width: number; height: number } | null) => void;
 
   // レイヤー関連props
   /** グリッドパターン */
@@ -79,6 +81,14 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
         display: computedStyle.display,
         objectFit: computedStyle.objectFit
       });
+
+      // 画像解像度をAppStateContextに設定
+      if (props.onResolutionChange) {
+        props.onResolutionChange({
+          width: imgRef.naturalWidth,
+          height: imgRef.naturalHeight
+        });
+      }
     }
 
     if (wrapperRef) {

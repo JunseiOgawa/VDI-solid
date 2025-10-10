@@ -41,6 +41,7 @@ const ImageViewer: Component = () => {
     histogramPosition,
     histogramSize,
     histogramOpacity,
+    setImageResolution,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -585,6 +586,7 @@ const ImageViewer: Component = () => {
                 setPosition((prev) => clampToBounds(prev));
                 calculateAndSetScreenFit();
               }}
+              onResolutionChange={setImageResolution}
               imgRef={(el: HTMLImageElement) => (imgEl = el)}
               gridPattern={gridPattern()}
               gridOpacity={gridOpacity()}

@@ -103,6 +103,18 @@ export interface AppState {
   histogramOpacity: () => number;
   /** ヒストグラム不透明度を設定 */
   setHistogramOpacity: (opacity: number) => void;
+
+  // 画像解像度関連
+  /** 画像解像度を取得 */
+  imageResolution: () => { width: number; height: number } | null;
+  /** 画像解像度を設定 */
+  setImageResolution: (resolution: { width: number; height: number } | null) => void;
+
+  // ファイルパス表示形式関連
+  /** フルパス表示の有効/無効（true: フルパス, false: ファイル名のみ） */
+  showFullPath: () => boolean;
+  /** フルパス表示の有効/無効を設定 */
+  setShowFullPath: (show: boolean) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -174,6 +186,12 @@ export const AppProvider: ParentComponent = (props) => {
   const [histogramPosition, setHistogramPosition] = createSignal<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>(CONFIG.histogram.position);
   const [histogramSize, setHistogramSize] = createSignal<number>(CONFIG.histogram.size);
   const [histogramOpacity, setHistogramOpacity] = createSignal<number>(CONFIG.histogram.opacity);
+
+  // 画像解像度関連Signal
+  const [imageResolution, setImageResolution] = createSignal<{ width: number; height: number } | null>(null);
+
+  // ファイルパス表示形式関連Signal（デフォルト: false = ファイル名のみ）
+  const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -453,6 +471,12 @@ export const AppProvider: ParentComponent = (props) => {
       }
     }
 
+    // ファイルパス表示形式設定を復元
+    const savedShowFullPath = localStorage.getItem('vdi-show-full-path');
+    if (savedShowFullPath !== null) {
+      setShowFullPathSignal(savedShowFullPath === 'true');
+    }
+
     setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
@@ -520,6 +544,11 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-histogram-opacity', clampedOpacity.toString());
   };
 
+  const handleShowFullPathChange = (show: boolean) => {
+    setShowFullPathSignal(show);
+    localStorage.setItem('vdi-show-full-path', show ? 'true' : 'false');
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -564,6 +593,10 @@ export const AppProvider: ParentComponent = (props) => {
     setHistogramSize: handleHistogramSizeChange,
     histogramOpacity,
     setHistogramOpacity: handleHistogramOpacityChange,
+    imageResolution,
+    setImageResolution,
+    showFullPath,
+    setShowFullPath: handleShowFullPathChange,
   };
 
   return (

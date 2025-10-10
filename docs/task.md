@@ -1128,3 +1128,156 @@ const handleKeyDown = (event: KeyboardEvent) => {
 - MultiMenuは純粋にプレゼンテーション層として機能させること
 - アクセシビリティを重視すること
 - コミットは行わず、実装完了後にユーザーへ確認を求めること
+
+---
+
+# フッターに解像度とファイルパス表示機能の追加 タスク一覧
+
+## タスク概要
+
+ユーザビリティ向上のため、フッター表示を改善し、画像の解像度とファイルパスを適切な位置に表示する機能を追加します。
+
+## 実装タスク
+
+### 1. 設計フェーズ
+
+- [x] 現在の実装状況の分析
+  - [x] Footerコンポーネントの確認
+  - [x] AppStateContextの確認
+  - [x] ImageManagerの確認
+- [x] 設計書の作成
+  - [x] 要件の詳細化
+  - [x] 影響範囲の分析
+- [x] タスクの洗い出し
+
+### 2. 実装フェーズ
+
+#### ステップ1: AppStateContextの更新
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [x] AppStateインターフェースに画像解像度を追加
+  - [x] `imageResolution: () => { width: number; height: number } | null`
+  - [x] `setImageResolution: (resolution: { width: number; height: number } | null) => void`
+- [x] imageResolution Signalの追加
+  - [x] `createSignal<{ width: number; height: number } | null>(null)`
+- [x] appState objectに追加
+  - [x] `imageResolution`
+  - [x] `setImageResolution`
+
+#### ステップ2: ImageManagerの更新
+
+**ファイル**: `src/components/ImageViewer/ImageManager.tsx`
+
+- [x] ImageManagerPropsインターフェースを更新
+  - [x] `onResolutionChange?: (resolution: { width: number; height: number } | null) => void`を追加
+- [x] handleLoad関数の修正
+  - [x] imgRef.naturalWidthとnaturalHeightで解像度を取得
+  - [x] props.onResolutionChangeを呼び出して解像度を設定
+
+#### ステップ3: ImageViewerの更新
+
+**ファイル**: `src/components/ImageViewer/index.tsx`
+
+- [x] useAppStateからsetImageResolutionを取得
+  - [x] `setImageResolution`を追加
+- [x] ImageManagerにpropsを追加
+  - [x] `onResolutionChange={setImageResolution}`
+
+#### ステップ4: Footerコンポーネントの更新
+
+**ファイル**: `src/components/Footer/index.tsx`
+
+- [x] useAppStateから必要な状態を取得
+  - [x] `currentImagePath`
+  - [x] `currentImageFilePath`
+  - [x] `zoomScale`
+  - [x] `imageResolution`を追加
+- [x] レイアウトの変更
+  - [x] justify-betweenで3列レイアウトに変更
+  - [x] 左下: 解像度表示(flex-shrink-0)
+  - [x] 中央: ファイルパス表示(flex-1)
+  - [x] 右下: ズーム率表示(flex-shrink-0)
+- [x] 解像度の表示ロジック
+  - [x] `imageResolution() ? \`${imageResolution()!.width}×${imageResolution()!.height}\` : 'No resolution'`
+- [x] ファイルパスの表示ロジック
+  - [x] `currentImageFilePath() || currentImagePath() || 'No image loaded'`
+- [x] テキストオーバーフロー対応
+  - [x] 各divに`overflow-hidden text-ellipsis whitespace-nowrap`を追加
+
+### 3. テストフェーズ
+
+#### 機能テスト
+
+- [ ] 画像読み込み時の動作確認
+  - [ ] 画像読み込み時に解像度が正しく表示されること
+  - [ ] currentImageFilePathが優先的に表示されること
+  - [ ] ズーム率が正しく表示されること
+- [ ] 画像がない場合の動作確認
+  - [ ] 適切なフォールバック表示がされること
+
+#### UIテスト
+
+- [ ] フッターのレイアウト確認
+  - [ ] 左下に解像度が表示されること
+  - [ ] 中央にファイルパスが表示されること
+  - [ ] 右下にズーム率が表示されること
+- [ ] レスポンシブ対応の確認
+  - [ ] テキストオーバーフロー時に省略記号が表示されること
+  - [ ] 各要素が適切に配置されること
+
+#### エッジケース
+
+- [ ] 異なる解像度の画像で確認
+  - [ ] 縦画像で正しく表示されること
+  - [ ] 横画像で正しく表示されること
+  - [ ] 異なるサイズの画像で正しく表示されること
+- [ ] 長いファイルパスの確認
+  - [ ] 非常に長いファイルパスでも正しく省略表示されること
+- [ ] 画像切り替え時の確認
+  - [ ] 画像を切り替えた時に解像度が更新されること
+
+### 4. 最終確認
+
+- [ ] 設計書との整合性確認
+- [ ] すべての機能が正しく動作することを確認
+- [ ] コミット前の最終動作確認
+- [ ] ユーザーへの確認依頼
+
+## 変更ファイル
+
+### 修正
+
+- `src/context/AppStateContext.tsx`
+- `src/components/ImageViewer/ImageManager.tsx`
+- `src/components/ImageViewer/index.tsx`
+- `src/components/Footer/index.tsx`
+
+## 実装の詳細
+
+### Footerレイアウト構造
+
+```
++----------------------------------------------+
+| 解像度        | ファイルパス    | ズーム率     |
+| 1920×1080     | C:\...\image.png | Zoom: 100% |
++----------------------------------------------+
+```
+
+- **左下**: 解像度(例: 1920×1080) - flex-shrink-0で固定幅
+- **中央**: ファイルパス(currentImageFilePath優先) - flex-1で可変幅
+- **右下**: ズーム率(例: Zoom: 100%) - flex-shrink-0で固定幅
+
+### ファイルパスの優先順位
+
+1. `currentImageFilePath()` - 実際のファイルパス(優先)
+2. `currentImagePath()` - アセットURL(フォールバック)
+3. `'No image loaded'` - 画像がない場合
+
+## 注意事項
+
+- 解像度はonLoad時に一度だけ取得
+- Signalを使用して効率的に状態管理
+- テキストオーバーフロー時は省略記号で対応
+- 既存の機能には影響を与えない
+- コミットは行わず、実装完了後にユーザーへ確認を求める

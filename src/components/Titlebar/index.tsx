@@ -1,7 +1,6 @@
 import type { Component } from "solid-js";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useAppState } from "../../context/AppStateContext";
 import SettingsMenu from "../SettingsMenu";
 import MultiMenu from "../ImageViewer/MultiMenu";
@@ -46,6 +45,8 @@ const Titlebar: Component = () => {
     setHistogramSize,
     histogramOpacity,
     setHistogramOpacity,
+    showFullPath,
+    setShowFullPath,
   } = useAppState();
 
   const baseZoomButtonClasses =
@@ -82,21 +83,6 @@ const Titlebar: Component = () => {
     setShowMultiMenu(!showMultiMenu());
   };
 
-  /** エクスプローラで開く */
-  const handleRevealInExplorer = async () => {
-    const filePath = currentImageFilePath();
-    if (filePath) {
-      try {
-        console.log("[Explorer] Opening file in explorer:", filePath);
-        await revealItemInDir(filePath);
-        console.log("[Explorer] Successfully opened in explorer");
-      } catch (error) {
-        console.error("Failed to open in explorer:", error);
-      }
-    } else {
-      console.warn("[Explorer] No file path available");
-    }
-  };
 
   // メニュー外クリックで全メニューを閉じる処理
   onMount(() => {
@@ -212,30 +198,6 @@ const Titlebar: Component = () => {
         >
           <img class="h-4 w-4" src="/reload_hoso.svg" alt="回転アイコン" />
         </button>
-
-        {/*エクスプローラで開くボタン*/}
-
-        <button
-          id="explorerBtn"
-          class="no-drag ml-2 inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="エクスプローラで開く"
-          title="エクスプローラで開く"
-          onClick={handleRevealInExplorer}
-          disabled={!currentImageFilePath()}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M2 3v10h12V6h-4V3H2zm1 1h5v3h5v6H3V4z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
       </div>
 
       {/* 右側: 設定ボタンとウィンドウコントロールボタン */}
@@ -330,6 +292,8 @@ const Titlebar: Component = () => {
               }}
               wheelSensitivity={wheelSensitivity()}
               onWheelSensitivityChange={setWheelSensitivity}
+              showFullPath={showFullPath()}
+              onShowFullPathChange={setShowFullPath}
             />
           </div>
         )}
