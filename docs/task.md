@@ -1304,22 +1304,22 @@ VRゴーグル(Meta Quest)でVirtualDesktopを使用してデスクトップ操�
 
 - [x] `gilrs`クレートの追加(ゲームパッドライブラリ)
 - [x] `sysinfo`クレートの追加(プロセス検知用)
-- [ ] 依存関係のビルド確認
+- [x] 依存関係のビルド確認
 
-### 3. AppStateContextの拡張
+### ✅ 3. AppStateContextの拡張
 
 **ファイル**: `src/context/AppStateContext.tsx`
 
-- [ ] VirtualDesktopモード状態の追加
-  - [ ] `virtualdesktopMode: () => boolean`
-  - [ ] `setVirtualDesktopMode: (enabled: boolean) => void`
-- [ ] コントローラー検出状態の追加
-  - [ ] `controllerDetected: () => boolean`
-  - [ ] `setControllerDetected: (detected: boolean) => void`
-- [ ] コントローラーバインディング設定の追加
-  - [ ] `controllerBindings: () => ControllerConfig`
-  - [ ] `setControllerBindings: (config: ControllerConfig) => void`
-- [ ] localStorageへの永続化実装
+- [x] VirtualDesktopモード状態の追加
+  - [x] `virtualdesktopMode: () => boolean`
+  - [x] `setVirtualDesktopMode: (enabled: boolean) => void`
+- [x] コントローラー検出状態の追加
+  - [x] `controllerDetected: () => boolean`
+  - [x] `setControllerDetected: (detected: boolean) => void`
+- [x] コントローラーバインディング設定の追加
+  - [x] `controllerBindings: () => ControllerConfig`
+  - [x] `setControllerBindings: (config: ControllerConfig) => void`
+- [x] localStorageへの永続化実装
 
 ### 4. Tauriコマンドの実装(VirtualDesktop検知)
 

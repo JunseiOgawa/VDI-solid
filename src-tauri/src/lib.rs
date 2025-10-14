@@ -4,6 +4,8 @@ use tauri_plugin_fs::init as fs_init;
 mod histogram;
 mod img;
 mod peaking;
+mod virtualdesktop;
+mod controller;
 
 /// ウィンドウを表示するコマンド
 ///
@@ -134,7 +136,10 @@ pub fn run() {
             img::restore_image_from_backup,
             img::cleanup_image_backup,
             peaking::focus_peaking,
-            histogram::calculate_histogram
+            histogram::calculate_histogram,
+            virtualdesktop::detect_virtualdesktop_streamer,
+            controller::detect_gamepad,
+            controller::poll_controller_input
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更
