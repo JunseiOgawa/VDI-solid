@@ -6,6 +6,7 @@ import SettingsMenu from "../SettingsMenu";
 import MultiMenu from "../ImageViewer/MultiMenu";
 import { handleScreenFit } from "./screenfit";
 import { callResetImagePosition } from "../../lib/imageViewerApi";
+import { useControllerDetection } from "../../hooks/useControllerDetection";
 
 const Titlebar: Component = () => {
   const [showSettings, setShowSettings] = createSignal(false);
@@ -46,7 +47,14 @@ const Titlebar: Component = () => {
     setHistogramOpacity,
     showFullPath,
     setShowFullPath,
+    virtualdesktopMode,
+    setVirtualDesktopMode,
+    controllerDetected,
+    setControllerDetected,
   } = useAppState();
+
+  // コントローラー検出フックを使用
+  useControllerDetection(virtualdesktopMode, setControllerDetected);
 
   const baseZoomButtonClasses =
     "no-drag inline-flex h-7 items-center justify-center border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-sm text-[var(--text-primary)] shadow-[inset_0_1px_2px_var(--shadow)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]";
@@ -293,6 +301,9 @@ const Titlebar: Component = () => {
               onWheelSensitivityChange={setWheelSensitivity}
               showFullPath={showFullPath()}
               onShowFullPathChange={setShowFullPath}
+              virtualdesktopMode={virtualdesktopMode()}
+              onVirtualDesktopModeChange={setVirtualDesktopMode}
+              controllerDetected={controllerDetected()}
             />
           </div>
         )}
