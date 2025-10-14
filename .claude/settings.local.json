@@ -20,7 +20,8 @@
       "Bash(findstr:*)",
       "Bash(osascript:*)",
       "Bash(npx tsc:*)",
-      "WebSearch"
+      "WebSearch",
+      "mcp__serena__activate_project"
     ],
     "deny": [],
     "ask": []

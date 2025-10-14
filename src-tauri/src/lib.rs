@@ -3,6 +3,7 @@ use tauri_plugin_fs::init as fs_init;
 
 mod histogram;
 mod img;
+mod navigation;
 mod peaking;
 
 /// ウィンドウを表示するコマンド
@@ -124,9 +125,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             img::get_launch_image_path,
             img::get_launch_window_mode,
-            img::get_folder_images,
-            img::get_next_image,
-            img::get_previous_image,
+            navigation::get_folder_images,
+            navigation::get_next_image,
+            navigation::get_previous_image,
             get_system_theme,
             show_window,
             img::rotate_image,

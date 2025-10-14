@@ -1,10 +1,16 @@
-import { defineConfig } from "vite";
+/// <reference types="vitest" />
+import { defineConfig } from 'vitest/config';
 import solid from "vite-plugin-solid";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [solid()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    transformMode: { web: [/\.[jt]sx?$/] },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

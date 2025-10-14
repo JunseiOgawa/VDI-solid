@@ -3235,3 +3235,334 @@ export default Footer;
 - `src/components/ImageViewer/ImageManager.tsx`
 - `src/components/ImageViewer/index.tsx`
 - `src/components/Footer/index.tsx`
+
+---
+
+# サイドバーギャラリービュー機能 設計書
+
+## 概要
+
+タイトルバーの左上にサイドバー展開ボタンを配置し、クリックすると縦1列の画像サムネイルが表示されるギャラリービュー機能を実装します。
+
+## 背景
+
+### 現在の実装状況
+
+- **画像ナビゲーション**: img.rsにget_folder_images、get_next_image、get_previous_imageが実装されている
+- **タイトルバー**: ウィンドウコントロールボタンのみで左側は空いている
+- **問題点**:
+  - フォルダ内の画像一覧を視覚的に確認できない
+  - 特定の画像に直接ジャンプできない
+  - 画像ナビゲーション機能がimg.rsに全て詰まっている
+
+### 要件
+
+1. **第1段階: Rustコードのリファクタリング**
+   - img.rsから画像ナビゲーション関連の機能を分離
+   - 新しいモジュール(navigation.rs)を作成
+   - 分離対象の関数:
+     - get_folder_images
+     - get_next_image
+     - get_previous_image
+   - lib.rsのモジュール宣言とコマンド登録を更新
+   - 影響範囲を完全に確認してビルドが通ることを確認
+
+2. **第2段階: ギャラリービュー機能の実装**
+   - タイトルバーの左上にサイドバー展開ボタンを追加
+   - サイドバーコンポーネントを作成
+   - フォルダ内の画像一覧をサムネイル付きで縦に表示
+   - 画像クリックで表示を切り替える
+   - 現在表示中の画像をハイライト
+
+## 設計
+
+### 第1段階: Rustコードのリファクタリング
+
+#### 1. navigation.rsモジュールの作成
+
+**ファイルパス**: `src-tauri/src/navigation.rs`
+
+**役割**: フォルダ内の画像ナビゲーション機能を提供
+
+**移動する関数**:
+
+```rust
+/// フォルダ内の画像ファイル一覧を作成日時順で取得する
+#[tauri::command]
+pub fn get_folder_images(folder_path: String) -> Option<Vec<String>> {
+    // img.rsの実装をそのまま移動
+}
+
+/// 指定された画像の次の画像パスを取得
+#[tauri::command]
+pub fn get_next_image(current_path: String, folder_navigation_enabled: bool) -> Option<String> {
+    // img.rsの実装をそのまま移動
+}
+
+/// 指定された画像の前の画像パスを取得
+#[tauri::command]
+pub fn get_previous_image(current_path: String, folder_navigation_enabled: bool) -> Option<String> {
+    // img.rsの実装をそのまま移動
+}
+```
+
+**注意事項**:
+- 関数のシグネチャは変更しない
+- JSDocコメントもそのまま移動
+- get_folder_imagesは他の2つの関数から内部的に呼び出されるため、pubのまま維持
+
+#### 2. img.rsの修正
+
+**変更内容**:
+- get_folder_images、get_next_image、get_previous_imageの3つの関数を削除
+- それ以外の関数はそのまま維持:
+  - create_image_backup
+  - restore_image_from_backup
+  - cleanup_image_backup
+  - rotate_image
+  - get_launch_image_path
+  - get_launch_window_mode
+
+#### 3. lib.rsの修正
+
+**変更内容**:
+
+```rust
+// モジュール宣言に追加
+mod navigation;
+
+// コマンド登録を修正
+.invoke_handler(tauri::generate_handler![
+    img::get_launch_image_path,
+    img::get_launch_window_mode,
+    navigation::get_folder_images,    // img::から navigation::に変更
+    navigation::get_next_image,       // img::から navigation::に変更
+    navigation::get_previous_image,   // img::から navigation::に変更
+    get_system_theme,
+    show_window,
+    img::rotate_image,
+    img::create_image_backup,
+    img::restore_image_from_backup,
+    img::cleanup_image_backup,
+    peaking::focus_peaking,
+    histogram::calculate_histogram
+])
+```
+
+### 第2段階: ギャラリービュー機能の実装
+
+#### 1. ImageGallery コンポーネント(新規作成)
+
+**ファイルパス**: `src/components/ImageGallery/index.tsx`
+
+**役割**: サイドバーで画像サムネイル一覧を表示
+
+**Props**:
+```typescript
+interface ImageGalleryProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentImagePath: string;
+  onImageSelect: (imagePath: string) => void;
+}
+```
+
+**UIレイアウト**:
+```tsx
+<div class={`fixed left-0 top-8 bottom-0 w-64 bg-black/80 backdrop-blur-md border-r border-white/10 transform transition-transform duration-300 ${isOpen() ? 'translate-x-0' : '-translate-x-full'}`}>
+  {/* ヘッダー */}
+  <div class="flex items-center justify-between p-2 border-b border-white/10">
+    <span class="text-white/90 text-sm">画像一覧</span>
+    <button onClick={onClose} class="text-white/70 hover:text-white">
+      <CloseIcon />
+    </button>
+  </div>
+  
+  {/* 画像リスト */}
+  <div class="overflow-y-auto h-full p-2 space-y-2">
+    <For each={folderImages()}>
+      {(imagePath) => (
+        <div
+          class={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+            imagePath === currentImagePath
+              ? 'border-blue-500'
+              : 'border-transparent hover:border-white/30'
+          }`}
+          onClick={() => onImageSelect(imagePath)}
+        >
+          {/* サムネイル */}
+          <img
+            src={convertFileSrc(imagePath)}
+            class="w-full aspect-video object-cover"
+            alt={getFileName(imagePath)}
+          />
+          {/* ファイル名 */}
+          <div class="p-1 bg-black/50 text-white/80 text-xs truncate">
+            {getFileName(imagePath)}
+          </div>
+        </div>
+      )}
+    </For>
+  </div>
+</div>
+```
+
+**主要機能**:
+1. フォルダ内の画像一覧を取得(Tauriコマンド: get_folder_images)
+2. 各画像のサムネイルを表示(convertFileSrcで変換)
+3. 現在表示中の画像をハイライト
+4. 画像クリックで表示を切り替え
+5. スクロール可能な縦リスト
+
+#### 2. Titlebar コンポーネント(既存を修正)
+
+**ファイルパス**: `src/components/Titlebar/index.tsx`
+
+**変更内容**:
+
+1. **サイドバー展開ボタンの追加**:
+   ```tsx
+   <div class="flex items-center px-2">
+     <button
+       id="galleryBtn"
+       class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+       onClick={toggleGallery}
+       aria-label="ギャラリー表示"
+     >
+       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+         {/* ハンバーガーメニューアイコン */}
+         <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+       </svg>
+     </button>
+   </div>
+   ```
+
+2. **状態管理の追加**:
+   - showGallery Signalを追加
+   - toggleGallery関数を追加
+
+#### 3. App コンポーネント(既存を修正)
+
+**ファイルパス**: `src/App.tsx`
+
+**変更内容**:
+
+1. **ImageGalleryコンポーネントの追加**:
+   ```tsx
+   <AppProvider>
+     <div class="flex h-screen flex-col ...">
+       <Titlebar showGallery={showGallery()} onToggleGallery={setShowGallery} />
+       <main class="relative flex flex-1 flex-col overflow-hidden min-h-0">
+         <ImageGallery
+           isOpen={showGallery()}
+           onClose={() => setShowGallery(false)}
+           currentImagePath={currentImageFilePath()}
+           onImageSelect={handleImageSelect}
+         />
+         <ImageViewer />
+         <RightControlPanel {...controlProps} />
+       </main>
+       <Footer />
+     </div>
+   </AppProvider>
+   ```
+
+2. **handleImageSelectの実装**:
+   ```tsx
+   const handleImageSelect = (imagePath: string) => {
+     setCurrentImageFilePath(imagePath);
+     setShowGallery(false); // サイドバーを閉じる
+   };
+   ```
+
+#### 4. AppStateContext(既存を修正)
+
+**ファイルパス**: `src/context/AppStateContext.tsx`
+
+**追加要素**:
+- showGallery: Accessor<boolean>
+- setShowGallery: Setter<boolean>
+
+## 実装手順
+
+### 第1段階: Rustコードのリファクタリング
+
+1. `src-tauri/src/navigation.rs`を新規作成
+2. img.rsから3つの関数を移動
+3. img.rsから移動した関数を削除
+4. lib.rsのモジュール宣言とコマンド登録を更新
+5. ビルドが通ることを確認(`npm run build`)
+
+### 第2段階: ギャラリービュー機能の実装
+
+1. ImageGalleryコンポーネントを作成
+2. Titlebarにサイドバー展開ボタンを追加
+3. AppStateContextに状態を追加
+4. Appコンポーネントで統合
+5. スタイル調整
+6. 動作確認
+
+## テスト項目
+
+### 第1段階のテスト
+
+- [ ] ビルドが成功すること
+- [ ] 既存の画像ナビゲーション機能が正しく動作すること
+  - [ ] 次の画像へ移動
+  - [ ] 前の画像へ移動
+  - [ ] フォルダ内の画像一覧取得
+
+### 第2段階のテスト
+
+#### 機能テスト
+
+- [ ] サイドバー展開ボタンが表示されること
+- [ ] ボタンクリックでサイドバーが開閉すること
+- [ ] フォルダ内の画像一覧が表示されること
+- [ ] 各画像のサムネイルが正しく表示されること
+- [ ] 現在表示中の画像がハイライトされること
+- [ ] 画像クリックで表示が切り替わること
+- [ ] サイドバー外クリックで閉じること
+
+#### UI/UXテスト
+
+- [ ] サイドバーのアニメーションが滑らかか
+- [ ] サムネイルのサイズが適切か
+- [ ] スクロールが正しく動作するか
+- [ ] ガラス表現が美しく表示されるか
+
+## 注意事項
+
+1. **第1段階を必ず完了させてから第2段階に進む**
+   - ビルドが通ることを確認
+   - 既存機能が壊れていないことを確認
+
+2. **パフォーマンス**
+   - サムネイル読み込みは遅延読み込みを検討
+   - 大量の画像がある場合は仮想スクロールを検討
+
+3. **エラーハンドリング**
+   - フォルダが存在しない場合
+   - 画像が1枚もない場合
+   - サムネイル読み込みに失敗した場合
+
+## 成果物
+
+### 第1段階
+
+#### 新規作成
+- `src-tauri/src/navigation.rs`
+
+#### 修正
+- `src-tauri/src/img.rs`
+- `src-tauri/src/lib.rs`
+
+### 第2段階
+
+#### 新規作成
+- `src/components/ImageGallery/index.tsx`
+
+#### 修正
+- `src/components/Titlebar/index.tsx`
+- `src/App.tsx`
+- `src/context/AppStateContext.tsx`

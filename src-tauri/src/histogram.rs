@@ -258,3 +258,77 @@ pub async fn calculate_histogram(
         data,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{DynamicImage, Rgb, ImageBuffer};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    /// 単色のテスト画像を生成
+    fn create_solid_color_image(width: u32, height: u32, color: Rgb<u8>) -> DynamicImage {
+        let mut img = ImageBuffer::new(width, height);
+        for pixel in img.pixels_mut() {
+            *pixel = color;
+        }
+        DynamicImage::ImageRgb8(img)
+    }
+
+    #[test]
+    fn test_rgb_histogram_for_solid_red() {
+        let img = create_solid_color_image(10, 10, Rgb([255, 0, 0]));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let (hist_r, hist_g, hist_b) = calculate_rgb_histogram(&img, cancel_flag).unwrap();
+
+        // Rチャンネルの255番目だけがピクセル数(100)になり、他は0
+        assert_eq!(hist_r[255], 100);
+        assert_eq!(hist_r.iter().sum::<u32>(), 100);
+        // G, Bチャンネルはすべて0
+        assert_eq!(hist_g.iter().sum::<u32>(), 100); // G=0のピクセルが100個
+        assert_eq!(hist_g[0], 100);
+        assert_eq!(hist_b.iter().sum::<u32>(), 100); // B=0のピクセルが100個
+        assert_eq!(hist_b[0], 100);
+    }
+
+    #[test]
+    fn test_luminance_histogram_for_gray() {
+        // R=G=B=128 のグレー画像
+        let img = create_solid_color_image(10, 10, Rgb([128, 128, 128]));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let hist_y = calculate_luminance_histogram(&img, cancel_flag).unwrap();
+
+        // 輝度も128になるはず
+        let y_value = (0.2126 * 128.0f32 + 0.7152 * 128.0f32 + 0.0722 * 128.0f32) as usize;
+        assert_eq!(y_value, 128);
+
+        assert_eq!(hist_y[128], 100);
+        assert_eq!(hist_y.iter().sum::<u32>(), 100);
+    }
+
+    #[test]
+    fn test_luminance_calculation() {
+        // 特定の色で輝度計算を検証
+        let img = create_solid_color_image(1, 1, Rgb([100, 150, 200]));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let hist_y = calculate_luminance_histogram(&img, cancel_flag).unwrap();
+
+        let expected_y = (0.2126f32 * 100.0f32 + 0.7152f32 * 150.0f32 + 0.0722f32 * 200.0f32) as usize;
+        // expected_y = (21.26 + 107.28 + 14.44).round() = 142.98.round() = 143
+        assert_eq!(expected_y, 142, "輝度計算は切り捨てられるべき");
+        assert_eq!(hist_y[expected_y], 1, "計算された輝度値のビンに1ピクセルあるべき");
+        assert_eq!(hist_y.iter().sum::<u32>(), 1, "合計ピクセル数は1であるべき");
+    }
+
+    #[test]
+    fn test_histogram_cancellation() {
+        let img = create_solid_color_image(100, 100, Rgb([0, 0, 0]));
+        let cancel_flag = Arc::new(AtomicBool::new(true)); // 最初からキャンセル状態
+
+        let rgb_result = calculate_rgb_histogram(&img, cancel_flag.clone());
+        assert!(rgb_result.is_err(), "RGB計算はキャンセルされるべき");
+
+        let lum_result = calculate_luminance_histogram(&img, cancel_flag.clone());
+        assert!(lum_result.is_err(), "輝度計算はキャンセルされるべき");
+    }
+}

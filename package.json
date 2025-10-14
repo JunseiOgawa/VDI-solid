@@ -8,6 +8,7 @@
     "dev": "npm run tauri dev",
     "build": "vite build",
     "serve": "vite preview",
+    "test": "vitest",
     "tauri": "tauri",
     "build-all": "npm run build && npm run tauri build",
     "tauri:build": "npm run build && npm run tauri build",
@@ -26,10 +27,12 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "autoprefixer": "^10.4.21",
+    "jsdom": "^27.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
-    "vite-plugin-solid": "^2.11.0"
+    "vite-plugin-solid": "^2.11.0",
+    "vitest": "^3.2.4"
   }
 }

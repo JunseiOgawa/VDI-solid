@@ -121,6 +121,12 @@ export interface AppState {
   controlPanelPosition: () => 'top' | 'bottom' | 'left' | 'right';
   /** コントロールパネルの表示位置を設定 */
   setControlPanelPosition: (position: 'top' | 'bottom' | 'left' | 'right') => void;
+
+  // ギャラリー表示関連
+  /** ギャラリーサイドバーの表示/非表示 */
+  showGallery: () => boolean;
+  /** ギャラリーサイドバーの表示/非表示を設定 */
+  setShowGallery: (show: boolean) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -201,6 +207,9 @@ export const AppProvider: ParentComponent = (props) => {
 
   // コントロールパネル位置関連Signal
   const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<'top' | 'bottom' | 'left' | 'right'>('right');
+
+  // ギャラリー表示関連Signal
+  const [showGallery, setShowGallerySignal] = createSignal<boolean>(false);
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -573,6 +582,10 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-control-panel-position', position);
   };
 
+  const handleShowGalleryChange = (show: boolean) => {
+    setShowGallerySignal(show);
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -623,6 +636,8 @@ export const AppProvider: ParentComponent = (props) => {
     setShowFullPath: handleShowFullPathChange,
     controlPanelPosition,
     setControlPanelPosition: handleControlPanelPositionChange,
+    showGallery,
+    setShowGallery: handleShowGalleryChange,
   };
 
   return (

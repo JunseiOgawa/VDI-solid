@@ -2,10 +2,20 @@ import type { Component } from 'solid-js';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /**
- * 簡素化されたTitlebarコンポーネント
- * ドラッグ領域とウィンドウコントロールボタンのみを提供
+ * Titlebarコンポーネントのprops
  */
-const Titlebar: Component = () => {
+interface TitlebarProps {
+  /** ギャラリーサイドバーの表示状態 */
+  showGallery: boolean;
+  /** ギャラリーサイドバーの表示/非表示を切り替える */
+  onToggleGallery: (show: boolean) => void;
+}
+
+/**
+ * 簡素化されたTitlebarコンポーネント
+ * ドラッグ領域とウィンドウコントロールボタン、ギャラリー展開ボタンを提供
+ */
+const Titlebar: Component<TitlebarProps> = (props) => {
   const windowButtonClasses =
     "no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]";
 
@@ -34,9 +44,29 @@ const Titlebar: Component = () => {
       class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300"
       data-tauri-drag-region
     >
-      {/* 左側: 空(将来的な拡張用) */}
-      <div class="flex items-center">
-        {/* 必要に応じてアプリ名やアイコンを配置 */}
+      {/* 左側: ギャラリー展開ボタン */}
+      <div class="flex items-center gap-1">
+        <button
+          id="galleryBtn"
+          class={windowButtonClasses}
+          onClick={() => props.onToggleGallery(!props.showGallery)}
+          aria-label="ギャラリー表示"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 6h18M3 12h18M3 18h18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* 中央: ドラッグ可能領域 */}

@@ -1906,3 +1906,285 @@ applyDeadzone(value: number): number {
 - キーバインドのカスタマイズは将来的な拡張を考慮した設計にすること
 - 既存の機能への影響を最小限に抑えること
 - コミットは行わず、実装完了後にユーザーへ確認を求めること
+
+---
+
+# サイドバーギャラリービュー機能 実装タスク
+
+## プロジェクト概要
+
+タイトルバーの左上にサイドバー展開ボタンを配置し、クリックすると縦1列の画像サムネイルが表示されるギャラリービュー機能を実装する。
+
+## 前提条件
+
+1. まず、Rustコードのリファクタリング(第1段階)を完了させる
+2. リファクタリング完了後、ギャラリービュー機能(第2段階)を実装する
+
+## タスク一覧
+
+### 第1段階: Rustコードのリファクタリング
+
+#### タスク1.1: navigation.rsモジュールの作成
+
+- [ ] `src-tauri/src/navigation.rs`ファイルを新規作成
+- [ ] img.rsから以下の関数をコピー
+  - [ ] get_folder_images関数
+  - [ ] get_next_image関数
+  - [ ] get_previous_image関数
+- [ ] 必要なimport文を追加
+  - [ ] `use std::path::Path;`
+  - [ ] `use std::fs;`
+- [ ] JSDocコメントも含めて完全にコピー
+
+#### タスク1.2: img.rsの修正
+
+- [ ] img.rsから以下の関数を削除
+  - [ ] get_folder_images関数(209-253行)
+  - [ ] get_next_image関数(255-283行)
+  - [ ] get_previous_image関数(285-317行)
+- [ ] 削除後、残りの関数が正しく動作することを確認
+  - [ ] create_image_backup
+  - [ ] restore_image_from_backup
+  - [ ] cleanup_image_backup
+  - [ ] rotate_image
+  - [ ] get_launch_image_path
+  - [ ] get_launch_window_mode
+
+#### タスク1.3: lib.rsのモジュール宣言とコマンド登録を更新
+
+- [ ] モジュール宣言にnavigationを追加
+  - [ ] `mod navigation;`を追加(6行目付近)
+- [ ] invoke_handlerのコマンド登録を修正
+  - [ ] `img::get_folder_images`を`navigation::get_folder_images`に変更
+  - [ ] `img::get_next_image`を`navigation::get_next_image`に変更
+  - [ ] `img::get_previous_image`を`navigation::get_previous_image`に変更
+
+#### タスク1.4: ビルド確認
+
+- [ ] Rustのビルドが通ることを確認
+  - [ ] `npm run build`を実行
+  - [ ] エラーがないことを確認
+- [ ] 既存機能が壊れていないことを確認
+  - [ ] アプリを起動
+  - [ ] 画像を開く
+  - [ ] 次の画像へ移動できることを確認
+  - [ ] 前の画像へ移動できることを確認
+
+### 第2段階: ギャラリービュー機能の実装
+
+#### タスク2.1: ImageGalleryコンポーネントの作成
+
+**ファイル**: `src/components/ImageGallery/index.tsx`
+
+- [ ] 基本構造の作成
+  - [ ] コンポーネントファイルを新規作成
+  - [ ] Props型定義を追加
+  - [ ] 基本的なレイアウト構造を実装
+- [ ] 状態管理の実装
+  - [ ] folderImages Signalを追加(画像一覧)
+  - [ ] isLoading Signalを追加(ローディング状態)
+- [ ] 画像一覧取得機能の実装
+  - [ ] Tauriコマンド(get_folder_images)を呼び出す
+  - [ ] 現在の画像パスから親フォルダを取得
+  - [ ] フォルダ内の画像一覧を取得
+- [ ] サムネイル表示機能の実装
+  - [ ] convertFileSrcで画像パスを変換
+  - [ ] サムネイル画像を表示
+  - [ ] ファイル名を表示
+- [ ] 現在表示中の画像をハイライト
+  - [ ] currentImagePathと一致する画像に特別なスタイルを適用
+  - [ ] border-blue-500を適用
+- [ ] 画像クリックイベントの実装
+  - [ ] onImageSelectコールバックを呼び出す
+  - [ ] サイドバーを閉じる
+
+#### タスク2.2: サイドバーのスタイリング
+
+- [ ] ガラス表現の実装
+  - [ ] bg-black/80
+  - [ ] backdrop-blur-md
+  - [ ] border-white/10
+- [ ] アニメーション効果の実装
+  - [ ] transform transition-transform duration-300
+  - [ ] isOpenに応じてtranslate-x-0または-translate-x-fullを適用
+- [ ] スクロール機能の実装
+  - [ ] overflow-y-auto
+  - [ ] 縦スクロール可能にする
+- [ ] レスポンシブ対応
+  - [ ] 幅を固定(w-64)
+  - [ ] 高さは画面いっぱい(top-8 bottom-0)
+
+#### タスク2.3: Titlebarコンポーネントの修正
+
+**ファイル**: `src/components/Titlebar/index.tsx`
+
+- [ ] サイドバー展開ボタンの追加
+  - [ ] ハンバーガーメニューアイコンを作成
+  - [ ] ボタンを左側エリアに配置
+  - [ ] aria-labelを追加
+- [ ] ボタンのスタイリング
+  - [ ] 既存のwindowButtonClassesと統一
+  - [ ] ホバー効果を追加
+- [ ] クリックイベントハンドラーの追加
+  - [ ] toggleGallery関数を呼び出す
+
+#### タスク2.4: AppStateContextの修正
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [ ] showGallery状態を追加
+  - [ ] `const [showGallery, setShowGallery] = createSignal(false);`
+- [ ] Context値に追加
+  - [ ] showGallery: Accessor<boolean>
+  - [ ] setShowGallery: Setter<boolean>
+- [ ] 型定義を更新
+  - [ ] AppStateContextType interfaceに追加
+
+#### タスク2.5: Appコンポーネントの修正
+
+**ファイル**: `src/App.tsx`
+
+- [ ] ImageGalleryコンポーネントをインポート
+- [ ] ImageGalleryをレイアウトに追加
+  - [ ] mainタグ内に配置
+  - [ ] ImageViewerの前に配置
+- [ ] handleImageSelect関数の実装
+  - [ ] setCurrentImageFilePathを呼び出す
+  - [ ] setShowGalleryを呼び出してサイドバーを閉じる
+- [ ] Propsの受け渡し
+  - [ ] isOpen={showGallery()}
+  - [ ] onClose={() => setShowGallery(false)}
+  - [ ] currentImagePath={currentImageFilePath()}
+  - [ ] onImageSelect={handleImageSelect}
+
+#### タスク2.6: ヘルパー関数の実装
+
+**ファイル**: `src/components/ImageGallery/index.tsx`
+
+- [ ] getFileName関数を実装
+  - [ ] ファイルパスからファイル名のみを抽出
+  - [ ] `path.split(/[\/]/).pop() || ''`
+- [ ] getParentFolder関数を実装
+  - [ ] ファイルパスから親フォルダパスを抽出
+
+### 第3段階: テストと最適化
+
+#### タスク3.1: 機能テスト
+
+- [ ] サイドバー開閉機能のテスト
+  - [ ] ボタンクリックで開く
+  - [ ] 閉じるボタンで閉じる
+  - [ ] サイドバー外クリックで閉じる
+- [ ] 画像一覧表示のテスト
+  - [ ] フォルダ内の全画像が表示される
+  - [ ] サムネイルが正しく表示される
+  - [ ] ファイル名が正しく表示される
+- [ ] 画像選択機能のテスト
+  - [ ] 画像クリックで表示が切り替わる
+  - [ ] 現在の画像がハイライトされる
+  - [ ] サイドバーが自動的に閉じる
+
+#### タスク3.2: UI/UXテスト
+
+- [ ] アニメーション確認
+  - [ ] サイドバーの開閉アニメーションが滑らか
+  - [ ] トランジション時間が適切(300ms)
+- [ ] スタイル確認
+  - [ ] ガラス表現が美しい
+  - [ ] サムネイルサイズが適切
+  - [ ] ハイライトが目立つ
+- [ ] スクロール確認
+  - [ ] 縦スクロールが正しく動作する
+  - [ ] 大量の画像でもスムーズ
+
+#### タスク3.3: パフォーマンステスト
+
+- [ ] 大量の画像での動作確認
+  - [ ] 100枚以上の画像があるフォルダで確認
+  - [ ] サムネイル読み込みが遅延する場合は最適化を検討
+- [ ] メモリ使用量の確認
+  - [ ] メモリリークがないことを確認
+- [ ] レンダリングパフォーマンスの確認
+  - [ ] 再レンダリングが最小限であることを確認
+
+#### タスク3.4: エッジケース確認
+
+- [ ] フォルダに画像が1枚もない場合
+  - [ ] 適切なメッセージを表示
+- [ ] サムネイル読み込みに失敗した場合
+  - [ ] フォールバック表示を実装
+- [ ] 非常に長いファイル名の場合
+  - [ ] truncateで省略表示
+
+### 第4段階: ドキュメントとコミット
+
+#### タスク4.1: コードドキュメント
+
+- [ ] ImageGalleryコンポーネントにJSDocを追加
+- [ ] 主要な関数にコメントを追加
+- [ ] 複雑なロジックに説明コメントを追加
+
+#### タスク4.2: 最終確認
+
+- [ ] 設計書との整合性確認
+- [ ] タスク一覧の完了確認
+- [ ] コミット前の最終動作確認
+
+#### タスク4.3: ユーザーへの確認依頼
+
+- [ ] 実装内容のサマリーを作成
+- [ ] 変更ファイル一覧を提示
+- [ ] コミット確認を依頼
+
+## 進捗管理
+
+- 開始日: 2025年10月14日
+- 完了予定日: 未定
+- 現在のフェーズ: 第1段階(Rustコードのリファクタリング)
+
+## 備考
+
+- **重要**: 第1段階を必ず完了させてから第2段階に進むこと
+- ビルドが通ることを確認してから次のタスクに進むこと
+- 各フェーズ完了後にユーザーに確認を求めること
+- コミットはユーザーの承認を得てから行うこと
+
+## 実装完了の定義
+
+### 第1段階完了の定義
+
+- [ ] navigation.rsが正しく作成されている
+- [ ] img.rsから3つの関数が削除されている
+- [ ] lib.rsのコマンド登録が更新されている
+- [ ] `npm run build`が成功する
+- [ ] 既存の画像ナビゲーション機能が正しく動作する
+
+### 第2段階完了の定義
+
+- [ ] ImageGalleryコンポーネントが作成されている
+- [ ] Titlebarにサイドバー展開ボタンが追加されている
+- [ ] サイドバーが正しく開閉する
+- [ ] 画像一覧が表示される
+- [ ] 画像クリックで表示が切り替わる
+- [ ] 全てのテストが合格する
+
+## 成果物
+
+### 第1段階
+
+#### 新規作成
+- `src-tauri/src/navigation.rs`
+
+#### 修正
+- `src-tauri/src/img.rs`
+- `src-tauri/src/lib.rs`
+
+### 第2段階
+
+#### 新規作成
+- `src/components/ImageGallery/index.tsx`
+
+#### 修正
+- `src/components/Titlebar/index.tsx`
+- `src/App.tsx`
+- `src/context/AppStateContext.tsx`

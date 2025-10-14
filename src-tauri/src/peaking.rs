@@ -389,3 +389,65 @@ pub async fn focus_peaking(
         edges: filtered_edges,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{DynamicImage, Rgb, ImageBuffer};
+
+    /// テスト用のダミー画像を生成
+    fn create_dummy_image(width: u32, height: u32) -> DynamicImage {
+        DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, Vec<u8>>::new(width, height))
+    }
+
+    #[test]
+    fn test_downsample_not_needed() {
+        // 閾値より小さい画像はダウンサンプリングされない
+        let img = create_dummy_image(1000, 800);
+        let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
+        assert!(scale.is_none(), "スケールがNoneであるべき");
+        assert_eq!(processed_img.dimensions(), (1000, 800), "画像サイズが変わらないはず");
+    }
+
+    #[test]
+    fn test_downsample_needed_for_wide_image() {
+        // 幅が閾値を超える画像はダウンサンプリングされる
+        let img = create_dummy_image(3000, 1500);
+        let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
+        
+        assert!(scale.is_some(), "スケールがSomeであるべき");
+        let (new_width, new_height) = processed_img.dimensions();
+        assert!(new_width < 3000, "幅が縮小されているはず");
+        assert!(new_height < 1500, "高さが縮小されているはず");
+        assert_eq!(new_width, 1920, "目標幅が1920になるはず");
+    }
+
+    #[test]
+    fn test_downsample_needed_for_tall_image() {
+        // 高さが閾値を超える画像はダウンサンプリングされる
+        let img = create_dummy_image(1500, 3000);
+        let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
+        
+        assert!(scale.is_some(), "スケールがSomeであるべき");
+        let (new_width, new_height) = processed_img.dimensions();
+        assert!(new_width < 1500, "幅が縮小されているはず");
+        assert!(new_height < 3000, "高さが縮小されているはず");
+        assert_eq!(new_height, 1920, "目標高さが1920になるはず");
+    }
+
+    #[test]
+    fn test_scale_back_calculation() {
+        let img = create_dummy_image(4000, 2000);
+        let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
+        let (new_width, new_height) = processed_img.dimensions();
+        
+        let (scale_x, scale_y) = scale.expect("スケールが計算されているはず");
+        
+        // スケールバックすると元のサイズに近くなるはず
+        let original_width_restored = (new_width as f32 * scale_x).round() as u32;
+        let original_height_restored = (new_height as f32 * scale_y).round() as u32;
+        
+        assert_eq!(original_width_restored, 4000, "幅が元に戻るはず");
+        assert_eq!(original_height_restored, 2000, "高さが元に戻るはず");
+    }
+}
