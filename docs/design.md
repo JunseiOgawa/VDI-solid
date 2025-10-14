@@ -1871,6 +1871,685 @@ const activeFeaturesCount = computed(() => {
 
 ---
 
+# VirtualDesktop & Questコントローラー対応 設計書
+
+## 概要
+
+VRゴーグル(Meta Quest)でVirtualDesktopを使用してデスクトップ操作を行う際、このアプリケーションがVirtualDesktop環境を検知し、Questコントローラーでの操作に対応する機能を実装します。
+
+## 背景
+
+### 課題
+
+VR環境でデスクトップアプリを操作する際、マウスやキーボードが使いにくいため、Questコントローラーで画像ビューワーアプリを快適に操作できるようにする必要があります。
+
+### 解決策
+
+1. VirtualDesktopモードの手動ON/OFF設定
+2. Virtual Desktopのゲームパッドエミュレーション経由でコントローラー入力を取得
+3. デフォルトキーバインドの実装とカスタマイズ機能の提供
+4. 自動セットアップガイドの実装
+
+## 設計
+
+### 1. VirtualDesktopモードの状態管理
+
+#### AppStateContextの更新
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+**追加する状態**:
+```typescript
+export interface AppState {
+  // 既存の定義...
+
+  // VirtualDesktopモード関連
+  virtualdesktopMode: () => boolean;
+  setVirtualDesktopMode: (enabled: boolean) => void;
+}
+```
+
+**実装内容**:
+```typescript
+export const AppProvider: ParentComponent = (props) => {
+  // 既存のSignal定義...
+
+  const [virtualdesktopMode, setVirtualdesktopModeSignal] = createSignal<boolean>(false);
+
+  // 永続化付きセッター
+  const setVirtualdesktopMode = (enabled: boolean) => {
+    setVirtualdesktopModeSignal(enabled);
+    localStorage.setItem('vdi-virtualdesktop-mode', enabled ? 'true' : 'false');
+  };
+
+  // localStorageから復元
+  onMount(() => {
+    const savedVDMode = localStorage.getItem('vdi-virtualdesktop-mode');
+    if (savedVDMode !== null) {
+      setVirtualdesktopMode(savedVDMode === 'true');
+    }
+  });
+
+  const appState: AppState = {
+    // 既存の定義...
+    virtualdesktopMode,
+    setVirtualdesktopMode,
+  };
+
+  return <AppContext.Provider value={appState}>{props.children}</AppContext.Provider>;
+};
+```
+
+#### SettingsMenuの更新
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+**UI表示**:
+```tsx
+<div class="px-3 py-2">
+  <label class="flex items-center gap-2">
+    <input
+      type="checkbox"
+      checked={virtualdesktopMode()}
+      onChange={(e) => setVirtualdesktopMode(e.currentTarget.checked)}
+    />
+    <span>VirtualDesktopモード</span>
+  </label>
+</div>
+```
+
+### 2. コントローラー入力の取得
+
+#### Rustコントローラーモジュールの作成
+
+**ファイル**: `src-tauri/src/controller.rs`
+
+**実装内容**:
+```rust
+use gilrs::{Gilrs, Event, Button, Axis};
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ControllerState {
+    pub connected: bool,
+    pub device_name: String,
+    pub buttons: ButtonState,
+    pub axes: AxesState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ButtonState {
+    pub a: bool,
+    pub b: bool,
+    pub x: bool,
+    pub y: bool,
+    pub lb: bool,
+    pub rb: bool,
+    pub lt: f32,
+    pub rt: f32,
+    pub start: bool,
+    pub back: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AxesState {
+    pub left_stick_x: f32,
+    pub left_stick_y: f32,
+    pub right_stick_x: f32,
+    pub right_stick_y: f32,
+}
+
+#[tauri::command]
+pub fn poll_controller_input() -> Result<ControllerState, String> {
+    let mut gilrs = Gilrs::new().map_err(|e| e.to_string())?;
+
+    // 最初に接続されているゲームパッドを取得
+    let gamepad = gilrs.gamepads().next();
+
+    if let Some((id, gamepad)) = gamepad {
+        let name = gamepad.name().to_string();
+
+        let buttons = ButtonState {
+            a: gamepad.is_pressed(Button::South),
+            b: gamepad.is_pressed(Button::East),
+            x: gamepad.is_pressed(Button::West),
+            y: gamepad.is_pressed(Button::North),
+            lb: gamepad.is_pressed(Button::LeftTrigger),
+            rb: gamepad.is_pressed(Button::RightTrigger),
+            lt: gamepad.value(Axis::LeftZ),
+            rt: gamepad.value(Axis::RightZ),
+            start: gamepad.is_pressed(Button::Start),
+            back: gamepad.is_pressed(Button::Select),
+        };
+
+        let axes = AxesState {
+            left_stick_x: gamepad.value(Axis::LeftStickX),
+            left_stick_y: gamepad.value(Axis::LeftStickY),
+            right_stick_x: gamepad.value(Axis::RightStickX),
+            right_stick_y: gamepad.value(Axis::RightStickY),
+        };
+
+        Ok(ControllerState {
+            connected: true,
+            device_name: name,
+            buttons,
+            axes,
+        })
+    } else {
+        Ok(ControllerState {
+            connected: false,
+            device_name: String::from("None"),
+            buttons: ButtonState {
+                a: false,
+                b: false,
+                x: false,
+                y: false,
+                lb: false,
+                rb: false,
+                lt: 0.0,
+                rt: 0.0,
+                start: false,
+                back: false,
+            },
+            axes: AxesState {
+                left_stick_x: 0.0,
+                left_stick_y: 0.0,
+                right_stick_x: 0.0,
+                right_stick_y: 0.0,
+            },
+        })
+    }
+}
+
+#[tauri::command]
+pub fn check_vd_streamer() -> Result<bool, String> {
+    use sysinfo::{System, SystemExt, ProcessExt};
+
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    // VirtualDesktop.Streamer.exeプロセスを検索
+    let found = sys.processes().iter().any(|(_, process)| {
+        process.name().to_lowercase().contains("virtualdesktop.streamer")
+    });
+
+    Ok(found)
+}
+```
+
+#### lib.rsへの統合
+
+**ファイル**: `src-tauri/src/lib.rs`
+
+```rust
+mod controller;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            // 既存のコマンド...
+            controller::poll_controller_input,
+            controller::check_vd_streamer,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+### 3. コントローラー入力のマッピング
+
+#### configファイルの更新
+
+**ファイル**: `src/config/config.ts`
+
+```typescript
+export interface ControllerBinding {
+  action: string;
+  input: string;
+}
+
+export interface AppConfig {
+  // 既存の定義...
+
+  controller: {
+    enabled: boolean;
+    defaultBindings: ControllerBinding[];
+    deadzone: number;
+    pollingInterval: number;
+  };
+}
+
+export const CONFIG: AppConfig = {
+  // 既存の設定...
+
+  controller: {
+    enabled: false,
+    deadzone: 0.15,
+    pollingInterval: 16, // 60Hz
+    defaultBindings: [
+      { action: 'pan_left', input: 'AxisLeftX-' },
+      { action: 'pan_right', input: 'AxisLeftX+' },
+      { action: 'pan_up', input: 'AxisLeftY-' },
+      { action: 'pan_down', input: 'AxisLeftY+' },
+      { action: 'zoom_in', input: 'AxisRightY-' },
+      { action: 'zoom_out', input: 'AxisRightY+' },
+      { action: 'next_image', input: 'ButtonA' },
+      { action: 'prev_image', input: 'ButtonB' },
+      { action: 'fit_to_screen', input: 'ButtonX' },
+      { action: 'zoom_reset', input: 'ButtonY' },
+      { action: 'rotate_left', input: 'ButtonLB' },
+      { action: 'rotate_right', input: 'ButtonRB' },
+      { action: 'toggle_grid', input: 'TriggerLT' },
+      { action: 'toggle_peaking', input: 'TriggerRT' },
+      { action: 'open_settings', input: 'ButtonStart' },
+    ],
+  },
+};
+```
+
+#### controllerMapping.tsの作成
+
+**ファイル**: `src/lib/controllerMapping.ts`
+
+```typescript
+import { CONFIG } from '../config/config';
+import type { AppState } from '../context/AppStateContext';
+
+export interface ControllerState {
+  connected: boolean;
+  device_name: string;
+  buttons: {
+    a: boolean;
+    b: boolean;
+    x: boolean;
+    y: boolean;
+    lb: boolean;
+    rb: boolean;
+    lt: number;
+    rt: number;
+    start: boolean;
+    back: boolean;
+  };
+  axes: {
+    left_stick_x: number;
+    left_stick_y: number;
+    right_stick_x: number;
+    right_stick_y: number;
+  };
+}
+
+export class ControllerMapper {
+  private deadzone: number;
+  private previousState: ControllerState | null = null;
+
+  constructor(deadzone: number = CONFIG.controller.deadzone) {
+    this.deadzone = deadzone;
+  }
+
+  applyDeadzone(value: number): number {
+    return Math.abs(value) < this.deadzone ? 0 : value;
+  }
+
+  mapInputToActions(
+    currentState: ControllerState,
+    appState: AppState
+  ): void {
+    if (!currentState.connected) return;
+
+    const { buttons, axes } = currentState;
+    const prev = this.previousState;
+
+    // ボタン入力の処理（エッジ検出 - 押した瞬間のみ）
+    if (prev) {
+      if (buttons.a && !prev.buttons.a) {
+        appState.loadNextImage();
+      }
+      if (buttons.b && !prev.buttons.b) {
+        appState.loadPreviousImage();
+      }
+      if (buttons.x && !prev.buttons.x) {
+        // fitToScreen処理
+      }
+      if (buttons.y && !prev.buttons.y) {
+        appState.setZoomScale(1);
+      }
+      if (buttons.lb && !prev.buttons.lb) {
+        appState.enqueueRotation(-90);
+      }
+      if (buttons.rb && !prev.buttons.rb) {
+        appState.enqueueRotation(90);
+      }
+      // トリガーのエッジ検出
+      if (buttons.lt > 0.5 && prev.buttons.lt <= 0.5) {
+        const currentPattern = appState.gridPattern();
+        const patterns: Array<'off' | '3x3' | '5x3' | '4x4'> = ['off', '3x3', '5x3', '4x4'];
+        const index = patterns.indexOf(currentPattern);
+        appState.setGridPattern(patterns[(index + 1) % patterns.length]);
+      }
+      if (buttons.rt > 0.5 && prev.buttons.rt <= 0.5) {
+        appState.setPeakingEnabled(!appState.peakingEnabled());
+      }
+    }
+
+    // スティック入力の処理（連続値）
+    const leftX = this.applyDeadzone(axes.left_stick_x);
+    const leftY = this.applyDeadzone(axes.left_stick_y);
+    const rightY = this.applyDeadzone(axes.right_stick_y);
+
+    // パン操作（左スティック）
+    if (leftX !== 0 || leftY !== 0) {
+      // position更新処理をここに実装
+      // 実装例: appState.updatePosition(leftX * panSpeed, leftY * panSpeed)
+    }
+
+    // ズーム操作（右スティック上下）
+    if (rightY !== 0) {
+      const currentZoom = appState.zoomScale();
+      const zoomDelta = rightY * 0.01;
+      appState.setZoomScale(Math.max(0.1, Math.min(10, currentZoom + zoomDelta)));
+    }
+
+    this.previousState = currentState;
+  }
+}
+```
+
+### 4. ControllerContextの作成
+
+**ファイル**: `src/context/ControllerContext.tsx`
+
+```typescript
+import type { ParentComponent } from 'solid-js';
+import { createContext, createSignal, onMount, onCleanup, useContext } from 'solid-js';
+import { invoke } from '@tauri-apps/api/core';
+import { ControllerMapper, type ControllerState } from '../lib/controllerMapping';
+import { useAppState } from './AppStateContext';
+import { CONFIG } from '../config/config';
+
+export interface ControllerContextType {
+  connected: () => boolean;
+  deviceName: () => string;
+}
+
+const ControllerContext = createContext<ControllerContextType>();
+
+export const ControllerProvider: ParentComponent = (props) => {
+  const [connected, setConnected] = createSignal<boolean>(false);
+  const [deviceName, setDeviceName] = createSignal<string>('None');
+  const appState = useAppState();
+  const mapper = new ControllerMapper();
+
+  let pollingInterval: number | undefined;
+
+  const pollController = async () => {
+    try {
+      const state = await invoke<ControllerState>('poll_controller_input');
+      setConnected(state.connected);
+      setDeviceName(state.device_name);
+
+      if (state.connected && appState.virtualdesktopMode()) {
+        mapper.mapInputToActions(state, appState);
+      }
+    } catch (error) {
+      console.error('[Controller] ポーリングエラー:', error);
+    }
+  };
+
+  onMount(() => {
+    // ポーリング開始
+    pollingInterval = window.setInterval(pollController, CONFIG.controller.pollingInterval);
+  });
+
+  onCleanup(() => {
+    if (pollingInterval !== undefined) {
+      clearInterval(pollingInterval);
+    }
+  });
+
+  const contextValue: ControllerContextType = {
+    connected,
+    deviceName,
+  };
+
+  return (
+    <ControllerContext.Provider value={contextValue}>
+      {props.children}
+    </ControllerContext.Provider>
+  );
+};
+
+export const useController = () => {
+  const context = useContext(ControllerContext);
+  if (!context) {
+    throw new Error('useController must be used within a ControllerProvider');
+  }
+  return context;
+};
+```
+
+### 5. 自動セットアップガイドの実装
+
+#### SetupGuideコンポーネントの作成
+
+**ファイル**: `src/components/SettingsMenu/ControllerSetupGuide.tsx`
+
+```typescript
+import type { Component } from 'solid-js';
+import { createSignal } from 'solid-js';
+import { invoke } from '@tauri-apps/api/core';
+
+interface SetupGuideProps {
+  onComplete: () => void;
+}
+
+const ControllerSetupGuide: Component<SetupGuideProps> = (props) => {
+  const [step, setStep] = createSignal<'vd_check' | 'controller_check' | 'completed'>('vd_check');
+  const [vdStreamerDetected, setVdStreamerDetected] = createSignal<boolean>(false);
+  const [controllerDetected, setControllerDetected] = createSignal<boolean>(false);
+  const [checking, setChecking] = createSignal<boolean>(false);
+  const [dontShowAgain, setDontShowAgain] = createSignal<boolean>(false);
+
+  const checkVDStreamer = async () => {
+    setChecking(true);
+    try {
+      const detected = await invoke<boolean>('check_vd_streamer');
+      setVdStreamerDetected(detected);
+      if (detected) {
+        setStep('controller_check');
+      }
+    } catch (error) {
+      console.error('[SetupGuide] VDストリーマー検知エラー:', error);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const checkController = async () => {
+    setChecking(true);
+    try {
+      const state = await invoke<any>('poll_controller_input');
+      setControllerDetected(state.connected);
+      if (state.connected) {
+        setStep('completed');
+        if (dontShowAgain()) {
+          localStorage.setItem('vdi-controller-setup-completed', 'true');
+        }
+        setTimeout(() => props.onComplete(), 2000);
+      }
+    } catch (error) {
+      console.error('[SetupGuide] コントローラー検知エラー:', error);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div class="w-full max-w-md rounded-lg bg-[var(--bg-primary)] p-6 shadow-lg">
+        <h2 class="mb-4 text-lg font-bold text-[var(--text-primary)]">
+          コントローラーセットアップガイド
+        </h2>
+
+        {step() === 'vd_check' && (
+          <div>
+            <p class="mb-4 text-sm text-[var(--text-secondary)]">
+              Virtual Desktopストリーマーを検知しています...
+            </p>
+            {!vdStreamerDetected() && (
+              <div class="mb-4">
+                <p class="mb-2 text-sm text-[var(--text-secondary)]">
+                  Virtual Desktopストリーマーが見つかりません。
+                  Virtual Desktopが起動していることを確認してください。
+                </p>
+                <button
+                  class="rounded bg-[var(--accent-primary)] px-4 py-2 text-sm text-white"
+                  onClick={checkVDStreamer}
+                  disabled={checking()}
+                >
+                  {checking() ? '確認中...' : '再検出'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {step() === 'controller_check' && (
+          <div>
+            <p class="mb-4 text-sm text-[var(--text-secondary)]">
+              Quest内で以下の手順を実行してください：
+            </p>
+            <ol class="mb-4 list-decimal pl-5 text-sm text-[var(--text-secondary)]">
+              <li>Virtual Desktopメニューを開く</li>
+              <li>Settings → Controllers へ移動</li>
+              <li>「Use controllers as gamepad」をONにする</li>
+            </ol>
+            <button
+              class="rounded bg-[var(--accent-primary)] px-4 py-2 text-sm text-white"
+              onClick={checkController}
+              disabled={checking()}
+            >
+              {checking() ? '確認中...' : 'コントローラーを検出'}
+            </button>
+          </div>
+        )}
+
+        {step() === 'completed' && (
+          <div>
+            <p class="mb-4 text-sm text-green-500">
+              ✓ セットアップが完了しました！
+            </p>
+            <p class="text-sm text-[var(--text-secondary)]">
+              コントローラー: {controllerDetected() ? '検出されました' : '未検出'}
+            </p>
+          </div>
+        )}
+
+        <div class="mt-4">
+          <label class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={dontShowAgain()}
+              onChange={(e) => setDontShowAgain(e.currentTarget.checked)}
+            />
+            <span>次回から表示しない</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ControllerSetupGuide;
+```
+
+#### SettingsMenuへの統合
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+```tsx
+import ControllerSetupGuide from './ControllerSetupGuide';
+
+const SettingsMenu: Component<SettingsMenuProps> = (props) => {
+  const [showSetupGuide, setShowSetupGuide] = createSignal<boolean>(false);
+
+  const handleVirtualDesktopModeChange = (enabled: boolean) => {
+    props.onVirtualDesktopModeChange(enabled);
+
+    if (enabled) {
+      const setupCompleted = localStorage.getItem('vdi-controller-setup-completed');
+      if (!setupCompleted) {
+        setShowSetupGuide(true);
+      }
+    }
+  };
+
+  return (
+    <div>
+      {/* 既存のUI... */}
+
+      <div class="px-3 py-2">
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={props.virtualdesktopMode}
+            onChange={(e) => handleVirtualDesktopModeChange(e.currentTarget.checked)}
+          />
+          <span>VirtualDesktopモード</span>
+        </label>
+
+        <button
+          class="mt-2 text-xs text-[var(--accent-primary)]"
+          onClick={() => setShowSetupGuide(true)}
+        >
+          セットアップガイドを再表示
+        </button>
+      </div>
+
+      {showSetupGuide() && (
+        <ControllerSetupGuide
+          onComplete={() => setShowSetupGuide(false)}
+        />
+      )}
+    </div>
+  );
+};
+```
+
+## 実装上の注意点
+
+### 1. gilrsクレートの追加
+
+**ファイル**: `src-tauri/Cargo.toml`
+
+```toml
+[dependencies]
+gilrs = "0.10"
+sysinfo = "0.30"
+```
+
+### 2. パフォーマンス最適化
+
+- コントローラーポーリングは60Hz（16ms間隔）で実行
+- デッドゾーン処理でノイズを除去
+- エッジ検出でボタンの連続発火を防止
+
+### 3. エラーハンドリング
+
+- コントローラー接続エラーの適切な処理
+- VDストリーマー検知失敗時のフォールバック
+
+### 4. ユーザビリティ
+
+- セットアップガイドで初回設定をサポート
+- 設定メニューから再度ガイドを表示可能
+- 「次回から表示しない」オプションの提供
+
+---
+
 # フッターに解像度とファイルパス表示機能の追加
 
 ## 概要

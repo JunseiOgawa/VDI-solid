@@ -1281,3 +1281,430 @@ const handleKeyDown = (event: KeyboardEvent) => {
 - テキストオーバーフロー時は省略記号で対応
 - 既存の機能には影響を与えない
 - コミットは行わず、実装完了後にユーザーへ確認を求める
+
+---
+
+# VirtualDesktop & Questコントローラー対応 タスク一覧
+
+## タスク概要
+
+VRゴーグルのVirtualDesktop環境で本アプリを使用する際に、Questコントローラーによる操作に対応します。VirtualDesktopの検知機能、コントローラー入力のマッピング、カスタマイズ可能なキーバインド、およびセットアップガイドを実装します。
+
+## 実装タスク
+
+### 1. 設計フェーズ
+
+- [x] 要件定義書の作成（virtualdesktop&questコントロール対応.md）
+- [x] 設計書の作成（design.md）
+- [x] タスクの洗い出し（task.md）
+
+### 2. Rust側の実装
+
+#### ステップ1: Cargo.tomlへの依存関係追加
+
+**ファイル**: `src-tauri/Cargo.toml`
+
+- [ ] gilrsクレートの追加
+  - [ ] `gilrs = "0.10"`（ゲームパッド入力）
+- [ ] sysinfoクレートの追加
+  - [ ] `sysinfo = "0.30"`（プロセス検出）
+
+#### ステップ2: controller.rsモジュールの作成
+
+**ファイル**: `src-tauri/src/controller.rs`
+
+- [ ] 基本構造の作成
+  - [ ] `ControllerState`構造体の定義
+    - [ ] `connected: bool`
+    - [ ] `device_name: String`
+    - [ ] `buttons: ButtonState`
+    - [ ] `axes: AxesState`
+  - [ ] `ButtonState`構造体の定義
+    - [ ] 全てのボタン状態（a, b, x, y, lb, rb, lt, rt, start, back, ls, rs）
+  - [ ] `AxesState`構造体の定義
+    - [ ] 左右スティックのX/Y軸
+    - [ ] LT/RTトリガーの値
+- [ ] poll_controller_input関数の実装
+  - [ ] Gilrsインスタンスの初期化
+  - [ ] 接続されたゲームパッドの取得
+  - [ ] ボタン状態の取得
+  - [ ] 軸の値の取得
+  - [ ] ControllerStateの返却
+  - [ ] エラーハンドリング
+- [ ] check_vd_streamer関数の実装
+  - [ ] sysinfoを使用してプロセス一覧を取得
+  - [ ] VirtualDesktop.Streamer.exeの検出
+  - [ ] 検出結果の返却
+
+#### ステップ3: lib.rsへの統合
+
+**ファイル**: `src-tauri/src/lib.rs`
+
+- [ ] controllerモジュールのインポート
+  - [ ] `mod controller;`の追加
+- [ ] Tauriビルダーへのコマンド登録
+  - [ ] `invoke_handler`に`poll_controller_input`を追加
+  - [ ] `invoke_handler`に`check_vd_streamer`を追加
+
+### 3. 設定ファイルの実装
+
+#### config.tsの更新
+
+**ファイル**: `src/config/config.ts`
+
+- [ ] AppConfigインターフェースにcontroller設定を追加
+  - [ ] `controller`セクションの追加
+  - [ ] ポーリング間隔（pollingInterval）
+  - [ ] デッドゾーン（deadzone）
+  - [ ] デフォルトキーバインド（defaultBindings）
+- [ ] CONFIG定数にデフォルト値を設定
+  - [ ] `pollingInterval: 16`（60Hz）
+  - [ ] `deadzone: 0.15`
+  - [ ] すべてのデフォルトキーバインド（左スティック=パン、Aボタン=次の画像、など）
+
+### 4. 状態管理の実装
+
+#### AppStateContextの更新
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [ ] AppStateインターフェースにVirtualDesktopモード状態を追加
+  - [ ] `virtualDesktopMode: () => boolean`
+  - [ ] `setVirtualDesktopMode: (enabled: boolean) => void`
+  - [ ] `controllerBindings: () => ControllerBindings`
+  - [ ] `setControllerBindings: (bindings: ControllerBindings) => void`
+- [ ] Signal定義の追加
+  - [ ] `virtualDesktopMode` Signal
+  - [ ] `controllerBindings` Signal
+- [ ] localStorageからの復元処理を追加
+  - [ ] `onMount`内でVirtualDesktopモード設定を読み込み
+  - [ ] コントローラーバインド設定を読み込み
+  - [ ] デフォルト値の設定
+- [ ] 永続化処理の実装
+  - [ ] VirtualDesktopモード変更時にlocalStorageに保存
+  - [ ] コントローラーバインド変更時にlocalStorageに保存
+- [ ] appState objectに追加
+  - [ ] すべてのVirtualDesktop関連のgetterとsetterを追加
+
+### 5. コントローラーマッピングロジックの実装
+
+#### controllerMapping.tsの作成
+
+**ファイル**: `src/lib/controllerMapping.ts`
+
+- [ ] ControllerBindings型の定義
+  - [ ] 各ボタンとアクションのマッピング型
+- [ ] ControllerMapperクラスの実装
+  - [ ] コンストラクタ（デッドゾーン設定）
+  - [ ] `applyDeadzone`メソッド
+    - [ ] デッドゾーンフィルタリング処理
+  - [ ] `mapInputToActions`メソッド
+    - [ ] エッジ検出処理（ボタン）
+    - [ ] 連続入力処理（アナログスティック）
+    - [ ] アクションのディスパッチ
+  - [ ] 前回状態の保持
+  - [ ] 状態更新処理
+
+### 6. コントローラーコンテキストの実装
+
+#### ControllerContext.tsxの作成
+
+**ファイル**: `src/context/ControllerContext.tsx`
+
+- [ ] ControllerContext型の定義
+  - [ ] `controllerState: () => ControllerState | null`
+  - [ ] `isPolling: () => boolean`
+- [ ] ControllerProviderコンポーネントの実装
+  - [ ] Signal定義（controllerState, isPolling）
+  - [ ] 60Hzポーリングの実装（setInterval）
+  - [ ] `poll_controller_input` Tauriコマンド呼び出し
+  - [ ] ControllerMapperの統合
+  - [ ] クリーンアップ処理（onCleanup）
+- [ ] useControllerフックの実装
+  - [ ] コンテキストの取得
+  - [ ] エラーハンドリング
+
+### 7. セットアップガイドの実装
+
+#### ControllerSetupGuide.tsxの作成
+
+**ファイル**: `src/components/SettingsMenu/ControllerSetupGuide.tsx`
+
+- [ ] SetupGuideProps型の定義
+  - [ ] `onClose: () => void`
+  - [ ] `onComplete: () => void`
+- [ ] コンポーネントの基本構造
+  - [ ] 3ステップのウィザード実装
+  - [ ] ステップ1: VirtualDesktop Streamer検出
+  - [ ] ステップ2: コントローラー検出
+  - [ ] ステップ3: セットアップ完了
+- [ ] VD Streamer検出処理
+  - [ ] `check_vd_streamer` Tauriコマンド呼び出し
+  - [ ] 検出結果の表示
+  - [ ] 再試行ボタン
+- [ ] コントローラー検出処理
+  - [ ] `poll_controller_input` Tauriコマンド呼び出し
+  - [ ] 接続状態の確認
+  - [ ] 検出結果の表示
+  - [ ] 再試行ボタン
+- [ ] UI要素の実装
+  - [ ] ステップインジケーター
+  - [ ] 説明テキスト
+  - [ ] Quest側の設定手順（箇条書き）
+  - [ ] 「次へ」「戻る」「完了」ボタン
+  - [ ] 「今後表示しない」チェックボックス
+- [ ] localStorage連携
+  - [ ] セットアップ完了フラグの保存
+  - [ ] 初回起動時のみ表示
+
+### 8. 設定メニューの実装
+
+#### ControllerSettings.tsxの作成
+
+**ファイル**: `src/components/SettingsMenu/ControllerSettings.tsx`
+
+- [ ] ControllerSettingsProps型の定義
+  - [ ] `virtualDesktopMode: boolean`
+  - [ ] `onVirtualDesktopModeChange: (enabled: boolean) => void`
+  - [ ] `controllerBindings: ControllerBindings`
+  - [ ] `onControllerBindingsChange: (bindings: ControllerBindings) => void`
+  - [ ] `onOpenSetupGuide: () => void`
+- [ ] コンポーネントの実装
+  - [ ] VirtualDesktopモードON/OFFトグル
+  - [ ] セットアップガイド起動ボタン
+  - [ ] キーバインド設定UI
+    - [ ] 各ボタンに対するアクション選択（select）
+    - [ ] デフォルトに戻すボタン
+  - [ ] コントローラー接続状態表示
+  - [ ] 説明テキスト
+
+#### SettingsMenu/index.tsxの更新
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+- [ ] SettingsMenuPropsインターフェースを更新
+  - [ ] VirtualDesktop関連のpropsを追加
+- [ ] ControllerSettingsコンポーネントの統合
+  - [ ] importの追加
+  - [ ] レンダリング
+  - [ ] Props受け渡し
+- [ ] ControllerSetupGuideの統合
+  - [ ] 表示状態管理
+  - [ ] モーダル表示
+  - [ ] 完了時の処理
+
+### 9. Titlebarコンポーネントの更新
+
+**ファイル**: `src/components/Titlebar/index.tsx`
+
+- [ ] useAppStateからVirtualDesktop状態を取得
+  - [ ] `virtualDesktopMode`
+  - [ ] `setVirtualDesktopMode`
+  - [ ] `controllerBindings`
+  - [ ] `setControllerBindings`
+- [ ] SettingsMenuコンポーネントにpropsを追加
+  - [ ] すべてのVirtualDesktop関連のpropsを渡す
+
+### 10. ImageViewerコンポーネントの更新
+
+**ファイル**: `src/components/ImageViewer/index.tsx`
+
+- [ ] useAppStateからVirtualDesktopモードを取得
+  - [ ] `virtualDesktopMode`を追加
+- [ ] ControllerProviderの統合
+  - [ ] ImageViewer全体をControllerProviderでラップ
+  - [ ] virtualDesktopModeがtrueの場合のみ有効化
+- [ ] AppStateContextの受け渡し
+  - [ ] ControllerMapperがAppStateContextにアクセスできるようにする
+
+### 11. テストフェーズ
+
+#### 機能テスト
+
+- [ ] VirtualDesktop検出機能
+  - [ ] VirtualDesktop.Streamer.exeプロセスの検出が正しく動作すること
+  - [ ] 検出結果が正しく表示されること
+- [ ] コントローラー接続検出
+  - [ ] Questコントローラー（Xbox 360エミュレーション）が正しく検出されること
+  - [ ] 接続状態が正しく表示されること
+- [ ] コントローラー入力のマッピング
+  - [ ] 左スティックでパン操作ができること
+  - [ ] 右スティックでズーム操作ができること
+  - [ ] Aボタンで次の画像に移動できること
+  - [ ] Bボタンで前の画像に移動できること
+  - [ ] Xボタンで画面フィットができること
+  - [ ] Yボタンでズームリセットができること
+  - [ ] LB/RBボタンで画像回転ができること
+  - [ ] LT/RTトリガーでグリッド/ピーキング表示切替ができること
+  - [ ] Startボタンで設定メニューが開くこと
+- [ ] エッジ検出処理
+  - [ ] ボタンを押しっぱなしにしても連続実行されないこと
+  - [ ] ボタンを離してから再度押すと動作すること
+- [ ] デッドゾーン処理
+  - [ ] スティックの微小な入力が無視されること
+  - [ ] デッドゾーンを超えた入力のみ反映されること
+- [ ] キーバインドのカスタマイズ
+  - [ ] 設定メニューでキーバインドを変更できること
+  - [ ] 変更したキーバインドが正しく動作すること
+  - [ ] デフォルトに戻すボタンが正しく動作すること
+  - [ ] 設定がlocalStorageに保存されること
+- [ ] セットアップガイド
+  - [ ] セットアップガイドが正しく表示されること
+  - [ ] 各ステップが正しく動作すること
+  - [ ] 「今後表示しない」が正しく動作すること
+
+#### パフォーマンステスト
+
+- [ ] ポーリング処理の負荷確認
+  - [ ] 60Hzポーリングが安定して動作すること
+  - [ ] CPU使用率が許容範囲内であること
+- [ ] 既存機能への影響確認
+  - [ ] VirtualDesktopモードOFF時は従来通り動作すること
+  - [ ] コントローラー未接続時もエラーが発生しないこと
+
+#### UIテスト
+
+- [ ] 設定メニューの表示確認
+  - [ ] VirtualDesktopモードの設定が表示されること
+  - [ ] セットアップガイドボタンが表示されること
+  - [ ] キーバインド設定が表示されること
+- [ ] セットアップガイドの表示確認
+  - [ ] ステップインジケーターが正しく表示されること
+  - [ ] 説明テキストが分かりやすく表示されること
+  - [ ] ボタンが適切に配置されていること
+- [ ] レスポンシブ対応の確認
+  - [ ] 各画面サイズで正しく表示されること
+
+#### 既存機能の動作確認
+
+- [ ] 他の機能への影響確認
+  - [ ] マウス操作が影響を受けていないこと
+  - [ ] キーボード操作が影響を受けていないこと
+  - [ ] ズーム機能が影響を受けていないこと
+  - [ ] ドラッグ機能が影響を受けていないこと
+  - [ ] 回転機能が影響を受けていないこと
+  - [ ] グリッド表示が影響を受けていないこと
+  - [ ] ピーキング機能が影響を受けていないこと
+  - [ ] ヒストグラム機能が影響を受けていないこと
+
+### 12. コードフォーマット
+
+- [ ] コードフォーマッターの適用
+  - [ ] controller.rs
+  - [ ] lib.rs
+  - [ ] config.ts
+  - [ ] AppStateContext.tsx
+  - [ ] controllerMapping.ts
+  - [ ] ControllerContext.tsx
+  - [ ] ControllerSetupGuide.tsx
+  - [ ] ControllerSettings.tsx
+  - [ ] SettingsMenu/index.tsx
+  - [ ] Titlebar/index.tsx
+  - [ ] ImageViewer/index.tsx
+
+### 13. ドキュメント作成
+
+- [ ] 使用方法のドキュメント作成
+  - [ ] VirtualDesktop環境での使用方法
+  - [ ] コントローラー接続方法
+  - [ ] キーバインドのカスタマイズ方法
+  - [ ] トラブルシューティング
+
+### 14. 最終確認
+
+- [ ] 設計書との整合性確認
+- [ ] すべての機能が正しく動作することを確認
+- [ ] パフォーマンスが適切であることを確認
+- [ ] コミット前の最終動作確認
+- [ ] ユーザーへの確認依頼
+
+## 変更ファイル
+
+### 新規作成
+
+- `src-tauri/src/controller.rs` - コントローラー入力処理
+- `src/lib/controllerMapping.ts` - コントローラーマッピングロジック
+- `src/context/ControllerContext.tsx` - コントローラーコンテキスト
+- `src/components/SettingsMenu/ControllerSetupGuide.tsx` - セットアップガイド
+- `src/components/SettingsMenu/ControllerSettings.tsx` - コントローラー設定UI
+
+### 修正
+
+- `src-tauri/Cargo.toml` - 依存関係追加
+- `src-tauri/src/lib.rs` - Tauriコマンド登録
+- `src/config/config.ts` - コントローラー設定追加
+- `src/context/AppStateContext.tsx` - VirtualDesktopモード状態管理
+- `src/components/SettingsMenu/index.tsx` - コントローラー設定統合
+- `src/components/Titlebar/index.tsx` - Props受け渡し
+- `src/components/ImageViewer/index.tsx` - ControllerProvider統合
+
+## 実装の詳細
+
+### デフォルトキーバインド
+
+| コントローラー入力 | マッピング先の操作 | 説明 |
+|------------------|------------------|------|
+| 左スティック | パン（画像移動） | 画像をドラッグ移動 |
+| 右スティック上/下 | ズームイン/アウト | 画像を拡大縮小 |
+| Aボタン | 画像切り替え（次） | 次の画像を表示 |
+| Bボタン | 画像切り替え（前） | 前の画像を表示 |
+| Xボタン | 画面フィット | 画像を画面にフィット |
+| Yボタン | ズームリセット | ズームを100%に戻す |
+| LBボタン | 回転（左90度） | 画像を左に90度回転 |
+| RBボタン | 回転（右90度） | 画像を右に90度回転 |
+| LTトリガー | グリッド表示切替 | グリッドON/OFF |
+| RTトリガー | ピーキング表示切替 | ピーキングON/OFF |
+| Startボタン | 設定メニュー表示 | 設定メニューを開く |
+
+### ポーリングアーキテクチャ
+
+```typescript
+// 60Hzでポーリング（16ms間隔）
+setInterval(async () => {
+  if (!virtualDesktopMode()) return;
+
+  const state = await invoke<ControllerState>('poll_controller_input');
+  setControllerState(state);
+
+  // マッピング処理
+  if (state.connected) {
+    mapper.mapInputToActions(state, appState);
+  }
+}, 16);
+```
+
+### エッジ検出ロジック
+
+```typescript
+// ボタンが押された瞬間のみ検出
+if (buttons.a && !prev.buttons.a) {
+  // Aボタンが押された
+  appState.loadNextImage();
+}
+```
+
+### デッドゾーンフィルタリング
+
+```typescript
+applyDeadzone(value: number): number {
+  return Math.abs(value) < this.deadzone ? 0 : value;
+}
+```
+
+### VirtualDesktop検出方法
+
+1. **方法A（手動トグル）**: ユーザーが設定メニューでVirtualDesktopモードをON
+2. **方法B（プロセス検出）**: `VirtualDesktop.Streamer.exe`プロセスの存在を確認
+3. セットアップガイドで両方の方法をサポート
+
+## 注意事項
+
+- gilrs 0.10とsysinfo 0.30の互換性を確認すること
+- ポーリング間隔は60Hz（16ms）を維持すること
+- デッドゾーンは0.15をデフォルトとすること
+- エッジ検出を確実に実装すること（ボタン連打防止）
+- VirtualDesktopの「Use Touch controllers as gamepad」機能が有効である必要があることをユーザーに伝えること
+- セットアップガイドは初回起動時のみ表示すること
+- キーバインドのカスタマイズは将来的な拡張を考慮した設計にすること
+- 既存の機能への影響を最小限に抑えること
+- コミットは行わず、実装完了後にユーザーへ確認を求めること
