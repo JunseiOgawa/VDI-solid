@@ -1281,3 +1281,189 @@ const handleKeyDown = (event: KeyboardEvent) => {
 - テキストオーバーフロー時は省略記号で対応
 - 既存の機能には影響を与えない
 - コミットは行わず、実装完了後にユーザーへ確認を求める
+
+---
+
+# VirtualDesktop & Questコントローラー対応 タスク一覧
+
+## タスク概要
+
+VRゴーグル(Meta Quest)でVirtualDesktopを使用してデスクトップ操作を行う際、このアプリケーションがVirtualDesktop環境を検知し、Questコントローラーでの操作に対応する機能を実装します。
+
+## 実装タスク
+
+### ✅ 1. 設計フェーズ
+
+- [x] 要件定義書の確認
+- [x] 実装方法の選定
+- [x] タスクの洗い出し
+
+### ✅ 2. Rust依存関係の追加
+
+**ファイル**: `src-tauri/Cargo.toml`
+
+- [x] `gilrs`クレートの追加(ゲームパッドライブラリ)
+- [x] `sysinfo`クレートの追加(プロセス検知用)
+- [ ] 依存関係のビルド確認
+
+### 3. AppStateContextの拡張
+
+**ファイル**: `src/context/AppStateContext.tsx`
+
+- [ ] VirtualDesktopモード状態の追加
+  - [ ] `virtualdesktopMode: () => boolean`
+  - [ ] `setVirtualDesktopMode: (enabled: boolean) => void`
+- [ ] コントローラー検出状態の追加
+  - [ ] `controllerDetected: () => boolean`
+  - [ ] `setControllerDetected: (detected: boolean) => void`
+- [ ] コントローラーバインディング設定の追加
+  - [ ] `controllerBindings: () => ControllerConfig`
+  - [ ] `setControllerBindings: (config: ControllerConfig) => void`
+- [ ] localStorageへの永続化実装
+
+### 4. Tauriコマンドの実装(VirtualDesktop検知)
+
+**ファイル**: `src-tauri/src/main.rs`または新規ファイル`src-tauri/src/virtualdesktop.rs`
+
+- [ ] VirtualDesktop.Streamer.exeプロセス検知機能
+  - [ ] `detect_virtualdesktop_streamer()`コマンドの実装
+  - [ ] `sysinfo`を使用したプロセス検索
+- [ ] 定期的なプロセスチェック機能
+  - [ ] バックグラウンドでの定期チェック実装
+  - [ ] フロントエンドへのイベント送信
+
+### 5. Tauriコマンドの実装(コントローラー入力)
+
+**ファイル**: `src-tauri/src/controller.rs`(新規作成)
+
+- [ ] ゲームパッド検出機能
+  - [ ] `detect_gamepad()`コマンドの実装
+  - [ ] XInput/Xbox 360コントローラーの検出
+- [ ] コントローラー入力ポーリング機能
+  - [ ] `poll_controller_input()`コマンドの実装
+  - [ ] ボタン押下イベントの取得
+  - [ ] スティック/トリガー値の取得
+- [ ] 入力状態の構造体定義
+  - [ ] `ControllerState`構造体の作成
+  - [ ] シリアライズ/デシリアライズ対応
+
+### 6. SettingsMenuの拡張(VirtualDesktopモード設定)
+
+**ファイル**: `src/components/SettingsMenu/index.tsx`
+
+- [ ] VirtualDesktopモードトグルの追加
+  - [ ] チェックボックスUIの実装
+  - [ ] AppStateContextとの連携
+  - [ ] 説明テキストの追加
+- [ ] コントローラー検出状態の表示
+  - [ ] ステータス表示エリアの追加
+  - [ ] 検出済み/未検出の表示切り替え
+
+### 7. コントローラーセットアップガイドの実装
+
+**ファイル**: `src/components/SettingsMenu/ControllerSetupGuide.tsx`(新規作成)
+
+- [ ] セットアップガイドコンポーネントの作成
+  - [ ] モーダルダイアログの実装
+  - [ ] 手順説明の表示(スクリーンショット付き)
+  - [ ] 「再検出」ボタンの実装
+  - [ ] 「二度と表示しない」チェックボックス
+- [ ] 自動検出フローの実装
+  - [ ] VirtualDesktop.Streamer.exeの検出確認
+  - [ ] XInputデバイスの検出確認
+  - [ ] 検出成功時の完了通知
+- [ ] ヘルプリンクの追加
+  - [ ] FAQページへのリンク
+  - [ ] QRコード表示機能(Quest用)
+
+### 8. コントローラー入力のマッピング実装
+
+**ファイル**: `src/hooks/useControllerInput.ts`(新規作成)
+
+- [ ] コントローラー入力フックの作成
+  - [ ] Tauriコマンドの定期ポーリング
+  - [ ] 入力状態の管理
+- [ ] デフォルトバインディングの定義
+  - [ ] ボタン→操作のマッピング定義
+  - [ ] スティック→パン/ズームのマッピング
+- [ ] 入力イベントのディスパッチ
+  - [ ] ImageViewerコンポーネントへのイベント送信
+  - [ ] 既存の操作関数の呼び出し
+
+### 9. コントローラー設定画面の実装
+
+**ファイル**: `src/components/SettingsMenu/ControllerSettings.tsx`(新規作成)
+
+- [ ] コントローラー設定コンポーネントの作成
+  - [ ] 設定項目のリスト表示
+  - [ ] 各操作に対する入力割り当てUI
+- [ ] キーバインド変更機能
+  - [ ] 「割り当て待ち」状態の実装
+  - [ ] コントローラー入力のキャプチャ
+  - [ ] バインディングの更新
+- [ ] プリセット機能
+  - [ ] 「デフォルトに戻す」ボタン
+  - [ ] カスタムプリセットの保存/読み込み
+
+### 10. ImageViewerコンポーネントの統合
+
+**ファイル**: `src/components/ImageViewer/index.tsx`
+
+- [ ] コントローラー入力フックの統合
+  - [ ] `useControllerInput()`の呼び出し
+  - [ ] VirtualDesktopモード時のみ有効化
+- [ ] コントローラー操作の実装
+  - [ ] パン操作(左スティック)
+  - [ ] ズーム操作(右スティック)
+  - [ ] 画像切り替え(A/Bボタン)
+  - [ ] フィット/リセット(X/Yボタン)
+  - [ ] 回転(LB/RBボタン)
+  - [ ] グリッド/ピーキング切り替え(LT/RTトリガー)
+  - [ ] 設定メニュー表示(Startボタン)
+
+### 11. 統合テスト
+
+- [ ] VirtualDesktop検知のテスト
+  - [ ] VirtualDesktop.Streamer.exe起動時の検知確認
+  - [ ] プロセス停止時の検知解除確認
+- [ ] コントローラー検出のテスト
+  - [ ] XInputデバイス接続時の検出確認
+  - [ ] 検出状態のUI反映確認
+- [ ] セットアップガイドのテスト
+  - [ ] モーダル表示/非表示の確認
+  - [ ] 再検出機能の動作確認
+  - [ ] 「二度と表示しない」機能の確認
+- [ ] コントローラー操作のテスト
+  - [ ] 各ボタンの動作確認
+  - [ ] スティック操作の確認
+  - [ ] バインディング変更の確認
+- [ ] 設定の永続化テスト
+  - [ ] VirtualDesktopモード設定の保存/読み込み
+  - [ ] カスタムバインディングの保存/読み込み
+
+### 12. ドキュメント作成
+
+- [ ] ユーザーマニュアルの作成
+  - [ ] VirtualDesktopモードの使い方
+  - [ ] セットアップ手順
+  - [ ] コントローラー操作の説明
+  - [ ] トラブルシューティング
+- [ ] 開発者向けドキュメント
+  - [ ] アーキテクチャ説明
+  - [ ] APIリファレンス
+  - [ ] カスタマイズ方法
+
+### 13. 最終確認
+
+- [ ] コードフォーマットの適用
+- [ ] Lintエラーの修正
+- [ ] 不要なコメント/console.logの削除
+- [ ] ビルド確認
+- [ ] 動作確認
+
+### 14. コミット準備
+
+- [ ] 変更内容の確認
+- [ ] コミットメッセージの作成
+- [ ] ユーザーへの確認依頼
+

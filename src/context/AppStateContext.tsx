@@ -23,6 +23,22 @@ interface SetImagePathOptions {
 export type GridPattern = 'off' | '3x3' | '5x3' | '4x4';
 
 /**
+ * コントローラーバインディングの設定
+ */
+export interface ControllerBinding {
+  action: string; // 'zoomIn', 'zoomOut', 'nextImage', etc.
+  input: string;  // 'ButtonA', 'AxisLeftY', etc.
+}
+
+/**
+ * コントローラー設定
+ */
+export interface ControllerConfig {
+  enabled: boolean;
+  bindings: ControllerBinding[];
+}
+
+/**
  * アプリケーションの状態を管理するためのコンテキストインターフェース。
  */
 export interface AppState {
@@ -115,6 +131,20 @@ export interface AppState {
   showFullPath: () => boolean;
   /** フルパス表示の有効/無効を設定 */
   setShowFullPath: (show: boolean) => void;
+
+  // VirtualDesktop & コントローラー関連
+  /** VirtualDesktopモードの有効/無効 */
+  virtualdesktopMode: () => boolean;
+  /** VirtualDesktopモードの有効/無効を設定 */
+  setVirtualDesktopMode: (enabled: boolean) => void;
+  /** コントローラー検出状態 */
+  controllerDetected: () => boolean;
+  /** コントローラー検出状態を設定 */
+  setControllerDetected: (detected: boolean) => void;
+  /** コントローラーバインディング設定 */
+  controllerBindings: () => ControllerConfig;
+  /** コントローラーバインディング設定を設定 */
+  setControllerBindings: (config: ControllerConfig) => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -192,6 +222,14 @@ export const AppProvider: ParentComponent = (props) => {
 
   // ファイルパス表示形式関連Signal（デフォルト: false = ファイル名のみ）
   const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
+
+  // VirtualDesktop & コントローラー関連Signal
+  const [virtualdesktopMode, setVirtualdesktopModeSignal] = createSignal<boolean>(false);
+  const [controllerDetected, setControllerDetectedSignal] = createSignal<boolean>(false);
+  const [controllerBindings, setControllerBindingsSignal] = createSignal<ControllerConfig>({
+    enabled: false,
+    bindings: [],
+  });
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -477,6 +515,23 @@ export const AppProvider: ParentComponent = (props) => {
       setShowFullPathSignal(savedShowFullPath === 'true');
     }
 
+    // VirtualDesktopモード設定を復元
+    const savedVirtualDesktopMode = localStorage.getItem('vdi-virtualdesktop-mode');
+    if (savedVirtualDesktopMode !== null) {
+      setVirtualdesktopModeSignal(savedVirtualDesktopMode === 'true');
+    }
+
+    // コントローラーバインディング設定を復元
+    const savedControllerBindings = localStorage.getItem('vdi-controller-bindings');
+    if (savedControllerBindings) {
+      try {
+        const bindings = JSON.parse(savedControllerBindings);
+        setControllerBindingsSignal(bindings);
+      } catch (e) {
+        console.error('Failed to parse controller bindings:', e);
+      }
+    }
+
     setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
@@ -549,6 +604,20 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-show-full-path', show ? 'true' : 'false');
   };
 
+  const handleVirtualDesktopModeChange = (enabled: boolean) => {
+    setVirtualdesktopModeSignal(enabled);
+    localStorage.setItem('vdi-virtualdesktop-mode', enabled ? 'true' : 'false');
+  };
+
+  const handleControllerDetectedChange = (detected: boolean) => {
+    setControllerDetectedSignal(detected);
+  };
+
+  const handleControllerBindingsChange = (config: ControllerConfig) => {
+    setControllerBindingsSignal(config);
+    localStorage.setItem('vdi-controller-bindings', JSON.stringify(config));
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -597,6 +666,12 @@ export const AppProvider: ParentComponent = (props) => {
     setImageResolution,
     showFullPath,
     setShowFullPath: handleShowFullPathChange,
+    virtualdesktopMode,
+    setVirtualDesktopMode: handleVirtualDesktopModeChange,
+    controllerDetected,
+    setControllerDetected: handleControllerDetectedChange,
+    controllerBindings,
+    setControllerBindings: handleControllerBindingsChange,
   };
 
   return (
