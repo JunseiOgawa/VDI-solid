@@ -1321,31 +1321,31 @@ VRゴーグル(Meta Quest)でVirtualDesktopを使用してデスクトップ操�
   - [x] `setControllerBindings: (config: ControllerConfig) => void`
 - [x] localStorageへの永続化実装
 
-### 4. Tauriコマンドの実装(VirtualDesktop検知)
+### ✅ 4. Tauriコマンドの実装(VirtualDesktop検知)
 
 **ファイル**: `src-tauri/src/main.rs`または新規ファイル`src-tauri/src/virtualdesktop.rs`
 
-- [ ] VirtualDesktop.Streamer.exeプロセス検知機能
-  - [ ] `detect_virtualdesktop_streamer()`コマンドの実装
-  - [ ] `sysinfo`を使用したプロセス検索
+- [x] VirtualDesktop.Streamer.exeプロセス検知機能
+  - [x] `detect_virtualdesktop_streamer()`コマンドの実装
+  - [x] `sysinfo`を使用したプロセス検索
 - [ ] 定期的なプロセスチェック機能
   - [ ] バックグラウンドでの定期チェック実装
   - [ ] フロントエンドへのイベント送信
 
-### 5. Tauriコマンドの実装(コントローラー入力)
+### ✅ 5. Tauriコマンドの実装(コントローラー入力)
 
 **ファイル**: `src-tauri/src/controller.rs`(新規作成)
 
-- [ ] ゲームパッド検出機能
-  - [ ] `detect_gamepad()`コマンドの実装
-  - [ ] XInput/Xbox 360コントローラーの検出
-- [ ] コントローラー入力ポーリング機能
-  - [ ] `poll_controller_input()`コマンドの実装
-  - [ ] ボタン押下イベントの取得
-  - [ ] スティック/トリガー値の取得
-- [ ] 入力状態の構造体定義
-  - [ ] `ControllerState`構造体の作成
-  - [ ] シリアライズ/デシリアライズ対応
+- [x] ゲームパッド検出機能
+  - [x] `detect_gamepad()`コマンドの実装
+  - [x] XInput/Xbox 360コントローラーの検出
+- [x] コントローラー入力ポーリング機能
+  - [x] `poll_controller_input()`コマンドの実装
+  - [x] ボタン押下イベントの取得
+  - [x] スティック/トリガー値の取得
+- [x] 入力状態の構造体定義
+  - [x] `ControllerState`構造体の作成
+  - [x] シリアライズ/デシリアライズ対応
 
 ### 6. SettingsMenuの拡張(VirtualDesktopモード設定)
 
