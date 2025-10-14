@@ -2,9 +2,10 @@ import type { Component } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 import { TauriEvent } from '@tauri-apps/api/event';
-import { useAppState } from '../../context/AppStateContext';
+import { useAppState, type GridPattern } from '../../context/AppStateContext';
 import { CONFIG } from '../../config/config';
 import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
+import { useControllerInput } from '../../hooks/useControllerInput';
 import {
   convertFileToAssetUrlWithCacheBust,
   isSupportedImageFile
@@ -42,6 +43,11 @@ const ImageViewer: Component = () => {
     histogramSize,
     histogramOpacity,
     setImageResolution,
+    virtualdesktopMode,
+    controllerDetected,
+    enqueueRotation,
+    setGridPattern,
+    setPeakingEnabled,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -255,6 +261,82 @@ const ImageViewer: Component = () => {
 
   // 画像のシーケンシャル読み込み・呼び出し
   const canNavigate = () => Boolean(currentImageFilePath());
+
+  // VirtualDesktopモード用コントローラー入力ハンドラ
+  useControllerInput(
+    virtualdesktopMode,
+    controllerDetected,
+    {
+      onPan: (x: number, y: number) => {
+        // アナログスティックの入力をピクセル単位の移動量に変換
+        const panSpeed = 10; // 調整可能な移動速度
+        const deltaX = x * panSpeed;
+        const deltaY = y * panSpeed;
+        
+        setPosition((prev) => clampToBounds({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY
+        }));
+      },
+      onZoom: (delta: number) => {
+        const previousScale = zoomScale();
+        const adjustedStep = CONFIG.zoom.step * wheelSensitivity();
+        const newScale = Math.max(
+          CONFIG.zoom.minScale,
+          Math.min(CONFIG.zoom.maxScale, previousScale + delta * adjustedStep)
+        );
+        
+        if (newScale === previousScale) return;
+        
+        setZoomScale(newScale);
+        const predictedDisplay = getDisplaySizeForScale(newScale, previousScale);
+        setDisplaySize(predictedDisplay);
+        setPosition((prev) => clampToBounds(prev, { 
+          scale: newScale, 
+          display: predictedDisplay, 
+          referenceScale: previousScale 
+        }));
+        
+        requestAnimationFrame(() => {
+          measureAll();
+          setPosition((prev) => clampToBounds(prev));
+        });
+      },
+      onNextImage: () => {
+        handleSequentialNavigation('next');
+      },
+      onPreviousImage: () => {
+        handleSequentialNavigation('previous');
+      },
+      onFit: () => {
+        calculateAndSetScreenFit();
+      },
+      onResetZoom: () => {
+        resetImagePosition();
+      },
+      onRotateLeft: () => {
+        enqueueRotation(-90);
+      },
+      onRotateRight: () => {
+        enqueueRotation(90);
+      },
+      onToggleGrid: () => {
+        // グリッドパターンを順次切り替え: off → 3x3 → 5x3 → 4x4 → off
+        const patterns: GridPattern[] = ['off', '3x3', '5x3', '4x4'];
+        const currentIndex = patterns.indexOf(gridPattern());
+        const nextIndex = (currentIndex + 1) % patterns.length;
+        setGridPattern(patterns[nextIndex]);
+      },
+      onTogglePeaking: () => {
+        setPeakingEnabled(!peakingEnabled());
+      },
+      onToggleSettings: () => {
+        // SettingsMenuの開閉はAppStateContextで管理する必要があるため、
+        // 現時点では未実装（Task 9で対応予定）
+        console.log('[Controller] Settings toggle requested (not yet implemented)');
+      },
+    }
+  );
 
   // Tauri D&Dイベントリスナー
   onMount(() => {
