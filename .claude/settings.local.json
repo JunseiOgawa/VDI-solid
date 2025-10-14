@@ -19,9 +19,15 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(osascript:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "serena",
+    "Context7"
+  ]
 }
