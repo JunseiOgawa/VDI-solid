@@ -1347,32 +1347,40 @@ VRゴーグル(Meta Quest)でVirtualDesktopを使用してデスクトップ操�
   - [x] `ControllerState`構造体の作成
   - [x] シリアライズ/デシリアライズ対応
 
-### 6. SettingsMenuの拡張(VirtualDesktopモード設定)
+### ✅ 6. SettingsMenuの拡張(VirtualDesktopモード設定)
 
 **ファイル**: `src/components/SettingsMenu/index.tsx`
 
-- [ ] VirtualDesktopモードトグルの追加
-  - [ ] チェックボックスUIの実装
-  - [ ] AppStateContextとの連携
-  - [ ] 説明テキストの追加
-- [ ] コントローラー検出状態の表示
-  - [ ] ステータス表示エリアの追加
-  - [ ] 検出済み/未検出の表示切り替え
+- [x] VirtualDesktopモードトグルの追加
+  - [x] チェックボックスUIの実装
+  - [x] AppStateContextとの連携
+  - [x] 説明テキストの追加
+- [x] コントローラー検出状態の表示
+  - [x] ステータス表示エリアの追加
+  - [x] 検出済み/未検出の表示切り替え
+- [x] コントローラー検出フックの実装
+  - [x] `useControllerDetection.ts`の作成
+  - [x] Titlebarコンポーネントへの統合
 
 ### 7. コントローラーセットアップガイドの実装
 
 **ファイル**: `src/components/SettingsMenu/ControllerSetupGuide.tsx`(新規作成)
 
-- [ ] セットアップガイドコンポーネントの作成
+**注**: このタスクは後回しとし、現在は「実装予定」ボタンとして配置済み
+
+- [x] 実装予定プレースホルダーの追加
+  - [x] 無効化されたボタンの表示
+  - [x] 「実装予定」の表示
+- [ ] セットアップガイドコンポーネントの作成（後回し）
   - [ ] モーダルダイアログの実装
   - [ ] 手順説明の表示(スクリーンショット付き)
   - [ ] 「再検出」ボタンの実装
   - [ ] 「二度と表示しない」チェックボックス
-- [ ] 自動検出フローの実装
+- [ ] 自動検出フローの実装（後回し）
   - [ ] VirtualDesktop.Streamer.exeの検出確認
   - [ ] XInputデバイスの検出確認
   - [ ] 検出成功時の完了通知
-- [ ] ヘルプリンクの追加
+- [ ] ヘルプリンクの追加（後回し）
   - [ ] FAQページへのリンク
   - [ ] QRコード表示機能(Quest用)
 
