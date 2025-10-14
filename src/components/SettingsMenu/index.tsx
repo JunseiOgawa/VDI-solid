@@ -10,6 +10,8 @@ interface SettingsMenuProps {
   onWheelSensitivityChange: (sensitivity: number) => void;
   showFullPath: boolean;
   onShowFullPathChange: (show: boolean) => void;
+  controlPanelPosition: 'top' | 'bottom' | 'left' | 'right';
+  onControlPanelPositionChange: (position: 'top' | 'bottom' | 'left' | 'right') => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
@@ -27,6 +29,11 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   const handleShowFullPathChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     props.onShowFullPathChange(target.checked);
+  };
+
+  const handleControlPanelPositionChange = (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    props.onControlPanelPositionChange(target.value as 'top' | 'bottom' | 'left' | 'right');
   };
 
   return (
@@ -110,6 +117,27 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
           <span class="mt-1 text-xs text-[var(--text-muted)] block">
             オフの場合はファイル名のみ表示
           </span>
+        </div>
+
+        <hr class="my-1 border-t border-[var(--border-primary)]" />
+
+        {/* コントロールパネル位置設定 */}
+        <div class="px-3 py-2">
+          <label class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-[var(--text-primary)]">
+              コントロールパネル位置
+            </span>
+            <select
+              value={props.controlPanelPosition}
+              onChange={handleControlPanelPositionChange}
+              class="w-full rounded border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-2 py-1 text-xs text-[var(--text-primary)] cursor-pointer transition-colors hover:bg-[var(--bg-quaternary)]"
+            >
+              <option value="top">上（中央）</option>
+              <option value="bottom">下（中央）</option>
+              <option value="left">左（中央）</option>
+              <option value="right">右（中央）</option>
+            </select>
+          </label>
         </div>
 
       </div>

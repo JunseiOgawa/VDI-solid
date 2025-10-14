@@ -115,6 +115,12 @@ export interface AppState {
   showFullPath: () => boolean;
   /** フルパス表示の有効/無効を設定 */
   setShowFullPath: (show: boolean) => void;
+
+  // コントロールパネル位置関連
+  /** コントロールパネルの表示位置 (top: タイトルバー付近中央, bottom: 画面下部中央, left: 左端中央, right: 右端中央) */
+  controlPanelPosition: () => 'top' | 'bottom' | 'left' | 'right';
+  /** コントロールパネルの表示位置を設定 */
+  setControlPanelPosition: (position: 'top' | 'bottom' | 'left' | 'right') => void;
 }
 
 const AppContext = createContext<AppState>();
@@ -192,6 +198,9 @@ export const AppProvider: ParentComponent = (props) => {
 
   // ファイルパス表示形式関連Signal（デフォルト: false = ファイル名のみ）
   const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
+
+  // コントロールパネル位置関連Signal
+  const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<'top' | 'bottom' | 'left' | 'right'>('right');
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -477,6 +486,16 @@ export const AppProvider: ParentComponent = (props) => {
       setShowFullPathSignal(savedShowFullPath === 'true');
     }
 
+    // コントロールパネル位置設定を復元
+    const savedControlPanelPosition = localStorage.getItem('vdi-control-panel-position');
+    if (savedControlPanelPosition !== null && 
+        (savedControlPanelPosition === 'top' || 
+         savedControlPanelPosition === 'bottom' || 
+         savedControlPanelPosition === 'left' || 
+         savedControlPanelPosition === 'right')) {
+      setControlPanelPositionSignal(savedControlPanelPosition);
+    }
+
     setCurrentImagePath('public/sen38402160.png', { filePath: null });
   });
 
@@ -549,6 +568,11 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-show-full-path', show ? 'true' : 'false');
   };
 
+  const handleControlPanelPositionChange = (position: 'top' | 'bottom' | 'left' | 'right') => {
+    setControlPanelPositionSignal(position);
+    localStorage.setItem('vdi-control-panel-position', position);
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -597,6 +621,8 @@ export const AppProvider: ParentComponent = (props) => {
     setImageResolution,
     showFullPath,
     setShowFullPath: handleShowFullPathChange,
+    controlPanelPosition,
+    setControlPanelPosition: handleControlPanelPositionChange,
   };
 
   return (

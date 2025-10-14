@@ -1,8 +1,278 @@
-# フォーカスピーキングボタンUI追加機能 設計書
+# 右側縦型コントロールパネル統合UI 設計書
 
 ## 概要
 
-フォーカスピーキング機能の操作性を向上させるため、専用ボタンをTitlebarに追加し、グリッドボタンと同様のプルダウンUIを実装します。
+カスタムタイトルバーの右側にズーム、回転、マルチメニュー、設定などの全コントロールを縦に配置し、backdrop-filterを使用したガラス表現で統一された美しいUIを実装します。
+
+## 背景
+
+### 現在の実装状況
+
+- **左側**: ズームイン/アウト、リセット、画面フィット、回転ボタンが横に並んでいる
+- **右側**: マルチメニューボタン、設定ボタン、ウィンドウコントロールボタン(最小化、最大化、閉じる)
+- **問題点**: 
+  - ボタンが横に長く並び、レイアウトが分散している
+  - 背景画像が見えにくい
+  - 統一感のあるガラス表現が実装されていない
+
+### 要件
+
+1. 右側に全てのコントロールを縦に配置する新しいパネルを作成
+2. パネルに含める機能:
+   - ズームイン(+アイコン)
+   - ズームアウト(-アイコン)
+   - ズームリセット(フォーカスアイコン)
+   - 画面フィット(全画面アイコン)
+   - 回転(回転アイコン)
+   - マルチメニュー(グリッドアイコン)
+   - 設定(歯車アイコン)
+3. backdrop-filterを使用したガラス表現でUIを統一
+4. 背景画像が透けて見える美しいデザイン
+5. 左側のタイトルバーはウィンドウドラッグ領域とウィンドウコントロールのみ保持
+
+## 設計
+
+### コンポーネント構成
+
+#### 1. RightControlPanel コンポーネント(新規作成)
+
+**ファイルパス**: `src/components/RightControls/index.tsx`
+
+**役割**: 右側に配置される縦型コントロールパネル
+
+**Props**:
+```typescript
+interface RightControlPanelProps {
+  // ズーム関連
+  zoomScale: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  
+  // 画面フィット・回転
+  onScreenFit: () => void;
+  onRotate: () => void;
+  
+  // メニュー表示状態
+  showMultiMenu: boolean;
+  onToggleMultiMenu: () => void;
+  showSettings: boolean;
+  onToggleSettings: () => void;
+  
+  // マルチメニュー用のprops(既存のものを引き継ぐ)
+  gridPattern: string;
+  onGridPatternChange: (pattern: string) => void;
+  gridOpacity: number;
+  onGridOpacityChange: (opacity: number) => void;
+  peakingEnabled: boolean;
+  onPeakingEnabledChange: (enabled: boolean) => void;
+  peakingIntensity: number;
+  onPeakingIntensityChange: (intensity: number) => void;
+  peakingColor: string;
+  onPeakingColorChange: (color: string) => void;
+  peakingOpacity: number;
+  onPeakingOpacityChange: (opacity: number) => void;
+  peakingBlink: boolean;
+  onPeakingBlinkChange: (enabled: boolean) => void;
+  histogramEnabled: boolean;
+  onHistogramEnabledChange: (enabled: boolean) => void;
+  histogramDisplayType: string;
+  onHistogramDisplayTypeChange: (type: string) => void;
+  histogramPosition: string;
+  onHistogramPositionChange: (position: string) => void;
+  histogramSize: string;
+  onHistogramSizeChange: (size: string) => void;
+  histogramOpacity: number;
+  onHistogramOpacityChange: (opacity: number) => void;
+  
+  // 設定用のprops
+  theme: string;
+  onThemeChange: (theme: string) => void;
+  wheelSensitivity: number;
+  onWheelSensitivityChange: (sensitivity: number) => void;
+  showFullPath: boolean;
+  onShowFullPathChange: (show: boolean) => void;
+}
+```
+
+**UIレイアウト**:
+```tsx
+<div class="fixed right-2 top-16 z-50 flex flex-col gap-2">
+  {/* ガラス表現のコンテナ */}
+  <div class="rounded-xl bg-black/20 p-2 backdrop-blur-md border border-white/10 shadow-lg">
+    {/* ズームイン */}
+    <button class="glass-button">
+      <img src="/icon-zoom-in.svg" />
+    </button>
+    
+    {/* ズームアウト */}
+    <button class="glass-button">
+      <img src="/icon-zoom-out.svg" />
+    </button>
+    
+    {/* ズームリセット + パーセント表示 */}
+    <button class="glass-button">
+      <img src="/focus_ca_h.svg" />
+      <span>{Math.round(zoomScale * 100)}%</span>
+    </button>
+    
+    {/* 区切り線 */}
+    <div class="h-px bg-white/10 my-2" />
+    
+    {/* 画面フィット */}
+    <button class="glass-button">
+      <img src="/全画面表示ボタン5.svg" />
+    </button>
+    
+    {/* 回転 */}
+    <button class="glass-button">
+      <img src="/reload_hoso.svg" />
+    </button>
+    
+    {/* 区切り線 */}
+    <div class="h-px bg-white/10 my-2" />
+    
+    {/* マルチメニュー */}
+    <button class="glass-button" classList={{ "bg-white/20": gridPattern !== "off" || peakingEnabled || histogramEnabled }}>
+      <svg>...</svg>
+    </button>
+    
+    {/* 設定 */}
+    <button class="glass-button">
+      <img src="/setting_ge_h.svg" />
+    </button>
+  </div>
+  
+  {/* MultiMenu - 左側に展開 */}
+  {showMultiMenu && (
+    <div class="absolute right-full mr-2 top-0">
+      <MultiMenu {...multiMenuProps} />
+    </div>
+  )}
+  
+  {/* SettingsMenu - 左側に展開 */}
+  {showSettings && (
+    <div class="absolute right-full mr-2 top-0">
+      <SettingsMenu {...settingsProps} />
+    </div>
+  )}
+</div>
+```
+
+**CSSスタイル**:
+```css
+.glass-button {
+  @apply w-12 h-12 flex items-center justify-center rounded-lg;
+  @apply bg-white/5 backdrop-blur-sm;
+  @apply border border-white/10;
+  @apply text-white/90;
+  @apply transition-all duration-200;
+  @apply hover:bg-white/15 hover:border-white/20;
+  @apply active:scale-95;
+}
+
+.glass-button img {
+  @apply w-5 h-5 brightness-0 invert opacity-90;
+}
+
+.glass-button span {
+  @apply text-xs font-medium text-white/90 ml-1;
+}
+```
+
+#### 2. Titlebar コンポーネント(既存を大幅修正)
+
+**ファイルパス**: `src/components/Titlebar/index.tsx`
+
+**変更内容**:
+
+1. **レイアウト変更**:
+   - 左側のズーム・回転ボタン群を削除
+   - 中央にドラッグ領域を確保
+   - 右側にウィンドウコントロールボタンのみ残す
+
+2. **削除する要素**:
+   - ズームイン/アウト/リセットボタン
+   - 画面フィットボタン
+   - 回転ボタン
+   - マルチメニューボタン
+   - 設定ボタン
+
+3. **新しいレイアウト**:
+   ```tsx
+   <div class="drag-region flex h-8 items-center justify-between ...">
+     {/* 左側: 空(または将来的にアプリ名など) */}
+     <div class="flex items-center px-2">
+       {/* 必要に応じてアプリ名やアイコンを配置 */}
+     </div>
+     
+     {/* 中央: ドラッグ可能領域 */}
+     <div class="flex-1" data-tauri-drag-region />
+     
+     {/* 右側: ウィンドウコントロールのみ */}
+     <div class="flex items-center gap-1 px-2">
+       <button id="minimizeBtn" ...>最小化</button>
+       <button id="maximizeBtn" ...>最大化</button>
+       <button id="closeBtn" ...>閉じる</button>
+     </div>
+   </div>
+   ```
+
+#### 3. App コンポーネント(既存を修正)
+
+**ファイルパス**: `src/App.tsx`
+
+**変更内容**:
+
+1. **RightControlPanelの追加**:
+   ```tsx
+   <AppProvider>
+     <div class="flex h-screen flex-col ...">
+       <Titlebar />
+       <main class="relative flex flex-1 flex-col overflow-hidden min-h-0">
+         <ImageViewer />
+         {/* 右側コントロールパネルを追加 */}
+         <RightControlPanel {...controlProps} />
+       </main>
+       <Footer />
+     </div>
+   </AppProvider>
+   ```
+
+### ガラス表現の実装詳細
+
+**backdrop-filter の使用**:
+```css
+/* メインコンテナ */
+.glass-container {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+}
+
+/* ボタン */
+.glass-button {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* アクティブ状態 */
+.glass-button.active {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+```
+
+### メニュー外クリック機能の実装詳細
+
+RightControlPanel内で実装:
 
 ## 背景
 
@@ -96,8 +366,124 @@ interface PeakingMenuProps {
 ### メニュー外クリック機能の実装詳細
 
 ```typescript
+### メニュー外クリック機能の実装詳細
+
+RightControlPanel内で実装:
+
+```typescript
 onMount(() => {
   const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    
+    // コントロールパネル、メニューボタン、メニュー内のクリックは無視
+    if (
+      target.closest('.right-control-panel') ||
+      target.closest('[data-menu="multi"]') ||
+      target.closest('[data-menu="settings"]')
+    ) {
+      return;
+    }
+    
+    // メニュー外のクリックは全メニューを閉じる
+    props.onToggleMultiMenu(false);
+    props.onToggleSettings(false);
+  };
+  
+  document.addEventListener('click', handleClickOutside);
+  
+  onCleanup(() => {
+    document.removeEventListener('click', handleClickOutside);
+  });
+});
+```
+
+## 実装手順
+
+### フェーズ1: RightControlPanelコンポーネントの作成
+
+1. `src/components/RightControls/index.tsx`を新規作成
+2. 基本的なレイアウトとガラス表現のスタイルを実装
+3. 全ボタンのアイコンと機能を実装
+4. MultiMenuとSettingsMenuの表示制御を実装
+
+### フェーズ2: Titlebarの簡素化
+
+1. 左側のボタン群を削除
+2. レイアウトをシンプルに変更
+3. ウィンドウコントロールのみ残す
+4. メニュー関連の状態管理と関数を削除
+
+### フェーズ3: Appコンポーネントの統合
+
+1. RightControlPanelをインポート
+2. 必要なpropsをAppStateContextから取得
+3. RightControlPanelをImageViewer内に配置
+4. 動作確認
+
+### フェーズ4: スタイル調整と最適化
+
+1. ガラス表現の微調整(透明度、ブラー量など)
+2. アニメーション効果の追加
+3. レスポンシブ対応
+4. パフォーマンス最適化
+
+## テスト項目
+
+### 機能テスト
+
+- [ ] 各ボタンが正しく動作するか
+  - [ ] ズームイン
+  - [ ] ズームアウト
+  - [ ] ズームリセット
+  - [ ] 画面フィット
+  - [ ] 回転
+  - [ ] マルチメニュー表示
+  - [ ] 設定メニュー表示
+- [ ] メニュー外クリックで全メニューが閉じるか
+- [ ] ズーム倍率が正しく表示されるか
+- [ ] アクティブ状態のハイライトが正しく表示されるか
+
+### UI/UXテスト
+
+- [ ] ガラス表現が美しく表示されるか
+- [ ] 背景画像が適切に透けて見えるか
+- [ ] ボタンのホバー効果が滑らかか
+- [ ] ボタンのサイズが適切か(タッチ操作も考慮)
+- [ ] メニューの展開位置が適切か
+
+### パフォーマンステスト
+
+- [ ] backdrop-filterによるパフォーマンス低下がないか
+- [ ] 画像の拡大縮小時にUIが重くならないか
+- [ ] メモリリークがないか
+
+## 注意事項
+
+1. **backdrop-filter のブラウザ互換性**:
+   - 現代のブラウザではサポートされていますが、古いブラウザではフォールバック表示を考慮
+   
+2. **パフォーマンス**:
+   - backdrop-filterは重い処理なので、適用範囲を最小限に
+   - 必要に応じてwill-changeプロパティを使用
+
+3. **アクセシビリティ**:
+   - 各ボタンに適切なaria-labelを設定
+   - キーボード操作にも対応
+
+4. **レスポンシブ対応**:
+   - 画面サイズに応じてパネルの位置やサイズを調整
+   - 小さい画面では一部機能を折りたたむことも検討
+
+## 参考資料
+
+- [CSS backdrop-filter - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/backdrop-filter)
+- [Glassmorphism design trend](https://uxdesign.cc/glassmorphism-in-user-interfaces-1f39bb1308c9)
+
+---
+
+以下は既存の設計書の内容です。
+
+---
     const target = event.target as HTMLElement;
 
     // メニューボタンまたはメニュー内のクリックは無視

@@ -41,3 +41,4 @@ This document defines the project's rules, objectives, and progress management m
 5. Create a checklist for each task to manage its progress.
 6. Always apply a code formatter to maintain readability.
 7. Do not commit your changes. Instead, ask for confirmation.
+8. Since npm run dev is basically always being monitored by the user, when verifying operation by running npm run dev, only check if the build passes and do not actually run npm run dev.

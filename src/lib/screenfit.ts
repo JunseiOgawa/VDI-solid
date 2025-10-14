@@ -1,4 +1,5 @@
 import type { Size } from './boundaryUtils';
+import { callCalculateAndSetScreenFit } from './imageViewerApi';
 
 
 /**
@@ -34,3 +35,15 @@ export function computeFitScale(imageSize: Size, containerSize: Size): number | 
   // 横長なら横幅基準、縦長なら縦幅基準でスケールを算出
   return imageAspect > containerAspect ? (cw / iw) : (ch / ih);
 }
+
+/**
+ * 画面フィット機能を実行する共通ハンドラ
+ * ImageViewer側の登録済みハンドラを呼び出します
+ */
+export const handleScreenFit = (): void => {
+  try {
+    callCalculateAndSetScreenFit();
+  } catch (e) {
+    // ImageViewerが初期化されていない場合などは無視
+  }
+};
