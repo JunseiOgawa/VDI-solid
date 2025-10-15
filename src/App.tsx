@@ -9,7 +9,7 @@ import Footer from './components/Footer';
 import FloatingControlPanel from './components/FloatingControlPanel';
 import { AppProvider, useAppState } from './context/AppStateContext';
 import { handleScreenFit } from './lib/screenfit';
-import { callResetImagePosition } from './lib/imageViewerApi';
+import { callResetImagePosition, callZoomToCenter } from './lib/imageViewerApi';
 import { convertFileToAssetUrlWithCacheBust } from './lib/fileUtils';
 
 import './App.css';
@@ -62,17 +62,19 @@ const AppContent: Component = () => {
   } = useAppState();
 
   /**
-   * ズームイン
+   * ズームイン（画面中央を基準に）
    */
   const handleZoomIn = () => {
-    setZoomScale(zoomScale() * 1.2);
+    const newScale = zoomScale() * 1.2;
+    callZoomToCenter(newScale);
   };
 
   /**
-   * ズームアウト
+   * ズームアウト（画面中央を基準に）
    */
   const handleZoomOut = () => {
-    setZoomScale(zoomScale() / 1.2);
+    const newScale = zoomScale() / 1.2;
+    callZoomToCenter(newScale);
   };
 
   /**

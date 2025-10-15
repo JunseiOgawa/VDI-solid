@@ -9,7 +9,7 @@ import {
   convertFileToAssetUrlWithCacheBust,
   isSupportedImageFile
 } from '../../lib/fileUtils';
-import { registerCalculateAndSetScreenFit, registerResetImagePosition } from '../../lib/imageViewerApi';
+import { registerCalculateAndSetScreenFit, registerResetImagePosition, registerZoomToCenter } from '../../lib/imageViewerApi';
 import ImageManager from './ImageManager';
 import HistogramLayer from './HistogramLayer';
 
@@ -243,10 +243,61 @@ const ImageViewer: Component = () => {
   const resetImagePosition = () => {
     // リセット時にキャッシュをクリア
     clearBoundaryCache();
-    
+
     setPosition({ x: 0, y: 0 });
     setDisplaySize(null);
     setBaseSize(null);
+    requestAnimationFrame(() => {
+      measureAll();
+      setPosition((prev) => clampToBounds(prev));
+    });
+  };
+
+  // 画面中央を基準にズームする関数
+  const zoomToCenter = (newScale: number) => {
+    if (!containerEl) return;
+
+    // スケール変更時にキャッシュをクリア
+    clearBoundaryCache();
+
+    const previousScale = zoomScale();
+    const clampedScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, newScale));
+
+    if (clampedScale === previousScale) return;
+
+    const container = containerSize();
+    const currentPos = position();
+
+    // 画面中央の座標
+    const centerX = container.width / 2;
+    const centerY = container.height / 2;
+
+    // 現在の画像中心位置
+    const imageCenterX = centerX + currentPos.x;
+    const imageCenterY = centerY + currentPos.y;
+
+    // 画面中央から画像中心までの距離
+    const dx = centerX - imageCenterX;
+    const dy = centerY - imageCenterY;
+
+    // スケール変化率
+    const ratio = clampedScale / previousScale;
+
+    // 新しい画像中心位置（画面中央を固定点として）
+    const newImageCenterX = centerX - dx * ratio;
+    const newImageCenterY = centerY - dy * ratio;
+
+    // 新しいposition
+    const newPos = {
+      x: newImageCenterX - centerX,
+      y: newImageCenterY - centerY
+    };
+
+    const predictedDisplay = getDisplaySizeForScale(clampedScale, previousScale);
+    setZoomScale(clampedScale);
+    setDisplaySize(predictedDisplay);
+    setPosition(clampToBounds(newPos, { scale: clampedScale, display: predictedDisplay, referenceScale: previousScale }));
+
     requestAnimationFrame(() => {
       measureAll();
       setPosition((prev) => clampToBounds(prev));
@@ -261,6 +312,7 @@ const ImageViewer: Component = () => {
   // コンポーネントの API をモジュール経由で登録
   registerCalculateAndSetScreenFit(calculateAndSetScreenFit);
   registerResetImagePosition(resetImagePosition);
+  registerZoomToCenter(zoomToCenter);
 
     measureAll();
     const handleResize = () => {
@@ -346,6 +398,7 @@ const ImageViewer: Component = () => {
       // 登録解除
       registerCalculateAndSetScreenFit(null);
       registerResetImagePosition(null);
+      registerZoomToCenter(null);
 
       (await unlistenDragEnter)();
       (await unlistenDragOver)();
@@ -361,9 +414,14 @@ const ImageViewer: Component = () => {
     });
   });
 
-  // マウスホイールズーム機能
+  // マウスホイールズーム機能（カーソル位置を基準にズーム）
   const handleWheelZoom = (event: WheelEvent) => {
     event.preventDefault();
+    if (!containerEl) return;
+
+    // スケール変更時にキャッシュをクリア
+    clearBoundaryCache();
+
     const previousScale = zoomScale();
 
     // 感度を適用したステップ幅を計算
@@ -373,10 +431,43 @@ const ImageViewer: Component = () => {
     const newScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, previousScale + delta));
     if (newScale === previousScale) return;
 
-    setZoomScale(newScale);
+    const container = containerSize();
+    const currentPos = position();
+
+    // マウスカーソルの位置（コンテナ座標系）
+    const rect = containerEl.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // 画面中央の座標
+    const centerX = container.width / 2;
+    const centerY = container.height / 2;
+
+    // 現在の画像中心位置
+    const imageCenterX = centerX + currentPos.x;
+    const imageCenterY = centerY + currentPos.y;
+
+    // マウス位置から画像中心までの距離
+    const dx = mouseX - imageCenterX;
+    const dy = mouseY - imageCenterY;
+
+    // スケール変化率
+    const ratio = newScale / previousScale;
+
+    // 新しい画像中心位置（マウス位置を固定点として）
+    const newImageCenterX = mouseX - dx * ratio;
+    const newImageCenterY = mouseY - dy * ratio;
+
+    // 新しいposition
+    const newPos = {
+      x: newImageCenterX - centerX,
+      y: newImageCenterY - centerY
+    };
+
     const predictedDisplay = getDisplaySizeForScale(newScale, previousScale);
+    setZoomScale(newScale);
     setDisplaySize(predictedDisplay);
-    setPosition((prev) => clampToBounds(prev, { scale: newScale, display: predictedDisplay, referenceScale: previousScale }));
+    setPosition(clampToBounds(newPos, { scale: newScale, display: predictedDisplay, referenceScale: previousScale }));
 
     requestAnimationFrame(() => {
       measureAll();
