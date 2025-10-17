@@ -167,6 +167,7 @@ const AppContent: Component = () => {
           onShowFullPathChange={setShowFullPath}
           position={controlPanelPosition()}
           onPositionChange={setControlPanelPosition}
+          currentImageFilePath={currentImageFilePath()}
         />
       </main>
       <Footer />

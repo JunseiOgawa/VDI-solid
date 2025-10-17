@@ -1,6 +1,7 @@
 use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
+mod file_operations;
 mod histogram;
 mod img;
 mod navigation;
@@ -135,7 +136,8 @@ pub fn run() {
             img::restore_image_from_backup,
             img::cleanup_image_backup,
             peaking::focus_peaking,
-            histogram::calculate_histogram
+            histogram::calculate_histogram,
+            file_operations::open_in_explorer
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更

@@ -117,10 +117,10 @@ export interface AppState {
   setShowFullPath: (show: boolean) => void;
 
   // コントロールパネル位置関連
-  /** コントロールパネルの表示位置 (top: タイトルバー付近中央, bottom: 画面下部中央, left: 左端中央, right: 右端中央) */
-  controlPanelPosition: () => 'top' | 'bottom' | 'left' | 'right';
+  /** コントロールパネルの表示位置 (top: タイトルバー付近中央, bottom: 画面下部中央) */
+  controlPanelPosition: () => 'top' | 'bottom';
   /** コントロールパネルの表示位置を設定 */
-  setControlPanelPosition: (position: 'top' | 'bottom' | 'left' | 'right') => void;
+  setControlPanelPosition: (position: 'top' | 'bottom') => void;
 
   // ギャラリー表示関連
   /** ギャラリーサイドバーの表示/非表示 */
@@ -206,7 +206,7 @@ export const AppProvider: ParentComponent = (props) => {
   const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
 
   // コントロールパネル位置関連Signal
-  const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<'top' | 'bottom' | 'left' | 'right'>('right');
+  const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<'top' | 'bottom'>('top');
 
   // ギャラリー表示関連Signal
   const [showGallery, setShowGallerySignal] = createSignal<boolean>(false);
@@ -497,11 +497,7 @@ export const AppProvider: ParentComponent = (props) => {
 
     // コントロールパネル位置設定を復元
     const savedControlPanelPosition = localStorage.getItem('vdi-control-panel-position');
-    if (savedControlPanelPosition !== null && 
-        (savedControlPanelPosition === 'top' || 
-         savedControlPanelPosition === 'bottom' || 
-         savedControlPanelPosition === 'left' || 
-         savedControlPanelPosition === 'right')) {
+    if (savedControlPanelPosition === 'top' || savedControlPanelPosition === 'bottom') {
       setControlPanelPositionSignal(savedControlPanelPosition);
     }
 
@@ -577,7 +573,7 @@ export const AppProvider: ParentComponent = (props) => {
     localStorage.setItem('vdi-show-full-path', show ? 'true' : 'false');
   };
 
-  const handleControlPanelPositionChange = (position: 'top' | 'bottom' | 'left' | 'right') => {
+  const handleControlPanelPositionChange = (position: 'top' | 'bottom') => {
     setControlPanelPositionSignal(position);
     localStorage.setItem('vdi-control-panel-position', position);
   };
