@@ -470,7 +470,7 @@ const ImageViewer: Component = () => {
       )}
       <button
         type="button"
-        class="absolute inset-y-0 left-0 z-20 flex w-[15%] items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+        class={`absolute inset-y-0 left-0 z-20 flex items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
@@ -484,6 +484,7 @@ const ImageViewer: Component = () => {
           event.stopPropagation();
           event.preventDefault();
         }}
+        style={{ width: `${CONFIG.ui.navigationHoverWidthPercent}%` }}
       >
         <span class="flex items-center gap-2">
           <span aria-hidden="true">◀</span>
@@ -492,7 +493,7 @@ const ImageViewer: Component = () => {
       </button>
       <button
         type="button"
-        class="absolute inset-y-0 right-0 z-20 flex w-[15%] items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+        class={`absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
@@ -506,6 +507,7 @@ const ImageViewer: Component = () => {
           event.stopPropagation();
           event.preventDefault();
         }}
+        style={{ width: `${CONFIG.ui.navigationHoverWidthPercent}%` }}
       >
         <span class="flex items-center gap-2">
           <span>次の画像</span>

@@ -44,7 +44,7 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
 
   // キャンバスの幅と高さ（ベースサイズ）
-  const BASE_WIDTH = 256;
+  const BASE_WIDTH = 200;
   const BASE_HEIGHT = 100;
 
   // Rust側のcalculate_histogramコマンドを呼び出す

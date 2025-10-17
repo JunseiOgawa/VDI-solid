@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, onCleanup } from 'solid-js';
+import { createSignal, onMount, onCleanup, Show } from 'solid-js';
 import MultiMenu from '../ImageViewer/MultiMenu';
 import SettingsMenu from '../SettingsMenu';
 import type { GridPattern } from '../../context/AppStateContext';
@@ -54,8 +54,11 @@ interface FloatingControlPanelProps {
   onShowFullPathChange: (show: boolean) => void;
   
   // 位置設定
-  position: 'top' | 'bottom' | 'left' | 'right';
-  onPositionChange: (position: 'top' | 'bottom' | 'left' | 'right') => void;
+  position: 'top' | 'bottom';
+  onPositionChange: (position: 'top' | 'bottom') => void;
+
+  // ファイル操作
+  currentImageFilePath: string | null;
 }
 
 /**
@@ -66,10 +69,20 @@ interface FloatingControlPanelProps {
  * - left/right: 左端/右端の垂直中央に配置
  */
 const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
+  // 展開状態（初期値はlocalStorageから取得）
+  const [isExpanded, setIsExpanded] = createSignal(
+    localStorage.getItem('controlPanelExpanded') !== 'false'
+  );
+
   const [showMultiMenu, setShowMultiMenu] = createSignal(false);
   const [showSettings, setShowSettings] = createSignal(false);
   const [menuPosition, setMenuPosition] = createSignal('');
   const [menuAnchor, setMenuAnchor] = createSignal('top-0');
+  
+  // ホバー状態管理
+  const [isPinned, setIsPinned] = createSignal(
+    localStorage.getItem('controlPanelExpanded') !== 'false'
+  );
   
   // パネルの参照を保持
   let panelRef: HTMLDivElement | undefined;
@@ -105,7 +118,24 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
       updateMenuPosition();
     }
   };
-  
+
+  /**
+   * 展開/折りたたみのトグル
+   * 手動クリック時はピン状態を切り替え
+   */
+  const toggleExpand = () => {
+    const newPinState = !isPinned();
+    setIsPinned(newPinState);
+    setIsExpanded(newPinState);
+    localStorage.setItem('controlPanelExpanded', String(newPinState));
+
+    // 折りたたみ時はメニューを閉じる
+    if (!newPinState) {
+      setShowMultiMenu(false);
+      setShowSettings(false);
+    }
+  };
+
   /**
    * メニュー位置を更新
    */
@@ -151,35 +181,13 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
   /**
    * 位置設定に応じたCSSクラスを生成
-   * - top/bottom: 水平中央配置
-   * - left/right: 垂直中央配置
+   * - top: タイトルバーの下、水平中央配置
+   * - bottom: 画面下部、水平中央配置
    */
   const getPositionClasses = () => {
-    const position = props.position;
-    
-    switch (position) {
-      case 'top':
-        // 上部中央: 水平中央、タイトルバーの下
-        return 'top-12 left-1/2 -translate-x-1/2';
-      case 'bottom':
-        // 下部中央: 水平中央、画面下部
-        return 'bottom-12 left-1/2 -translate-x-1/2';
-      case 'left':
-        // 左端中央: 垂直中央、左端
-        return 'left-4 top-1/2 -translate-y-1/2';
-      case 'right':
-        // 右端中央: 垂直中央、右端
-        return 'right-4 top-1/2 -translate-y-1/2';
-    }
-  };
-
-  /**
-   * パネルの方向を取得（横並び or 縦並び）
-   */
-  const getPanelDirection = () => {
-    const position = props.position;
-    // top/bottomは横並び、left/rightは縦並び
-    return (position === 'top' || position === 'bottom') ? 'flex-row' : 'flex-col';
+    return props.position === 'top'
+      ? 'top-10 left-1/2 -translate-x-1/2'
+      : 'bottom-10 left-1/2 -translate-x-1/2';
   };
 
   /**
@@ -187,77 +195,31 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
    * パネルの位置とメニューのサイズを考慮して、画面内に収まるように配置
    */
   const getMenuPositionClasses = () => {
-    const position = props.position;
-    
     // パネルの位置情報を取得
     if (!panelRef) {
-      // 初期値: 基本的な配置
       return getDefaultMenuPosition();
     }
-    
+
     const rect = panelRef.getBoundingClientRect();
     const windowHeight = window.innerHeight;
-    const windowWidth = window.innerWidth;
-    
-    // メニューの推定サイズ（実際のメニューサイズに基づく）
     const menuHeight = 400; // SettingsMenu/MultiMenuの概算高さ
-    const menuWidth = 200;  // メニューの概算幅
-    
-    switch (position) {
-      case 'top':
-        // 上部配置: 下に余裕があれば下、なければ上
-        const spaceBelow = windowHeight - rect.bottom;
-        if (spaceBelow >= menuHeight + 16) {
-          return 'top-full mt-2'; // 下に展開
-        } else {
-          return 'bottom-full mb-2'; // 上に展開
-        }
-        
-      case 'bottom':
-        // 下部配置: 上に余裕があれば上、なければ下
-        const spaceAbove = rect.top;
-        if (spaceAbove >= menuHeight + 16) {
-          return 'bottom-full mb-2'; // 上に展開
-        } else {
-          return 'top-full mt-2'; // 下に展開
-        }
-        
-      case 'left':
-        // 左端配置: 右に余裕があれば右、なければ左
-        const spaceRight = windowWidth - rect.right;
-        if (spaceRight >= menuWidth + 16) {
-          return 'left-full ml-2'; // 右に展開
-        } else {
-          return 'right-full mr-2'; // 左に展開（画面内に収める）
-        }
-        
-      case 'right':
-        // 右端配置: 左に余裕があれば左、なければ右
-        const spaceLeft = rect.left;
-        if (spaceLeft >= menuWidth + 16) {
-          return 'right-full mr-2'; // 左に展開
-        } else {
-          return 'left-full ml-2'; // 右に展開（画面内に収める）
-        }
+
+    if (props.position === 'top') {
+      // 上部配置: 下に余裕があれば下、なければ上
+      const spaceBelow = windowHeight - rect.bottom;
+      return spaceBelow >= menuHeight + 16 ? 'top-full mt-2' : 'bottom-full mb-2';
+    } else {
+      // 下部配置: 上に余裕があれば上、なければ下
+      const spaceAbove = rect.top;
+      return spaceAbove >= menuHeight + 16 ? 'bottom-full mb-2' : 'top-full mt-2';
     }
   };
-  
+
   /**
    * デフォルトのメニュー配置を取得（refが利用できない場合）
    */
   const getDefaultMenuPosition = () => {
-    const position = props.position;
-    
-    switch (position) {
-      case 'top':
-        return 'top-full mt-2';
-      case 'bottom':
-        return 'bottom-full mb-2';
-      case 'left':
-        return 'left-full ml-2';
-      case 'right':
-        return 'right-full mr-2';
-    }
+    return props.position === 'top' ? 'top-full mt-2' : 'bottom-full mb-2';
   };
   
   /**
@@ -287,222 +249,333 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
   };
 
   return (
-    <div 
-      ref={panelRef}
-      class={`fixed z-50 flex gap-2 right-control-panel ${getPositionClasses()}`}
-    >
-      {/* ガラス表現のメインコンテナ */}
-      <div class={`rounded-xl bg-black/20 p-2 backdrop-blur-md border border-white/10 shadow-lg flex ${getPanelDirection()} gap-2`}>
-        {/* 上: ズームイン */}
+    <>
+      {/* 折りたたみ時：トグルボタンのみ */}
+      <Show when={!isExpanded()}>
         <button
-          class="glass-button flex items-center justify-center"
-          onClick={props.onZoomIn}
-          aria-label="ズームイン"
-          title="ズームイン"
+          class={`fixed z-50 toggle-button ${getPositionClasses()}`}
+          onClick={toggleExpand}
+          aria-label="コントロールパネルを開く"
+          title="コントロールパネルを開く"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          {props.position === 'top' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 15l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          )}
         </button>
+      </Show>
 
-        {/* 中央: 倍率表示(クリックでリセット) */}
-        <button
-          class="glass-button mt-2 flex flex-col items-center justify-center px-2"
-          onClick={props.onZoomReset}
-          aria-label="ズームリセット"
-          title="ズームリセット"
-        >
-          <span class="text-sm font-medium text-white/80">
-            {Math.round(props.zoomScale * 100)}%
-          </span>
-        </button>
-
-        {/* 下: ズームアウト */}
-        <button
-          class="glass-button mt-2 flex items-center justify-center"
-          onClick={props.onZoomOut}
-          aria-label="ズームアウト"
-          title="ズームアウト"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
-            <path d="M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-
-        {/* 区切り線 */}
-        <div class="h-px bg-white/10 my-2" />
-
-        {/* 画面フィットボタン */}
-        <button
-          class="glass-button"
-          onClick={props.onScreenFit}
-          aria-label="画面にフィット"
-          title="画面にフィット"
-        >
-          <img
-            class="h-5 w-5 brightness-0 invert opacity-90"
-            src="/全画面表示ボタン5.svg"
-            alt="画面フィット"
-          />
-        </button>
-
-        {/* 回転ボタン */}
-        <button
-          class="glass-button mt-2"
-          onClick={props.onRotate}
-          aria-label="回転"
-          title="回転"
-        >
-          <img
-            class="h-5 w-5 brightness-0 invert opacity-90"
-            src="/reload_hoso.svg"
-            alt="回転"
-          />
-        </button>
-
-        {/* 区切り線 */}
-        <div class="h-px bg-white/10 my-2" />
-
-        {/* マルチメニューボタン */}
-        <button
-          class="glass-button"
-          classList={{
-            'bg-white/20 border-white/30': isAnyFeatureActive(),
-          }}
-          onClick={toggleMultiMenu}
-          aria-label="表示機能メニュー"
-          title="表示機能メニュー"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            class="text-white/90"
-          >
-            <path
-              d="M2 2h12v12H2V2z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-            />
-            <path
-              d="M2 6.5h12M2 10.5h12M6.5 2v12M10.5 2v12"
-              stroke="currentColor"
-              stroke-width="1"
-            />
-          </svg>
-        </button>
-
-        {/* 設定ボタン */}
-        <button
-          class="glass-button mt-2"
-          onClick={toggleSettings}
-          aria-label="設定"
-          title="設定"
-        >
-          <img
-            class="h-5 w-5 brightness-0 invert opacity-90"
-            src="/setting_ge_h.svg"
-            alt="設定"
-          />
-        </button>
-      </div>
-
-      {/* MultiMenu - 動的配置 */}
-      {showMultiMenu() && (
+      {/* 展開時：フルパネル */}
+      <Show when={isExpanded()}>
         <div
-          class={`absolute ${menuAnchor()} ${menuPosition() || getDefaultMenuPosition()}`}
-          data-menu="multi"
+          ref={panelRef}
+          class={`fixed z-50 flex gap-2 right-control-panel control-panel-expanded ${getPositionClasses()}`}
         >
-          <MultiMenu
-            gridPattern={props.gridPattern}
-            onGridPatternChange={props.onGridPatternChange}
-            gridOpacity={props.gridOpacity}
-            onGridOpacityChange={props.onGridOpacityChange}
-            peakingEnabled={props.peakingEnabled}
-            onPeakingEnabledChange={props.onPeakingEnabledChange}
-            peakingIntensity={props.peakingIntensity}
-            onPeakingIntensityChange={props.onPeakingIntensityChange}
-            peakingColor={props.peakingColor}
-            onPeakingColorChange={props.onPeakingColorChange}
-            peakingOpacity={props.peakingOpacity}
-            onPeakingOpacityChange={props.onPeakingOpacityChange}
-            peakingBlink={props.peakingBlink}
-            onPeakingBlinkChange={props.onPeakingBlinkChange}
-            histogramEnabled={props.histogramEnabled}
-            onHistogramEnabledChange={props.onHistogramEnabledChange}
-            histogramDisplayType={props.histogramDisplayType}
-            onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
-            histogramPosition={props.histogramPosition}
-            onHistogramPositionChange={props.onHistogramPositionChange}
-            histogramSize={props.histogramSize}
-            onHistogramSizeChange={props.onHistogramSizeChange}
-            histogramOpacity={props.histogramOpacity}
-            onHistogramOpacityChange={props.onHistogramOpacityChange}
-          />
-        </div>
-      )}
+          {/* ガラス表現のメインコンテナ */}
+          <div class="glass-panel rounded-xl p-2 flex flex-row gap-2">
+            {/* ズームイン */}
+            <button
+              class="glass-button flex items-center justify-center"
+              onClick={props.onZoomIn}
+              aria-label="ズームイン"
+              title="ズームイン"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
 
-      {/* SettingsMenu - 動的配置 */}
-      {showSettings() && (
-        <div
-          class={`absolute ${menuAnchor()} ${menuPosition() || getDefaultMenuPosition()}`}
-          data-menu="settings"
-        >
-          <SettingsMenu
-            theme={props.theme}
-            onThemeChange={(newTheme) => {
-              props.onThemeChange(newTheme);
-              setShowSettings(false);
-            }}
-            wheelSensitivity={props.wheelSensitivity}
-            onWheelSensitivityChange={props.onWheelSensitivityChange}
-            showFullPath={props.showFullPath}
-            onShowFullPathChange={props.onShowFullPathChange}
-            controlPanelPosition={props.position}
-            onControlPanelPositionChange={props.onPositionChange}
-          />
+            {/* 倍率表示(クリックでリセット) */}
+            <button
+              class="glass-button flex flex-col items-center justify-center"
+              onClick={props.onZoomReset}
+              aria-label="ズームリセット"
+              title="ズームリセット"
+            >
+              <span class="text-xs font-medium text-white/80">
+                {Math.round(props.zoomScale * 100)}%
+              </span>
+            </button>
+
+            {/* ズームアウト */}
+            <button
+              class="glass-button flex items-center justify-center"
+              onClick={props.onZoomOut}
+              aria-label="ズームアウト"
+              title="ズームアウト"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
+                <path d="M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            {/* 画面フィットボタン */}
+            <button
+              class="glass-button"
+              onClick={props.onScreenFit}
+              aria-label="画面にフィット"
+              title="画面にフィット"
+            >
+              <img
+                class="h-5 w-5 brightness-0 invert opacity-90"
+                src="/全画面表示ボタン5.svg"
+                alt="画面フィット"
+              />
+            </button>
+
+            {/* 回転ボタン */}
+            <button
+              class="glass-button"
+              onClick={props.onRotate}
+              aria-label="回転"
+              title="回転"
+            >
+              <img
+                class="h-5 w-5 brightness-0 invert opacity-90"
+                src="/reload_hoso.svg"
+                alt="回転"
+              />
+            </button>
+
+            {/* マルチメニューボタン */}
+            <button
+              class="glass-button"
+              classList={{
+                'bg-white/20 border-white/30': isAnyFeatureActive(),
+              }}
+              onClick={toggleMultiMenu}
+              aria-label="表示機能メニュー"
+              title="表示機能メニュー"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                class="text-white/90"
+              >
+                <path
+                  d="M2 2h12v12H2V2z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M2 6.5h12M2 10.5h12M6.5 2v12M10.5 2v12"
+                  stroke="currentColor"
+                  stroke-width="1"
+                />
+              </svg>
+            </button>
+
+            {/* 設定ボタン */}
+            <button
+              class="glass-button"
+              onClick={toggleSettings}
+              aria-label="設定"
+              title="設定"
+            >
+              <img
+                class="h-5 w-5 brightness-0 invert opacity-90"
+                src="/setting_ge_h.svg"
+                alt="設定"
+              />
+            </button>
+
+            {/* トグルボタン（閉じる） */}
+            <button
+              class="glass-button flex items-center justify-center"
+              onClick={toggleExpand}
+              aria-label="コントロールパネルを閉じる"
+              title="コントロールパネルを閉じる"
+            >
+              {props.position === 'top' ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
+                  <path d="M5 15l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white/90">
+                  <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* MultiMenu - 動的配置 */}
+          {showMultiMenu() && (
+            <div
+              class={`absolute ${menuAnchor()} ${menuPosition() || getDefaultMenuPosition()}`}
+              data-menu="multi"
+            >
+              <MultiMenu
+                gridPattern={props.gridPattern}
+                onGridPatternChange={props.onGridPatternChange}
+                gridOpacity={props.gridOpacity}
+                onGridOpacityChange={props.onGridOpacityChange}
+                peakingEnabled={props.peakingEnabled}
+                onPeakingEnabledChange={props.onPeakingEnabledChange}
+                peakingIntensity={props.peakingIntensity}
+                onPeakingIntensityChange={props.onPeakingIntensityChange}
+                peakingColor={props.peakingColor}
+                onPeakingColorChange={props.onPeakingColorChange}
+                peakingOpacity={props.peakingOpacity}
+                onPeakingOpacityChange={props.onPeakingOpacityChange}
+                peakingBlink={props.peakingBlink}
+                onPeakingBlinkChange={props.onPeakingBlinkChange}
+                histogramEnabled={props.histogramEnabled}
+                onHistogramEnabledChange={props.onHistogramEnabledChange}
+                histogramDisplayType={props.histogramDisplayType}
+                onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
+                histogramPosition={props.histogramPosition}
+                onHistogramPositionChange={props.onHistogramPositionChange}
+                histogramSize={props.histogramSize}
+                onHistogramSizeChange={props.onHistogramSizeChange}
+                histogramOpacity={props.histogramOpacity}
+                onHistogramOpacityChange={props.onHistogramOpacityChange}
+              />
+            </div>
+          )}
+
+          {/* SettingsMenu - 動的配置 */}
+          {showSettings() && (
+            <div
+              class={`absolute ${menuAnchor()} ${menuPosition() || getDefaultMenuPosition()}`}
+              data-menu="settings"
+            >
+              <SettingsMenu
+                theme={props.theme}
+                onThemeChange={(newTheme) => {
+                  props.onThemeChange(newTheme);
+                  setShowSettings(false);
+                }}
+                wheelSensitivity={props.wheelSensitivity}
+                onWheelSensitivityChange={props.onWheelSensitivityChange}
+                showFullPath={props.showFullPath}
+                onShowFullPathChange={props.onShowFullPathChange}
+                controlPanelPosition={props.position}
+                onControlPanelPositionChange={props.onPositionChange}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </Show>
 
       <style>
         {`
+          /* グラスモフィズムメインパネル */
+          .glass-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+              0 8px 32px 0 rgba(0, 0, 0, 0.37),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+              0 0 0 1px rgba(0, 0, 0, 0.1);
+          }
+
+          .toggle-button {
+            width: 70px;
+            height: 24px;
+            border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+              0 4px 16px 0 rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: rgba(255, 255, 255, 0.9);
+          }
+
+          .toggle-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+            box-shadow:
+              0 6px 20px 0 rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+          }
+
+          .toggle-button:active {
+            transform: scale(0.95);
+          }
+
+          .control-panel-expanded {
+            animation: expandPanel 0.3s ease;
+          }
+
+          @keyframes expandPanel {
+            from {
+              opacity: 0;
+              transform: scale(0.8);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+
           .glass-button {
             width: 48px;
             height: 48px;
+            min-width: 48px;
+            min-height: 48px;
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 0.5rem;
-            /* 初期状態では背景とボーダーを隠す */
+            /* 通常時は完全に透明 */
             background: transparent;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
             border: 1px solid transparent;
+            box-shadow: none;
             color: rgba(255, 255, 255, 0.9);
-            transition: background 0.18s ease, border 0.18s ease, transform 0.12s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
           }
 
           /* ホバー時にガラス表現を表示 */
           .glass-button:hover {
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(8px) saturate(140%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px) saturate(200%);
+            -webkit-backdrop-filter: blur(16px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow:
+              0 4px 16px 0 rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
           }
 
           .glass-button:active {
             transform: translateY(0) scale(0.98);
+            background: rgba(255, 255, 255, 0.1);
           }
 
           .glass-button img {
             filter: brightness(0) invert(1);
             opacity: 0.9;
           }
+
+          .glass-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+          }
         `}
       </style>
-    </div>
+    </>
   );
 };
 

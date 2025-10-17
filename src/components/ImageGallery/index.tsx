@@ -107,16 +107,21 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
   return (
     <div
       data-gallery="sidebar"
-      class={`fixed left-0 top-8 bottom-0 w-64 bg-black/80 backdrop-blur-md border-r border-white/10 transform transition-transform duration-300 z-40 ${
+      class={`fixed left-0 top-8 bottom-0 w-64 glass-panel transform transition-transform duration-300 z-[60] ${
         props.isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
       {/* ヘッダー */}
-      <div class="flex items-center justify-between p-2 border-b border-white/10">
-        <span class="text-white/90 text-sm font-medium">画像一覧</span>
+      <div class="glass-header flex items-center justify-between p-2">
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="text-white/90 text-sm font-medium">画像一覧</span>
+          <span class="text-white/60 text-xs truncate">
+            {getParentFolder(props.currentImagePath || '') || 'フォルダが選択されていません'}
+          </span>
+        </div>
         <button
           onClick={props.onClose}
-          class="text-white/70 hover:text-white transition-colors duration-150 p-1 rounded hover:bg-white/10"
+          class="glass-button-close text-white/70 hover:text-white transition-colors duration-150 p-1 rounded ml-2 flex-shrink-0"
           aria-label="閉じる"
         >
           <svg
@@ -167,12 +172,12 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
               {/* サムネイル */}
               <img
                 src={convertFileSrc(imagePath)}
-                class="w-full aspect-video object-cover bg-black/50"
+                class="w-full aspect-video object-cover glass-image-bg"
                 alt={getFileName(imagePath)}
                 loading="lazy"
               />
               {/* ファイル名 */}
-              <div class="p-1.5 bg-black/50 text-white/80 text-xs truncate">
+              <div class="glass-item p-1.5 text-white/80 text-xs truncate">
                 {getFileName(imagePath)}
               </div>
             </div>
@@ -184,3 +189,57 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
 };
 
 export default ImageGallery;
+
+<style>
+{`
+  /* グラスモフィズムメインパネル */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-left: none;
+    box-shadow:
+      0 8px 32px 0 rgba(0, 0, 0, 0.37),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.1);
+  }
+
+  /* グラスモフィズムヘッダー */
+  .glass-header {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 2px 8px 0 rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* グラスモフィズムアイテム */
+  .glass-item {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* 画像背景 */
+  .glass-image-bg {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+  }
+
+  /* 閉じるボタン */
+  .glass-button-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 2px 8px 0 rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+`}
+</style>
