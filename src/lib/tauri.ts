@@ -1,10 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
-import { Window } from '@tauri-apps/api/window';
+import { Window, LogicalSize, LogicalPosition } from '@tauri-apps/api/window';
 
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 
 // 現在のウィンドウインスタンスを取得
 const appWindow = Window.getCurrent();
+
+// ギャラリーの幅(px)
+const GALLERY_WIDTH = 256;
 
 /**
  * ウィンドウを最小化
@@ -69,5 +72,83 @@ export async function fetchPreviousImagePath(
   } catch (error) {
     console.error('[Tauri] Failed to fetch previous image path', error);
     return null;
+  }
+}
+
+/**
+ * ギャラリー表示のためにウィンドウを左に拡張する
+ * ウィンドウが最大化されている場合は何もしない
+ */
+export async function expandWindowForGallery(): Promise<void> {
+  try {
+    // 最大化されている場合は何もしない
+    if (await appWindow.isMaximized()) {
+      console.log('[Window] ウィンドウが最大化されているため、拡張をスキップします');
+      return;
+    }
+
+    // 現在のウィンドウ位置とサイズを取得
+    const currentPosition = await appWindow.outerPosition();
+    const currentSize = await appWindow.innerSize();
+
+    // 新しいX座標を計算(画面左端チェック)
+    const newX = Math.max(0, currentPosition.x - GALLERY_WIDTH);
+    const actualShift = currentPosition.x - newX;
+
+    // 新しい幅を計算(実際の移動量に応じて調整)
+    const newWidth = currentSize.width + actualShift;
+
+    console.log('[Window] ギャラリー展開:', {
+      currentPosition: { x: currentPosition.x, y: currentPosition.y },
+      currentSize: { width: currentSize.width, height: currentSize.height },
+      newPosition: { x: newX, y: currentPosition.y },
+      newSize: { width: newWidth, height: currentSize.height },
+      actualShift
+    });
+
+    // サイズと位置を同時に変更
+    await Promise.all([
+      appWindow.setSize(new LogicalSize(newWidth, currentSize.height)),
+      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y))
+    ]);
+  } catch (error) {
+    console.error('[Window] ギャラリー展開に失敗しました:', error);
+  }
+}
+
+/**
+ * ギャラリー非表示のためにウィンドウを元のサイズに戻す
+ * ウィンドウが最大化されている場合は何もしない
+ */
+export async function contractWindowForGallery(): Promise<void> {
+  try {
+    // 最大化されている場合は何もしない
+    if (await appWindow.isMaximized()) {
+      console.log('[Window] ウィンドウが最大化されているため、縮小をスキップします');
+      return;
+    }
+
+    // 現在のウィンドウ位置とサイズを取得
+    const currentPosition = await appWindow.outerPosition();
+    const currentSize = await appWindow.innerSize();
+
+    // 新しいサイズと位置を計算
+    const newWidth = currentSize.width - GALLERY_WIDTH;
+    const newX = currentPosition.x + GALLERY_WIDTH;
+
+    console.log('[Window] ギャラリー収納:', {
+      currentPosition: { x: currentPosition.x, y: currentPosition.y },
+      currentSize: { width: currentSize.width, height: currentSize.height },
+      newPosition: { x: newX, y: currentPosition.y },
+      newSize: { width: newWidth, height: currentSize.height }
+    });
+
+    // サイズと位置を同時に変更
+    await Promise.all([
+      appWindow.setSize(new LogicalSize(newWidth, currentSize.height)),
+      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y))
+    ]);
+  } catch (error) {
+    console.error('[Window] ギャラリー収納に失敗しました:', error);
   }
 }

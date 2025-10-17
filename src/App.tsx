@@ -11,6 +11,7 @@ import { AppProvider, useAppState } from './context/AppStateContext';
 import { handleScreenFit } from './lib/screenfit';
 import { callResetImagePosition, callZoomToCenter } from './lib/imageViewerApi';
 import { convertFileToAssetUrlWithCacheBust } from './lib/fileUtils';
+import { expandWindowForGallery, contractWindowForGallery } from './lib/tauri';
 
 import './App.css';
 
@@ -110,19 +111,29 @@ const AppContent: Component = () => {
   /**
    * 画像選択時のハンドラー
    */
-  const handleImageSelect = (imagePath: string) => {
+  const handleImageSelect = async (imagePath: string) => {
     setZoomScale(1);
     setCurrentImagePath(convertFileToAssetUrlWithCacheBust(imagePath), { filePath: imagePath });
+
+    // ギャラリーを閉じる前に状態を更新
     setShowGallery(false);
+
+    // トランジション完了を待ってからウィンドウを縮小
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await contractWindowForGallery();
   };
 
   return (
     <>
-      <main class="relative flex flex-1 flex-col overflow-hidden min-h-0">
+      <main class="flex flex-1 flex-row overflow-hidden min-h-0">
         {/* ギャラリーサイドバー */}
         <ImageGallery
           isOpen={showGallery()}
-          onClose={() => setShowGallery(false)}
+          onClose={async () => {
+            setShowGallery(false);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            await contractWindowForGallery();
+          }}
           currentImagePath={currentImageFilePath()}
           onImageSelect={handleImageSelect}
         />
@@ -178,11 +189,29 @@ const AppContent: Component = () => {
 const AppMain: Component = () => {
   const { showGallery, setShowGallery } = useAppState();
 
+  /**
+   * ギャラリーの開閉をウィンドウリサイズと連動させる
+   */
+  const handleToggleGallery = async (open: boolean) => {
+    if (open) {
+      // ギャラリーを開く: ウィンドウを拡張してからギャラリーを表示
+      await expandWindowForGallery();
+      requestAnimationFrame(() => {
+        setShowGallery(true);
+      });
+    } else {
+      // ギャラリーを閉じる: ギャラリーを非表示にしてからウィンドウを縮小
+      setShowGallery(false);
+      await new Promise(resolve => setTimeout(resolve, 300)); // トランジション待ち
+      await contractWindowForGallery();
+    }
+  };
+
   return (
     <div class="flex h-screen flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
       <Titlebar
         showGallery={showGallery()}
-        onToggleGallery={setShowGallery}
+        onToggleGallery={handleToggleGallery}
       />
       <AppContent />
     </div>

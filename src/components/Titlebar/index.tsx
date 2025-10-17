@@ -8,7 +8,7 @@ interface TitlebarProps {
   /** ギャラリーサイドバーの表示状態 */
   showGallery: boolean;
   /** ギャラリーサイドバーの表示/非表示を切り替える */
-  onToggleGallery: (show: boolean) => void;
+  onToggleGallery: (show: boolean) => void | Promise<void>;
 }
 
 /**
