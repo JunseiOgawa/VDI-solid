@@ -1,5 +1,5 @@
-import type { Size } from '../lib/boundaryUtils';
-import { computeMinMax, clampPosition } from '../lib/boundaryUtils';
+import type { Size } from "../lib/boundaryUtils";
+import { computeMinMax, clampPosition } from "../lib/boundaryUtils";
 
 type Args = {
   containerSize: Size;
@@ -12,7 +12,7 @@ type Args = {
 /**
  * 境界制約を適用するためのカスタムフック。
  * コンテナサイズ、画像サイズ、表示サイズ、スケールに基づいて位置をクランプする関数を提供する。
- * 
+ *
  * @param args - フックの引数オブジェクト。
  * @param args.containerSize - コンテナのサイズ（幅と高さ）。
  * @param args.imageSize - 画像の元のサイズ（幅と高さ）。
@@ -24,13 +24,24 @@ type Args = {
  * @returns ensureVisible - 位置を境界内にクランプし、可視性を確保する関数（現在はclampと同じ動作）。
  */
 export function useBoundaryConstraint(args: Args) {
-  const { containerSize, imageSize, displaySize, scale, maxTravelFactor = 1 } = args;
+  const {
+    containerSize,
+    imageSize,
+    displaySize,
+    scale,
+    maxTravelFactor = 1,
+  } = args;
   const safeScale = Math.max(scale, Number.EPSILON);
   const effectiveDisplay = displaySize ?? {
     width: imageSize.width * safeScale,
-    height: imageSize.height * safeScale
+    height: imageSize.height * safeScale,
   };
-  const mm = computeMinMax(containerSize, effectiveDisplay, safeScale, maxTravelFactor);
+  const mm = computeMinMax(
+    containerSize,
+    effectiveDisplay,
+    safeScale,
+    maxTravelFactor,
+  );
 
   function clamp(pos: { x: number; y: number }) {
     return clampPosition(pos, mm);

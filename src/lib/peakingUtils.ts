@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 /**
  * エッジ上の1点の座標
@@ -40,7 +40,7 @@ export interface PeakingConfig {
 export const DEFAULT_PEAKING_CONFIG: PeakingConfig = {
   enabled: false,
   intensity: 60,
-  color: 'lime',
+  color: "lime",
   opacity: 0.5,
 };
 
@@ -50,7 +50,7 @@ export const DEFAULT_PEAKING_CONFIG: PeakingConfig = {
  * @returns "x1,y1 x2,y2 x3,y3" 形式の文字列
  */
 export function edgeToPolylinePoints(edge: EdgePoint[]): string {
-  return edge.map((point) => `${point.x},${point.y}`).join(' ');
+  return edge.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
 /**
@@ -59,7 +59,10 @@ export function edgeToPolylinePoints(edge: EdgePoint[]): string {
  * @param intensity - エッジ検出閾値
  * @returns キャッシュキー文字列
  */
-export function generatePeakingCacheKey(imagePath: string, intensity: number): string {
+export function generatePeakingCacheKey(
+  imagePath: string,
+  intensity: number,
+): string {
   return `${imagePath}:${intensity}`;
 }
 
@@ -85,28 +88,28 @@ export async function invokeFocusPeaking(
   imagePath: string,
   threshold: number,
   requestId?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<PeakingResult> {
   // 既にキャンセルされている場合
   if (signal?.aborted) {
-    throw new Error('Request was aborted before execution');
+    throw new Error("Request was aborted before execution");
   }
 
   try {
-    const result = await invoke<PeakingResult>('focus_peaking', {
+    const result = await invoke<PeakingResult>("focus_peaking", {
       imagePath,
       threshold,
       requestId: requestId || `${imagePath}:${threshold}`,
     });
-    
+
     // 処理完了後にキャンセルされていた場合
     if (signal?.aborted) {
-      throw new Error('Request was aborted after execution');
+      throw new Error("Request was aborted after execution");
     }
-    
+
     return result;
   } catch (error) {
-    console.error('[PeakingUtils] Failed to invoke focus_peaking:', error);
+    console.error("[PeakingUtils] Failed to invoke focus_peaking:", error);
     throw error;
   }
 }

@@ -43,7 +43,7 @@ pub struct PeakingResult {
 fn register_cancel_flag(request_id: &str, base_key: &str) -> Arc<AtomicBool> {
     let flag = Arc::new(AtomicBool::new(false));
     let mut map = CANCEL_FLAGS.lock().unwrap();
-    
+
     // 同じベースキーの古いリクエストをすべてキャンセル
     let base_prefix = format!("{}#", base_key);
     let keys_to_cancel: Vec<String> = map
@@ -51,14 +51,14 @@ fn register_cancel_flag(request_id: &str, base_key: &str) -> Arc<AtomicBool> {
         .filter(|k| k.starts_with(&base_prefix) || k == &base_key)
         .cloned()
         .collect();
-    
+
     for key in keys_to_cancel {
         if let Some(old_flag) = map.get(&key) {
             old_flag.store(true, Ordering::Relaxed);
             println!("[Peaking] キャンセル設定: {}", key);
         }
     }
-    
+
     map.insert(request_id.to_string(), flag.clone());
     flag
 }
@@ -71,17 +71,14 @@ fn unregister_cancel_flag(request_id: &str) {
 
 /// 画像サイズが閾値以上の場合、ダウンサンプリングを実行
 /// 戻り値: (処理用画像, スケール率のOption)
-fn downsample_if_needed(
-    img: &DynamicImage,
-    threshold: u32
-) -> (DynamicImage, Option<(f32, f32)>) {
+fn downsample_if_needed(img: &DynamicImage, threshold: u32) -> (DynamicImage, Option<(f32, f32)>) {
     let (width, height) = img.dimensions();
-    
+
     if width < threshold && height < threshold {
         // ダウンサンプリング不要
         return (img.clone(), None);
     }
-    
+
     // ダウンサンプリング実行
     let target_max = 1920;
     let scale_factor = if width > height {
@@ -89,35 +86,35 @@ fn downsample_if_needed(
     } else {
         target_max as f32 / height as f32
     };
-    
+
     let new_width = (width as f32 * scale_factor) as u32;
     let new_height = (height as f32 * scale_factor) as u32;
-    
+
     println!(
         "[Downsample] {}x{} -> {}x{} (scale: {:.2})",
         width, height, new_width, new_height, scale_factor
     );
-    
+
     let downsampled = img.resize(
         new_width,
         new_height,
-        image::imageops::FilterType::Lanczos3 // 高品質リサイズ
+        image::imageops::FilterType::Lanczos3, // 高品質リサイズ
     );
-    
+
     let scale_back_x = width as f32 / new_width as f32;
     let scale_back_y = height as f32 / new_height as f32;
-    
+
     (downsampled, Some((scale_back_x, scale_back_y)))
 }
 
 /// エッジ座標を元のサイズにスケールバック
-fn scale_back_edges(
-    edges: &mut Vec<Vec<EdgePoint>>,
-    scale: Option<(f32, f32)>
-) {
+fn scale_back_edges(edges: &mut Vec<Vec<EdgePoint>>, scale: Option<(f32, f32)>) {
     if let Some((scale_x, scale_y)) = scale {
-        println!("[ScaleBack] Applying scale: x={:.2}, y={:.2}", scale_x, scale_y);
-        
+        println!(
+            "[ScaleBack] Applying scale: x={:.2}, y={:.2}",
+            scale_x, scale_y
+        );
+
         for edge in edges.iter_mut() {
             for point in edge.iter_mut() {
                 point.x = (point.x * scale_x).round();
@@ -148,7 +145,7 @@ fn apply_sobel_filter(
             }
 
             let mut row_data = vec![0u8; width as usize];
-            
+
             for x in 1..width - 1 {
                 let mut gx: i32 = 0;
                 let mut gy: i32 = 0;
@@ -167,7 +164,7 @@ fn apply_sobel_filter(
                 let magnitude = magnitude.min(255.0) as u8;
                 row_data[x as usize] = magnitude;
             }
-            
+
             Ok(row_data)
         })
         .collect();
@@ -289,14 +286,14 @@ pub async fn focus_peaking(
     request_id: Option<String>,
 ) -> Result<PeakingResult, String> {
     let total_start = Instant::now();
-    
+
     // ベースキーとユニークなリクエストIDを生成
     let base_key = request_id.unwrap_or_else(|| format!("{}:{}", image_path, threshold));
     let unique_request_id = generate_unique_request_id(&base_key);
     println!("[Peaking] 新規リクエスト開始: {}", unique_request_id);
-    
+
     let cancel_flag = register_cancel_flag(&unique_request_id, &base_key);
-    
+
     let path = Path::new(&image_path);
 
     // ファイル存在チェック
@@ -312,7 +309,12 @@ pub async fn focus_peaking(
         format!("Failed to load image: {}", e)
     })?;
     let (original_width, original_height) = img.dimensions();
-    println!("[Peaking] 画像読み込み: {:?}, サイズ: {}x{}", load_start.elapsed(), original_width, original_height);
+    println!(
+        "[Peaking] 画像読み込み: {:?}, サイズ: {}x{}",
+        load_start.elapsed(),
+        original_width,
+        original_height
+    );
 
     // キャンセルチェック1
     if cancel_flag.load(Ordering::Relaxed) {
@@ -325,9 +327,12 @@ pub async fn focus_peaking(
     let downsample_start = Instant::now();
     let (processing_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
     if scale.is_some() {
-        println!("[Peaking] ダウンサンプリング: {:?}", downsample_start.elapsed());
+        println!(
+            "[Peaking] ダウンサンプリング: {:?}",
+            downsample_start.elapsed()
+        );
     }
-    
+
     let gray_img = processing_img.to_luma8();
 
     // Sobelフィルタ適用
@@ -346,7 +351,7 @@ pub async fn focus_peaking(
     let extract_start = Instant::now();
     let mut edges = extract_edge_points(&edge_img, threshold, cancel_flag.clone())?;
     println!("[Peaking] エッジ抽出: {:?}", extract_start.elapsed());
-    
+
     // 座標スケールバック（ダウンサンプリングした場合）
     scale_back_edges(&mut edges, scale);
 
@@ -393,7 +398,7 @@ pub async fn focus_peaking(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{DynamicImage, Rgb, ImageBuffer};
+    use image::{DynamicImage, ImageBuffer, Rgb};
 
     /// テスト用のダミー画像を生成
     fn create_dummy_image(width: u32, height: u32) -> DynamicImage {
@@ -406,7 +411,11 @@ mod tests {
         let img = create_dummy_image(1000, 800);
         let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
         assert!(scale.is_none(), "スケールがNoneであるべき");
-        assert_eq!(processed_img.dimensions(), (1000, 800), "画像サイズが変わらないはず");
+        assert_eq!(
+            processed_img.dimensions(),
+            (1000, 800),
+            "画像サイズが変わらないはず"
+        );
     }
 
     #[test]
@@ -414,7 +423,7 @@ mod tests {
         // 幅が閾値を超える画像はダウンサンプリングされる
         let img = create_dummy_image(3000, 1500);
         let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
-        
+
         assert!(scale.is_some(), "スケールがSomeであるべき");
         let (new_width, new_height) = processed_img.dimensions();
         assert!(new_width < 3000, "幅が縮小されているはず");
@@ -427,7 +436,7 @@ mod tests {
         // 高さが閾値を超える画像はダウンサンプリングされる
         let img = create_dummy_image(1500, 3000);
         let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
-        
+
         assert!(scale.is_some(), "スケールがSomeであるべき");
         let (new_width, new_height) = processed_img.dimensions();
         assert!(new_width < 1500, "幅が縮小されているはず");
@@ -440,13 +449,13 @@ mod tests {
         let img = create_dummy_image(4000, 2000);
         let (processed_img, scale) = downsample_if_needed(&img, DOWNSAMPLE_THRESHOLD);
         let (new_width, new_height) = processed_img.dimensions();
-        
+
         let (scale_x, scale_y) = scale.expect("スケールが計算されているはず");
-        
+
         // スケールバックすると元のサイズに近くなるはず
         let original_width_restored = (new_width as f32 * scale_x).round() as u32;
         let original_height_restored = (new_height as f32 * scale_y).round() as u32;
-        
+
         assert_eq!(original_width_restored, 4000, "幅が元に戻るはず");
         assert_eq!(original_height_restored, 2000, "高さが元に戻るはず");
     }

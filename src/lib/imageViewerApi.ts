@@ -1,4 +1,3 @@
-
 export type ScreenFitFn = () => number | null;
 export type ResetPositionFn = () => void;
 export type ZoomToCenterFn = (newScale: number) => void;
@@ -26,16 +25,18 @@ export const registerZoomToCenter = (fn: ZoomToCenterFn | null) => {
  * @returns {number | null} 計算結果の数値、または null。
  */
 export const callCalculateAndSetScreenFit = (): number | null => {
-  if (typeof _calculateAndSetScreenFit === 'function') return _calculateAndSetScreenFit();
+  if (typeof _calculateAndSetScreenFit === "function")
+    return _calculateAndSetScreenFit();
   return null;
 };
 
 export const callResetImagePosition = (): void => {
-  if (typeof _resetImagePosition === 'function') _resetImagePosition();
+  if (typeof _resetImagePosition === "function") _resetImagePosition();
 };
 
 export const callZoomToCenter = (newScale: number): void => {
-  if (typeof _zoomToCenter === 'function') _zoomToCenter(newScale);
+  if (typeof _zoomToCenter === "function") _zoomToCenter(newScale);
 };
 
-export const hasImageViewerHandlers = () => Boolean(_calculateAndSetScreenFit || _resetImagePosition);
+export const hasImageViewerHandlers = () =>
+  Boolean(_calculateAndSetScreenFit || _resetImagePosition);

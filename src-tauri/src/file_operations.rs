@@ -19,7 +19,7 @@ use tauri::command;
 ///
 /// ```
 /// // Tauriコマンドとしてフロントエンドから呼び出す
-/// invoke('open_in_explorer', { filePath: 'C:\\Users\\user\\image.png' })
+/// invoke('open_in_explorer', { filePath: 'C:\Users\user\image.png' })
 /// ```
 #[command]
 pub async fn open_in_explorer(file_path: String) -> Result<(), String> {

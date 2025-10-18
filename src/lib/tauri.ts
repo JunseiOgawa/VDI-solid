@@ -1,7 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
-import { Window, LogicalSize, LogicalPosition } from '@tauri-apps/api/window';
+import { invoke } from "@tauri-apps/api/core";
+import { Window, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
 
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 // 現在のウィンドウインスタンスを取得
 const appWindow = Window.getCurrent();
@@ -45,32 +45,32 @@ export async function openFileInExplorer(path: string): Promise<void> {
 
 export async function fetchNextImagePath(
   currentPath: string,
-  folderNavigationEnabled: boolean
+  folderNavigationEnabled: boolean,
 ): Promise<string | null> {
   try {
-    const result = await invoke<string | null>('get_next_image', {
+    const result = await invoke<string | null>("get_next_image", {
       currentPath,
-      folderNavigationEnabled
+      folderNavigationEnabled,
     });
     return result ?? null;
   } catch (error) {
-    console.error('[Tauri] Failed to fetch next image path', error);
+    console.error("[Tauri] Failed to fetch next image path", error);
     return null;
   }
 }
 // 前の画像のパスを取得する
 export async function fetchPreviousImagePath(
   currentPath: string,
-  folderNavigationEnabled: boolean
+  folderNavigationEnabled: boolean,
 ): Promise<string | null> {
   try {
-    const result = await invoke<string | null>('get_previous_image', {
+    const result = await invoke<string | null>("get_previous_image", {
       currentPath,
-      folderNavigationEnabled
+      folderNavigationEnabled,
     });
     return result ?? null;
   } catch (error) {
-    console.error('[Tauri] Failed to fetch previous image path', error);
+    console.error("[Tauri] Failed to fetch previous image path", error);
     return null;
   }
 }
@@ -83,7 +83,9 @@ export async function expandWindowForGallery(): Promise<void> {
   try {
     // 最大化されている場合は何もしない
     if (await appWindow.isMaximized()) {
-      console.log('[Window] ウィンドウが最大化されているため、拡張をスキップします');
+      console.log(
+        "[Window] ウィンドウが最大化されているため、拡張をスキップします",
+      );
       return;
     }
 
@@ -98,21 +100,21 @@ export async function expandWindowForGallery(): Promise<void> {
     // 新しい幅を計算(実際の移動量に応じて調整)
     const newWidth = currentSize.width + actualShift;
 
-    console.log('[Window] ギャラリー展開:', {
+    console.log("[Window] ギャラリー展開:", {
       currentPosition: { x: currentPosition.x, y: currentPosition.y },
       currentSize: { width: currentSize.width, height: currentSize.height },
       newPosition: { x: newX, y: currentPosition.y },
       newSize: { width: newWidth, height: currentSize.height },
-      actualShift
+      actualShift,
     });
 
     // サイズと位置を同時に変更
     await Promise.all([
       appWindow.setSize(new LogicalSize(newWidth, currentSize.height)),
-      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y))
+      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y)),
     ]);
   } catch (error) {
-    console.error('[Window] ギャラリー展開に失敗しました:', error);
+    console.error("[Window] ギャラリー展開に失敗しました:", error);
   }
 }
 
@@ -124,7 +126,9 @@ export async function contractWindowForGallery(): Promise<void> {
   try {
     // 最大化されている場合は何もしない
     if (await appWindow.isMaximized()) {
-      console.log('[Window] ウィンドウが最大化されているため、縮小をスキップします');
+      console.log(
+        "[Window] ウィンドウが最大化されているため、縮小をスキップします",
+      );
       return;
     }
 
@@ -136,19 +140,19 @@ export async function contractWindowForGallery(): Promise<void> {
     const newWidth = currentSize.width - GALLERY_WIDTH;
     const newX = currentPosition.x + GALLERY_WIDTH;
 
-    console.log('[Window] ギャラリー収納:', {
+    console.log("[Window] ギャラリー収納:", {
       currentPosition: { x: currentPosition.x, y: currentPosition.y },
       currentSize: { width: currentSize.width, height: currentSize.height },
       newPosition: { x: newX, y: currentPosition.y },
-      newSize: { width: newWidth, height: currentSize.height }
+      newSize: { width: newWidth, height: currentSize.height },
     });
 
     // サイズと位置を同時に変更
     await Promise.all([
       appWindow.setSize(new LogicalSize(newWidth, currentSize.height)),
-      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y))
+      appWindow.setPosition(new LogicalPosition(newX, currentPosition.y)),
     ]);
   } catch (error) {
-    console.error('[Window] ギャラリー収納に失敗しました:', error);
+    console.error("[Window] ギャラリー収納に失敗しました:", error);
   }
 }

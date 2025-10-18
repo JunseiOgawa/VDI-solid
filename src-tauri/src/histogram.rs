@@ -22,8 +22,14 @@ fn generate_unique_request_id(base_key: &str) -> String {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum HistogramData {
-    RGB { r: Vec<u32>, g: Vec<u32>, b: Vec<u32> },
-    Luminance { y: Vec<u32> },
+    RGB {
+        r: Vec<u32>,
+        g: Vec<u32>,
+        b: Vec<u32>,
+    },
+    Luminance {
+        y: Vec<u32>,
+    },
 }
 
 /// Rustから返却されるヒストグラム結果
@@ -143,8 +149,8 @@ fn calculate_luminance_histogram(
                 let pixel = rgb_img.get_pixel(x, y);
                 // ITU-R BT.709
                 let y_value = (0.2126 * pixel[0] as f32
-                            + 0.7152 * pixel[1] as f32
-                            + 0.0722 * pixel[2] as f32) as u8;
+                    + 0.7152 * pixel[1] as f32
+                    + 0.0722 * pixel[2] as f32) as u8;
                 hist_y[y_value as usize] += 1;
             }
 
@@ -206,7 +212,12 @@ pub async fn calculate_histogram(
         format!("Failed to load image: {}", e)
     })?;
     let (width, height) = img.dimensions();
-    println!("[Histogram] 画像読み込み: {:?}, サイズ: {}x{}", load_start.elapsed(), width, height);
+    println!(
+        "[Histogram] 画像読み込み: {:?}, サイズ: {}x{}",
+        load_start.elapsed(),
+        width,
+        height
+    );
 
     // キャンセルチェック1
     if cancel_flag.load(Ordering::Relaxed) {
@@ -262,7 +273,7 @@ pub async fn calculate_histogram(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{DynamicImage, Rgb, ImageBuffer};
+    use image::{DynamicImage, ImageBuffer, Rgb};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
 
@@ -313,10 +324,14 @@ mod tests {
         let cancel_flag = Arc::new(AtomicBool::new(false));
         let hist_y = calculate_luminance_histogram(&img, cancel_flag).unwrap();
 
-        let expected_y = (0.2126f32 * 100.0f32 + 0.7152f32 * 150.0f32 + 0.0722f32 * 200.0f32) as usize;
+        let expected_y =
+            (0.2126f32 * 100.0f32 + 0.7152f32 * 150.0f32 + 0.0722f32 * 200.0f32) as usize;
         // expected_y = (21.26 + 107.28 + 14.44).round() = 142.98.round() = 143
         assert_eq!(expected_y, 142, "輝度計算は切り捨てられるべき");
-        assert_eq!(hist_y[expected_y], 1, "計算された輝度値のビンに1ピクセルあるべき");
+        assert_eq!(
+            hist_y[expected_y], 1,
+            "計算された輝度値のビンに1ピクセルあるべき"
+        );
         assert_eq!(hist_y.iter().sum::<u32>(), 1, "合計ピクセル数は1であるべき");
     }
 

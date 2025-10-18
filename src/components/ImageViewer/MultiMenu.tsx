@@ -77,7 +77,6 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
     }`;
   };
 
-
   return (
     <div
       class="min-w-[280px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)]"

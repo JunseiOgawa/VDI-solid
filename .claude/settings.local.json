@@ -21,7 +21,8 @@
       "Bash(osascript:*)",
       "Bash(npx tsc:*)",
       "WebSearch",
-      "mcp__serena__activate_project"
+      "mcp__serena__activate_project",
+      "Bash(cargo fmt:*)"
     ],
     "deny": [],
     "ask": []

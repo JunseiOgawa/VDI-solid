@@ -1,5 +1,5 @@
-import type { Component } from 'solid-js';
-import { createSignal, For, onCleanup } from 'solid-js';
+import type { Component } from "solid-js";
+import { createSignal, For, onCleanup } from "solid-js";
 
 interface PeakingMenuProps {
   /** フォーカスピーキングのON/OFF状態 */
@@ -26,11 +26,11 @@ interface PeakingMenuProps {
 
 /** 色プリセット定義 */
 const COLOR_PRESETS: Array<{ name: string; value: string }> = [
-  { name: 'ライム', value: 'lime' },
-  { name: 'レッド', value: 'red' },
-  { name: 'シアン', value: 'cyan' },
-  { name: 'イエロー', value: 'yellow' },
-  { name: 'マゼンタ', value: 'magenta' },
+  { name: "ライム", value: "lime" },
+  { name: "レッド", value: "red" },
+  { name: "シアン", value: "cyan" },
+  { name: "イエロー", value: "yellow" },
+  { name: "マゼンタ", value: "magenta" },
 ];
 
 /**
@@ -48,13 +48,15 @@ const COLOR_PRESETS: Array<{ name: string; value: string }> = [
  */
 const PeakingMenu: Component<PeakingMenuProps> = (props) => {
   // 一時表示用のSignal（リアルタイム表示用）
-  const [tempIntensity, setTempIntensity] = createSignal(props.peakingIntensity);
+  const [tempIntensity, setTempIntensity] = createSignal(
+    props.peakingIntensity,
+  );
   const [tempOpacity, setTempOpacity] = createSignal(props.peakingOpacity);
 
   // デバウンスユーティリティ関数
   function createDebounce<T extends (...args: any[]) => void>(
     fn: T,
-    delay: number
+    delay: number,
   ): [(...args: Parameters<T>) => void, () => void] {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -84,7 +86,7 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
       console.log(`[PeakingMenu Debounce] Intensity changed to ${value}`);
       props.onPeakingIntensityChange(value);
     },
-    500
+    500,
   );
 
   const [debouncedOpacityChange, cleanupOpacity] = createDebounce(
@@ -92,7 +94,7 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
       console.log(`[PeakingMenu Debounce] Opacity changed to ${value}`);
       props.onPeakingOpacityChange(value);
     },
-    500
+    500,
   );
 
   // クリーンアップ
@@ -135,7 +137,9 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
       data-menu="peaking"
     >
       <div class="border-b border-[var(--glass-border-emphasis)] px-4 py-2">
-        <h3 class="text-label font-semibold text-[var(--glass-text-primary)]">フォーカスピーキング</h3>
+        <h3 class="text-label font-semibold text-[var(--glass-text-primary)]">
+          フォーカスピーキング
+        </h3>
       </div>
       <div class="space-y-3 px-4 py-3">
         {/* ON/OFF切り替え */}
@@ -146,14 +150,18 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             onChange={handleEnabledToggle}
             class="h-4 w-4 cursor-pointer accent-white/80"
           />
-          <span class="text-label text-[var(--glass-text-primary)]">有効化</span>
+          <span class="text-label text-[var(--glass-text-primary)]">
+            有効化
+          </span>
         </label>
 
         {/* 強度スライダー */}
         <div class="space-y-1">
           <div class="flex justify-between text-label">
             <span class="text-[var(--glass-text-primary)]">強度</span>
-            <span class="text-[var(--glass-text-secondary)] text-tabular">{tempIntensity()}</span>
+            <span class="text-[var(--glass-text-secondary)] text-tabular">
+              {tempIntensity()}
+            </span>
           </div>
           <input
             type="range"
@@ -177,11 +185,11 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
                   type="button"
                   class="h-6 w-6 rounded border-2 transition-all duration-200"
                   style={{
-                    'background-color': preset.value,
-                    'border-color':
+                    "background-color": preset.value,
+                    "border-color":
                       props.peakingColor === preset.value
-                        ? 'rgba(255, 255, 255, 0.9)'
-                        : 'transparent',
+                        ? "rgba(255, 255, 255, 0.9)"
+                        : "transparent",
                   }}
                   title={preset.name}
                   onClick={() => handleColorSelect(preset.value)}
@@ -197,7 +205,9 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
         <div class="space-y-1">
           <div class="flex justify-between text-label">
             <span class="text-[var(--glass-text-primary)]">不透明度</span>
-            <span class="text-[var(--glass-text-secondary)] text-tabular">{Math.round(tempOpacity() * 100)}%</span>
+            <span class="text-[var(--glass-text-secondary)] text-tabular">
+              {Math.round(tempOpacity() * 100)}%
+            </span>
           </div>
           <input
             type="range"
@@ -220,7 +230,9 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             class="h-4 w-4 cursor-pointer accent-white/80"
             disabled={!props.peakingEnabled}
           />
-          <span class="text-label text-[var(--glass-text-primary)]">ピーキング点滅</span>
+          <span class="text-label text-[var(--glass-text-primary)]">
+            ピーキング点滅
+          </span>
         </label>
       </div>
     </div>

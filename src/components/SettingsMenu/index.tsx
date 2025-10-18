@@ -10,8 +10,8 @@ interface SettingsMenuProps {
   onWheelSensitivityChange: (sensitivity: number) => void;
   showFullPath: boolean;
   onShowFullPathChange: (show: boolean) => void;
-  controlPanelPosition: 'top' | 'bottom';
-  onControlPanelPositionChange: (position: 'top' | 'bottom') => void;
+  controlPanelPosition: "top" | "bottom";
+  onControlPanelPositionChange: (position: "top" | "bottom") => void;
 }
 
 const SettingsMenu: Component<SettingsMenuProps> = (props) => {
@@ -33,7 +33,7 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
 
   const handleControlPanelPositionChange = (event: Event) => {
     const target = event.target as HTMLSelectElement;
-    props.onControlPanelPositionChange(target.value as 'top' | 'bottom');
+    props.onControlPanelPositionChange(target.value as "top" | "bottom");
   };
 
   return (
@@ -137,7 +137,6 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
             </select>
           </label>
         </div>
-
       </div>
     </div>
   );

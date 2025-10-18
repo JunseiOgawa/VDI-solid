@@ -1,17 +1,21 @@
-import type { Component } from 'solid-js';
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { listen } from '@tauri-apps/api/event';
-import { TauriEvent } from '@tauri-apps/api/event';
-import { useAppState } from '../../context/AppStateContext';
-import { CONFIG } from '../../config/config';
-import { useBoundaryConstraint } from '../../hooks/useBoundaryConstraint';
+import type { Component } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
+import { TauriEvent } from "@tauri-apps/api/event";
+import { useAppState } from "../../context/AppStateContext";
+import { CONFIG } from "../../config/config";
+import { useBoundaryConstraint } from "../../hooks/useBoundaryConstraint";
 import {
   convertFileToAssetUrlWithCacheBust,
-  isSupportedImageFile
-} from '../../lib/fileUtils';
-import { registerCalculateAndSetScreenFit, registerResetImagePosition, registerZoomToCenter } from '../../lib/imageViewerApi';
-import ImageManager from './ImageManager';
-import HistogramLayer from './HistogramLayer';
+  isSupportedImageFile,
+} from "../../lib/fileUtils";
+import {
+  registerCalculateAndSetScreenFit,
+  registerResetImagePosition,
+  registerZoomToCenter,
+} from "../../lib/imageViewerApi";
+import ImageManager from "./ImageManager";
+import HistogramLayer from "./HistogramLayer";
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -47,9 +51,18 @@ const ImageViewer: Component = () => {
   const [isDragActive, setDragActive] = createSignal(false);
   const [position, setPosition] = createSignal({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = createSignal(false);
-  const [containerSize, setContainerSize] = createSignal({ width: 0, height: 0 });
-  const [displaySize, setDisplaySize] = createSignal<{ width: number; height: number } | null>(null);
-  const [baseSize, setBaseSize] = createSignal<{ width: number; height: number } | null>(null);
+  const [containerSize, setContainerSize] = createSignal({
+    width: 0,
+    height: 0,
+  });
+  const [displaySize, setDisplaySize] = createSignal<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [baseSize, setBaseSize] = createSignal<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [isNavigating, setIsNavigating] = createSignal(false);
   let startX = 0;
   let startY = 0;
@@ -77,7 +90,7 @@ const ImageViewer: Component = () => {
     if (!imgEl) return { width: 0, height: 0 };
     return {
       width: imgEl.naturalWidth || imgEl.width || 0,
-      height: imgEl.naturalHeight || imgEl.height || 0
+      height: imgEl.naturalHeight || imgEl.height || 0,
     };
   };
 
@@ -119,7 +132,10 @@ const ImageViewer: Component = () => {
     if (currentDisplay) {
       if (referenceScale && referenceScale > 0) {
         const ratio = scale / referenceScale;
-        return { width: currentDisplay.width * ratio, height: currentDisplay.height * ratio };
+        return {
+          width: currentDisplay.width * ratio,
+          height: currentDisplay.height * ratio,
+        };
       }
       return currentDisplay;
     }
@@ -129,7 +145,11 @@ const ImageViewer: Component = () => {
 
   const clampToBounds = (
     candidate: { x: number; y: number },
-    options?: { scale?: number; display?: { width: number; height: number } | null; referenceScale?: number }
+    options?: {
+      scale?: number;
+      display?: { width: number; height: number } | null;
+      referenceScale?: number;
+    },
   ) => {
     if (!imgEl || !containerEl) return candidate;
     const container = containerSize();
@@ -139,14 +159,16 @@ const ImageViewer: Component = () => {
 
     const scale = options?.scale ?? zoomScale();
     const natural = naturalSize();
-    const display = options?.display ?? getDisplaySizeForScale(scale, options?.referenceScale);
+    const display =
+      options?.display ??
+      getDisplaySizeForScale(scale, options?.referenceScale);
     if (!display || display.width === 0 || display.height === 0) {
       return { x: 0, y: 0 };
     }
 
     // 境界計算のキャッシュ最適化
     const currentRotation = rotation();
-    const needsRecalculation = 
+    const needsRecalculation =
       cachedBoundary === null ||
       lastScale !== scale ||
       lastRotation !== currentRotation ||
@@ -160,9 +182,9 @@ const ImageViewer: Component = () => {
         imageSize: natural,
         displaySize: display,
         scale,
-        maxTravelFactor: scale < 1.0 ? 2 : 1
+        maxTravelFactor: scale < 1.0 ? 2 : 1,
       });
-      
+
       // キャッシュキーを更新
       lastScale = scale;
       lastRotation = currentRotation;
@@ -201,33 +223,51 @@ const ImageViewer: Component = () => {
     const effectiveWidth = quarterTurn ? naturalHeight : naturalWidth;
     const effectiveHeight = quarterTurn ? naturalWidth : naturalHeight;
 
-  const scaleX = container.width / effectiveWidth;
-  const scaleY = container.height / effectiveHeight;
-  let targetScale = Math.min(scaleX, scaleY);
+    const scaleX = container.width / effectiveWidth;
+    const scaleY = container.height / effectiveHeight;
+    let targetScale = Math.min(scaleX, scaleY);
 
-    console.log('[ScreenFit DEBUG] Container:', container);
-    console.log('[ScreenFit DEBUG] Natural size:', { width: naturalWidth, height: naturalHeight });
-    console.log('[ScreenFit DEBUG] Effective size:', { width: effectiveWidth, height: effectiveHeight });
-    console.log('[ScreenFit DEBUG] scaleX:', scaleX, 'scaleY:', scaleY);
-    console.log('[ScreenFit DEBUG] targetScale (before clamp):', targetScale);
+    console.log("[ScreenFit DEBUG] Container:", container);
+    console.log("[ScreenFit DEBUG] Natural size:", {
+      width: naturalWidth,
+      height: naturalHeight,
+    });
+    console.log("[ScreenFit DEBUG] Effective size:", {
+      width: effectiveWidth,
+      height: effectiveHeight,
+    });
+    console.log("[ScreenFit DEBUG] scaleX:", scaleX, "scaleY:", scaleY);
+    console.log("[ScreenFit DEBUG] targetScale (before clamp):", targetScale);
 
-    targetScale = Math.min(CONFIG.zoom.maxScale, Math.max(CONFIG.zoom.minScale, targetScale));
+    targetScale = Math.min(
+      CONFIG.zoom.maxScale,
+      Math.max(CONFIG.zoom.minScale, targetScale),
+    );
 
-    console.log('[ScreenFit DEBUG] targetScale (after clamp):', targetScale);
-    console.log('[ScreenFit DEBUG] minScale:', CONFIG.zoom.minScale, 'maxScale:', CONFIG.zoom.maxScale);
+    console.log("[ScreenFit DEBUG] targetScale (after clamp):", targetScale);
+    console.log(
+      "[ScreenFit DEBUG] minScale:",
+      CONFIG.zoom.minScale,
+      "maxScale:",
+      CONFIG.zoom.maxScale,
+    );
     const previousScale = zoomScale();
-    console.log('[ScreenFit DEBUG] previousScale:', previousScale);
-    console.log('[ScreenFit DEBUG] baseSize:', baseSize());
-    console.log('[ScreenFit DEBUG] displaySize (before):', displaySize());
+    console.log("[ScreenFit DEBUG] previousScale:", previousScale);
+    console.log("[ScreenFit DEBUG] baseSize:", baseSize());
+    console.log("[ScreenFit DEBUG] displaySize (before):", displaySize());
     const predictedDisplay = getDisplaySizeForScale(targetScale, previousScale);
-    console.log('[ScreenFit DEBUG] predictedDisplay:', predictedDisplay);
+    console.log("[ScreenFit DEBUG] predictedDisplay:", predictedDisplay);
 
     setZoomScale(targetScale);
     setDisplaySize(predictedDisplay);
 
     const centeredPosition = clampToBounds(
       { x: 0, y: 0 },
-      { scale: targetScale, display: predictedDisplay, referenceScale: previousScale }
+      {
+        scale: targetScale,
+        display: predictedDisplay,
+        referenceScale: previousScale,
+      },
     );
     setPosition(centeredPosition);
 
@@ -261,7 +301,10 @@ const ImageViewer: Component = () => {
     clearBoundaryCache();
 
     const previousScale = zoomScale();
-    const clampedScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, newScale));
+    const clampedScale = Math.max(
+      CONFIG.zoom.minScale,
+      Math.min(CONFIG.zoom.maxScale, newScale),
+    );
 
     if (clampedScale === previousScale) return;
 
@@ -290,13 +333,22 @@ const ImageViewer: Component = () => {
     // 新しいposition
     const newPos = {
       x: newImageCenterX - centerX,
-      y: newImageCenterY - centerY
+      y: newImageCenterY - centerY,
     };
 
-    const predictedDisplay = getDisplaySizeForScale(clampedScale, previousScale);
+    const predictedDisplay = getDisplaySizeForScale(
+      clampedScale,
+      previousScale,
+    );
     setZoomScale(clampedScale);
     setDisplaySize(predictedDisplay);
-    setPosition(clampToBounds(newPos, { scale: clampedScale, display: predictedDisplay, referenceScale: previousScale }));
+    setPosition(
+      clampToBounds(newPos, {
+        scale: clampedScale,
+        display: predictedDisplay,
+        referenceScale: previousScale,
+      }),
+    );
 
     requestAnimationFrame(() => {
       measureAll();
@@ -309,10 +361,10 @@ const ImageViewer: Component = () => {
 
   // Tauri D&Dイベントリスナー
   onMount(() => {
-  // コンポーネントの API をモジュール経由で登録
-  registerCalculateAndSetScreenFit(calculateAndSetScreenFit);
-  registerResetImagePosition(resetImagePosition);
-  registerZoomToCenter(zoomToCenter);
+    // コンポーネントの API をモジュール経由で登録
+    registerCalculateAndSetScreenFit(calculateAndSetScreenFit);
+    registerResetImagePosition(resetImagePosition);
+    registerZoomToCenter(zoomToCenter);
 
     measureAll();
     const handleResize = () => {
@@ -320,7 +372,7 @@ const ImageViewer: Component = () => {
       setPosition((prev) => clampToBounds(prev));
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     const releaseDrag = () => {
       if (isDragging()) {
         handleMouseUp();
@@ -338,10 +390,10 @@ const ImageViewer: Component = () => {
       }
     };
 
-    window.addEventListener('blur', releaseDrag);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("blur", releaseDrag);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    if (typeof ResizeObserver !== 'undefined' && containerEl) {
+    if (typeof ResizeObserver !== "undefined" && containerEl) {
       resizeObserver = new ResizeObserver(() => {
         measureAll();
         setPosition((prev) => clampToBounds(prev));
@@ -350,7 +402,7 @@ const ImageViewer: Component = () => {
     }
 
     const unlistenDragEnter = listen(TauriEvent.DRAG_ENTER, (event) => {
-      logDropEvent('DRAG_ENTER', event.payload);
+      logDropEvent("DRAG_ENTER", event.payload);
       setDragActive(true);
     });
 
@@ -359,38 +411,41 @@ const ImageViewer: Component = () => {
     });
 
     const unlistenDragLeave = listen(TauriEvent.DRAG_LEAVE, (event) => {
-      logDropEvent('DRAG_LEAVE', event.payload);
+      logDropEvent("DRAG_LEAVE", event.payload);
       setDragActive(false);
     });
 
     const unlistenDragDrop = listen(TauriEvent.DRAG_DROP, async (event) => {
-      logDropEvent('DRAG_DROP', event.payload);
+      logDropEvent("DRAG_DROP", event.payload);
       setDragActive(false);
 
       const payload = event.payload as { paths: string[] };
       if (!payload.paths || payload.paths.length === 0) {
-        console.error('[D&D] No paths in DRAG_DROP payload');
+        console.error("[D&D] No paths in DRAG_DROP payload");
         return;
       }
 
       const filePath = payload.paths[0];
-      logDropEvent('Processing file path', filePath);
+      logDropEvent("Processing file path", filePath);
 
       // 拡張子チェック
-      const extension = filePath.split('.').pop()?.toLowerCase();
+      const extension = filePath.split(".").pop()?.toLowerCase();
       if (!extension || !isSupportedImageFile(filePath)) {
-        console.error('[D&D] Unsupported file extension detected.', { filePath, extension });
+        console.error("[D&D] Unsupported file extension detected.", {
+          filePath,
+          extension,
+        });
         return;
       }
 
       try {
-        logDropEvent('Converting file path to asset URL', filePath);
+        logDropEvent("Converting file path to asset URL", filePath);
         const assetUrl = convertFileToAssetUrlWithCacheBust(filePath);
-        logDropEvent('Converted asset URL', assetUrl);
+        logDropEvent("Converted asset URL", assetUrl);
         setCurrentImagePath(assetUrl, { filePath });
-        console.info('[D&D] Updated current image path', assetUrl);
+        console.info("[D&D] Updated current image path", assetUrl);
       } catch (error) {
-        console.error('[D&D] Failed to convert file path to asset URL.', error);
+        console.error("[D&D] Failed to convert file path to asset URL.", error);
       }
     });
 
@@ -404,9 +459,9 @@ const ImageViewer: Component = () => {
       (await unlistenDragOver)();
       (await unlistenDragLeave)();
       (await unlistenDragDrop)();
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('blur', releaseDrag);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("blur", releaseDrag);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (resizeObserver && containerEl) {
         resizeObserver.unobserve(containerEl);
         resizeObserver.disconnect();
@@ -428,7 +483,10 @@ const ImageViewer: Component = () => {
     const adjustedStep = CONFIG.zoom.step * wheelSensitivity();
     const delta = event.deltaY > 0 ? -adjustedStep : adjustedStep; // 上で拡大、下で縮小
 
-    const newScale = Math.max(CONFIG.zoom.minScale, Math.min(CONFIG.zoom.maxScale, previousScale + delta));
+    const newScale = Math.max(
+      CONFIG.zoom.minScale,
+      Math.min(CONFIG.zoom.maxScale, previousScale + delta),
+    );
     if (newScale === previousScale) return;
 
     const container = containerSize();
@@ -461,13 +519,19 @@ const ImageViewer: Component = () => {
     // 新しいposition
     const newPos = {
       x: newImageCenterX - centerX,
-      y: newImageCenterY - centerY
+      y: newImageCenterY - centerY,
     };
 
     const predictedDisplay = getDisplaySizeForScale(newScale, previousScale);
     setZoomScale(newScale);
     setDisplaySize(predictedDisplay);
-    setPosition(clampToBounds(newPos, { scale: newScale, display: predictedDisplay, referenceScale: previousScale }));
+    setPosition(
+      clampToBounds(newPos, {
+        scale: newScale,
+        display: predictedDisplay,
+        referenceScale: previousScale,
+      }),
+    );
 
     requestAnimationFrame(() => {
       measureAll();
@@ -480,33 +544,35 @@ const ImageViewer: Component = () => {
     setIsDragging(true);
     startX = event.clientX - position().x;
     startY = event.clientY - position().y;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   };
 
   const handleMouseMove = (event: MouseEvent) => {
     if (!isDragging()) return;
     const candidate = {
       x: event.clientX - startX,
-      y: event.clientY - startY
+      y: event.clientY - startY,
     };
     setPosition(clampToBounds(candidate));
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
     setPosition((prev) => clampToBounds(prev));
   };
   // 画像のシーケンシャル読み込み処理
-  const handleSequentialNavigation = async (direction: 'next' | 'previous') => {
+  const handleSequentialNavigation = async (direction: "next" | "previous") => {
     if (isNavigating()) {
       return;
     }
 
     if (!canNavigate()) {
-      console.warn('[Navigation] 現在の画像でフォルダナビゲーションが利用できません');
+      console.warn(
+        "[Navigation] 現在の画像でフォルダナビゲーションが利用できません",
+      );
       return;
     }
 
@@ -515,14 +581,14 @@ const ImageViewer: Component = () => {
     }
 
     setIsNavigating(true);
-    const loader = direction === 'next' ? loadNextImage : loadPreviousImage;
+    const loader = direction === "next" ? loadNextImage : loadPreviousImage;
     try {
       const success = await loader();
       if (success) {
         resetImagePosition();
       }
     } catch (error) {
-      console.error('[Navigation] 画像ナビゲーションに失敗しました', error);
+      console.error("[Navigation] 画像ナビゲーションに失敗しました", error);
     } finally {
       setIsNavigating(false);
     }
@@ -534,10 +600,10 @@ const ImageViewer: Component = () => {
     setPosition({ x: 0, y: 0 });
     setDisplaySize(null);
     setBaseSize(null);
-    
+
     // 画像変更時にキャッシュをクリア
     clearBoundaryCache();
-    
+
     if (path) {
       setImageSrc(path);
     } else {
@@ -550,26 +616,31 @@ const ImageViewer: Component = () => {
       ref={(el: HTMLDivElement) => (containerEl = el)}
       class="checkerboard-bg group relative flex flex-1 min-h-0 min-w-0 items-center justify-center overflow-hidden transition-colors duration-300"
       classList={{
-        'ring-2 ring-blue-500 ring-offset-2 ring-offset-[var(--bg-primary)]': isDragActive()
+        "ring-2 ring-blue-500 ring-offset-2 ring-offset-[var(--bg-primary)]":
+          isDragActive(),
       }}
     >
       {isDragActive() && (
         <div class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color:rgba(0,0,0,0.35)] text-[var(--glass-text-primary)]">
-          <span class="text-lg font-semibold">ドラッグアンドドロップで画像を開きます</span>
-          <span class="text-label opacity-80">対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF</span>
+          <span class="text-lg font-semibold">
+            ドラッグアンドドロップで画像を開きます
+          </span>
+          <span class="text-label opacity-80">
+            対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
+          </span>
         </div>
       )}
       <button
         type="button"
         class={`absolute inset-y-0 left-0 z-20 flex items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-label font-medium text-[var(--glass-text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
-          'cursor-not-allowed': !canNavigate() || isNavigating()
+          "cursor-not-allowed": !canNavigate() || isNavigating(),
         }}
         disabled={!canNavigate() || isNavigating()}
         onClick={(event) => {
           event.stopPropagation();
           event.preventDefault();
-          void handleSequentialNavigation('previous');
+          void handleSequentialNavigation("previous");
         }}
         onMouseDown={(event) => {
           event.stopPropagation();
@@ -586,13 +657,13 @@ const ImageViewer: Component = () => {
         type="button"
         class={`absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-label font-medium text-[var(--glass-text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
-          'cursor-not-allowed': !canNavigate() || isNavigating()
+          "cursor-not-allowed": !canNavigate() || isNavigating(),
         }}
         disabled={!canNavigate() || isNavigating()}
         onClick={(event) => {
           event.stopPropagation();
           event.preventDefault();
-          void handleSequentialNavigation('next');
+          void handleSequentialNavigation("next");
         }}
         onMouseDown={(event) => {
           event.stopPropagation();
@@ -611,9 +682,9 @@ const ImageViewer: Component = () => {
           <div
             style={{
               // フレックス中央寄せの影響を受けないよう、絶対配置でコンテナ左上を原点にする
-              position: 'absolute',
-              left: '0px',
-              top: '0px',
+              position: "absolute",
+              left: "0px",
+              top: "0px",
               transform: (() => {
                 const container = containerSize();
                 const scale = zoomScale();
@@ -637,7 +708,12 @@ const ImageViewer: Component = () => {
                 let baseWidth = displayWidth / safeScale;
                 let baseHeight = displayHeight / safeScale;
 
-                if (!isFinite(baseWidth) || baseWidth === 0 || !isFinite(baseHeight) || baseHeight === 0) {
+                if (
+                  !isFinite(baseWidth) ||
+                  baseWidth === 0 ||
+                  !isFinite(baseHeight) ||
+                  baseHeight === 0
+                ) {
                   baseWidth = natural.width;
                   baseHeight = natural.height;
                 }
@@ -648,24 +724,33 @@ const ImageViewer: Component = () => {
                 const transformString = `translate(${centerX}px, ${centerY}px) rotate(${currentRotation}deg) scale(${scale}) translate(${-baseWidth / 2}px, ${-baseHeight / 2}px)`;
 
                 // デバッグ用ログ
-                console.log('[Transform Debug] ================');
-                console.log('[Transform] Container size:', container);
-                console.log('[Transform] Display size:', { width: displayWidth, height: displayHeight });
-                console.log('[Transform] Natural size:', natural);
-                console.log('[Transform] Base size (pre-scale):', { width: baseWidth, height: baseHeight });
-                console.log('[Transform] Scale:', scale);
-                console.log('[Transform] Rotation:', currentRotation);
-                console.log('[Transform] Position:', positionValue);
-                console.log('[Transform] Center translation:', { x: centerX, y: centerY });
-                console.log('[Transform] Final transform:', transformString);
-                console.log('[Transform Debug] ================');
+                console.log("[Transform Debug] ================");
+                console.log("[Transform] Container size:", container);
+                console.log("[Transform] Display size:", {
+                  width: displayWidth,
+                  height: displayHeight,
+                });
+                console.log("[Transform] Natural size:", natural);
+                console.log("[Transform] Base size (pre-scale):", {
+                  width: baseWidth,
+                  height: baseHeight,
+                });
+                console.log("[Transform] Scale:", scale);
+                console.log("[Transform] Rotation:", currentRotation);
+                console.log("[Transform] Position:", positionValue);
+                console.log("[Transform] Center translation:", {
+                  x: centerX,
+                  y: centerY,
+                });
+                console.log("[Transform] Final transform:", transformString);
+                console.log("[Transform Debug] ================");
 
                 return transformString;
               })(),
-              'transform-origin': '0 0',
-              'max-width': '100%',
-              'max-height': '100%',
-              cursor: isDragging() ? 'grabbing' : 'grab',
+              "transform-origin": "0 0",
+              "max-width": "100%",
+              "max-height": "100%",
+              cursor: isDragging() ? "grabbing" : "grab",
             }}
             onWheel={handleWheelZoom}
             onMouseDown={handleMouseDown}
@@ -711,4 +796,5 @@ const ImageViewer: Component = () => {
       )}
     </div>
   );
-};export default ImageViewer;
+};
+export default ImageViewer;

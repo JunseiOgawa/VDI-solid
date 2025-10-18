@@ -1,5 +1,5 @@
-import type { Component } from 'solid-js';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import type { Component } from "solid-js";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 /**
  * Titlebarコンポーネントのprops

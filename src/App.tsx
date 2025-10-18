@@ -1,19 +1,19 @@
-import type { Component } from 'solid-js';
-import { onMount } from 'solid-js';
-import { invoke } from '@tauri-apps/api/core';
+import type { Component } from "solid-js";
+import { onMount } from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
 
-import Titlebar from './components/Titlebar';
-import ImageViewer from './components/ImageViewer';
-import ImageGallery from './components/ImageGallery';
-import Footer from './components/Footer';
-import FloatingControlPanel from './components/FloatingControlPanel';
-import { AppProvider, useAppState } from './context/AppStateContext';
-import { handleScreenFit } from './lib/screenfit';
-import { callResetImagePosition, callZoomToCenter } from './lib/imageViewerApi';
-import { convertFileToAssetUrlWithCacheBust } from './lib/fileUtils';
-import { expandWindowForGallery, contractWindowForGallery } from './lib/tauri';
+import Titlebar from "./components/Titlebar";
+import ImageViewer from "./components/ImageViewer";
+import ImageGallery from "./components/ImageGallery";
+import Footer from "./components/Footer";
+import FloatingControlPanel from "./components/FloatingControlPanel";
+import { AppProvider, useAppState } from "./context/AppStateContext";
+import { handleScreenFit } from "./lib/screenfit";
+import { callResetImagePosition, callZoomToCenter } from "./lib/imageViewerApi";
+import { convertFileToAssetUrlWithCacheBust } from "./lib/fileUtils";
+import { expandWindowForGallery, contractWindowForGallery } from "./lib/tauri";
 
-import './App.css';
+import "./App.css";
 
 /**
  * メインコンテンツコンポーネント
@@ -113,13 +113,15 @@ const AppContent: Component = () => {
    */
   const handleImageSelect = async (imagePath: string) => {
     setZoomScale(1);
-    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(imagePath), { filePath: imagePath });
+    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(imagePath), {
+      filePath: imagePath,
+    });
 
     // ギャラリーを閉じる前に状態を更新
     setShowGallery(false);
 
     // トランジション完了を待ってからウィンドウを縮小
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     await contractWindowForGallery();
   };
 
@@ -131,7 +133,7 @@ const AppContent: Component = () => {
           isOpen={showGallery()}
           onClose={async () => {
             setShowGallery(false);
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise((resolve) => setTimeout(resolve, 300));
             await contractWindowForGallery();
           }}
           currentImagePath={currentImageFilePath()}
@@ -202,7 +204,7 @@ const AppMain: Component = () => {
     } else {
       // ギャラリーを閉じる: ギャラリーを非表示にしてからウィンドウを縮小
       setShowGallery(false);
-      await new Promise(resolve => setTimeout(resolve, 300)); // トランジション待ち
+      await new Promise((resolve) => setTimeout(resolve, 300)); // トランジション待ち
       await contractWindowForGallery();
     }
   };
@@ -223,8 +225,8 @@ const App: Component = () => {
   onMount(() => {
     // 次のフレームでウィンドウを表示(レンダリング完了を確実に待つ)
     requestAnimationFrame(() => {
-      invoke('show_window').catch((err: unknown) =>
-        console.error('Failed to show window:', err)
+      invoke("show_window").catch((err: unknown) =>
+        console.error("Failed to show window:", err),
       );
     });
   });

@@ -37,9 +37,9 @@ export interface AppConfig {
     /** ヒストグラムの有効/無効 */
     enabled: boolean;
     /** ヒストグラムの表示タイプ (RGBまたは輝度) */
-    displayType: 'rgb' | 'luminance';
+    displayType: "rgb" | "luminance";
     /** ヒストグラムの表示位置 */
-    position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+    position: "top-right" | "top-left" | "bottom-right" | "bottom-left";
     /** ヒストグラムの表示サイズ倍率 */
     size: number;
     /** ヒストグラムの不透明度 */
@@ -80,8 +80,8 @@ export const CONFIG: AppConfig = {
   },
   histogram: {
     enabled: false, // ヒストグラムの有効/無効
-    displayType: 'rgb', // ヒストグラムの表示タイプ (RGBまたは輝度)
-    position: 'top-right', // ヒストグラムの表示位置
+    displayType: "rgb", // ヒストグラムの表示タイプ (RGBまたは輝度)
+    position: "top-right", // ヒストグラムの表示位置
     size: 1.0, // ヒストグラムの表示サイズ倍率
     opacity: 0.8, // ヒストグラムの不透明度
     minSize: 0.5, // ヒストグラムの最小サイズ倍率

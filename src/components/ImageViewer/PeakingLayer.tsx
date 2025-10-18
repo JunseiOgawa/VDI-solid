@@ -1,12 +1,12 @@
-import type { Component } from 'solid-js';
-import { createSignal, createEffect, Show, onCleanup } from 'solid-js';
+import type { Component } from "solid-js";
+import { createSignal, createEffect, Show, onCleanup } from "solid-js";
 import {
   invokeFocusPeaking,
   edgeToPolylinePoints,
   generatePeakingCacheKey,
   countTotalEdgePoints,
-} from '../../lib/peakingUtils';
-import type { PeakingResult } from '../../lib/peakingUtils';
+} from "../../lib/peakingUtils";
+import type { PeakingResult } from "../../lib/peakingUtils";
 
 interface PeakingLayerProps {
   /** 画像ファイルパス */
@@ -36,11 +36,13 @@ const MAX_CACHE_SIZE = 10;
  * ズーム・回転時も自動的に追従し、ベクター形式なので荒れません。
  */
 const PeakingLayer: Component<PeakingLayerProps> = (props) => {
-  const [peakingData, setPeakingData] = createSignal<PeakingResult | null>(null);
+  const [peakingData, setPeakingData] = createSignal<PeakingResult | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [blinkVisible, setBlinkVisible] = createSignal(true);
-  const [lastImageSrc, setLastImageSrc] = createSignal<string>('');
+  const [lastImageSrc, setLastImageSrc] = createSignal<string>("");
   let abortController: AbortController | null = null;
 
   /**
@@ -67,7 +69,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
 
     if (!path) {
       setPeakingData(null);
-      setLastImageSrc('');
+      setLastImageSrc("");
       return;
     }
 
@@ -83,8 +85,10 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
       });
 
       if (keysToDelete.length > 0) {
-        keysToDelete.forEach(key => peakingCache.delete(key));
-        console.log(`[PeakingLayer] imageSrc changed from "${prevSrc}" to "${src}", cleared ${keysToDelete.length} cache entries for: ${path}`);
+        keysToDelete.forEach((key) => peakingCache.delete(key));
+        console.log(
+          `[PeakingLayer] imageSrc changed from "${prevSrc}" to "${src}", cleared ${keysToDelete.length} cache entries for: ${path}`,
+        );
       }
       setLastImageSrc(src);
     }
@@ -105,7 +109,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
     // 前回のリクエストをキャンセル
     if (abortController) {
       abortController.abort();
-      console.log('[PeakingLayer] 前回のリクエストをキャンセル');
+      console.log("[PeakingLayer] 前回のリクエストをキャンセル");
     }
 
     // 新しいAbortControllerを作成
@@ -123,15 +127,15 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
           addToCache(cacheKey, result);
           setPeakingData(result);
           console.log(
-            `[PeakingLayer] Loaded ${countTotalEdgePoints(result)} edge points for ${cacheKey}`
+            `[PeakingLayer] Loaded ${countTotalEdgePoints(result)} edge points for ${cacheKey}`,
           );
         }
       })
       .catch((err) => {
         if (signal.aborted) {
-          console.log('[PeakingLayer] リクエストがキャンセルされました');
+          console.log("[PeakingLayer] リクエストがキャンセルされました");
         } else {
-          console.error('[PeakingLayer] Failed to load peaking data:', err);
+          console.error("[PeakingLayer] Failed to load peaking data:", err);
           setError(String(err));
         }
       })
@@ -144,7 +148,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   onCleanup(() => {
     if (abortController) {
       abortController.abort();
-      console.log('[PeakingLayer] クリーンアップでキャンセル');
+      console.log("[PeakingLayer] クリーンアップでキャンセル");
     }
   });
 
@@ -152,19 +156,19 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   createEffect(() => {
     if (props.blink) {
       // 点滅モード
-      console.log('[PeakingLayer] Blink mode activated');
-      
+      console.log("[PeakingLayer] Blink mode activated");
+
       const timer = setInterval(() => {
-        setBlinkVisible(prev => {
+        setBlinkVisible((prev) => {
           const next = !prev;
-          console.log('[PeakingLayer] Blink toggle:', next);
+          console.log("[PeakingLayer] Blink toggle:", next);
           return next;
         });
       }, 500);
-      
+
       // クリーンアップ
       onCleanup(() => {
-        console.log('[PeakingLayer] Clearing blink timer');
+        console.log("[PeakingLayer] Clearing blink timer");
         clearInterval(timer);
       });
     } else {
@@ -176,41 +180,41 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
   // 不透明度計算
   const finalOpacity = () => {
     const baseOpacity = props.opacity;
-    
+
     // 点滅モードで非表示状態の場合は0
     if (props.blink && !blinkVisible()) {
       return 0;
     }
-    
+
     return baseOpacity;
   };
 
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
-        width: '100%',
-        height: '100%',
-        'pointer-events': 'none', // クリック・ドラッグを下の画像に通す
-        overflow: 'hidden',
+        width: "100%",
+        height: "100%",
+        "pointer-events": "none", // クリック・ドラッグを下の画像に通す
+        overflow: "hidden",
       }}
     >
       {/* ローディング表示 */}
       <Show when={isLoading()}>
         <div
           style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            padding: '8px 16px',
-            'border-radius': '4px',
-            'font-size': '14px',
-            'z-index': '1000',
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "rgba(0, 0, 0, 0.5)",
+            color: "white",
+            padding: "8px 16px",
+            "border-radius": "4px",
+            "font-size": "14px",
+            "z-index": "1000",
           }}
         >
           Peaking processing...
@@ -221,15 +225,15 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
       <Show when={error()}>
         <div
           style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            background: 'rgba(255, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px',
-            'border-radius': '4px',
-            'font-size': '12px',
-            'z-index': '1000',
+            position: "absolute",
+            top: "10px",
+            left: "10px",
+            background: "rgba(255, 0, 0, 0.8)",
+            color: "white",
+            padding: "8px",
+            "border-radius": "4px",
+            "font-size": "12px",
+            "z-index": "1000",
           }}
         >
           Error: {error()}
@@ -242,9 +246,9 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
           <svg
             viewBox={`0 0 ${data().width} ${data().height}`}
             style={{
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
+              position: "absolute",
+              width: "100%",
+              height: "100%",
             }}
           >
             {data().edges.map((edge) => (
@@ -257,7 +261,7 @@ const PeakingLayer: Component<PeakingLayerProps> = (props) => {
                 fill="none"
                 opacity={finalOpacity()}
                 style={{
-                  'vector-effect': 'non-scaling-stroke', // 線幅をズームで変えない
+                  "vector-effect": "non-scaling-stroke", // 線幅をズームで変えない
                 }}
               />
             ))}

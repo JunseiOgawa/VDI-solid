@@ -1,6 +1,5 @@
-import type { Size } from './boundaryUtils';
-import { callCalculateAndSetScreenFit } from './imageViewerApi';
-
+import type { Size } from "./boundaryUtils";
+import { callCalculateAndSetScreenFit } from "./imageViewerApi";
 
 /**
  * 画像をコンテナ内にアスペクト比を保持して収めるための縮尺（スケール）を計算します。
@@ -21,7 +20,10 @@ import { callCalculateAndSetScreenFit } from './imageViewerApi';
  * // 画像が縦長で縦基準で縮小
  * computeFitScale({ width: 600, height: 800 }, { width: 300, height: 400 }); // => 0.5
  */
-export function computeFitScale(imageSize: Size, containerSize: Size): number | null {
+export function computeFitScale(
+  imageSize: Size,
+  containerSize: Size,
+): number | null {
   const iw = imageSize.width;
   const ih = imageSize.height;
   const cw = containerSize.width;
@@ -33,7 +35,7 @@ export function computeFitScale(imageSize: Size, containerSize: Size): number | 
   const containerAspect = cw / ch;
 
   // 横長なら横幅基準、縦長なら縦幅基準でスケールを算出
-  return imageAspect > containerAspect ? (cw / iw) : (ch / ih);
+  return imageAspect > containerAspect ? cw / iw : ch / ih;
 }
 
 /**

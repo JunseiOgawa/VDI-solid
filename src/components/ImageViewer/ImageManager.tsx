@@ -1,8 +1,8 @@
-import type { Component } from 'solid-js';
-import { Show } from 'solid-js';
-import type { GridPattern } from '../../context/AppStateContext';
-import GridOverlay from './GridOverlay';
-import PeakingLayer from './PeakingLayer';
+import type { Component } from "solid-js";
+import { Show } from "solid-js";
+import type { GridPattern } from "../../context/AppStateContext";
+import GridOverlay from "./GridOverlay";
+import PeakingLayer from "./PeakingLayer";
 
 interface ImageManagerProps {
   /** 画像ソースURL */
@@ -14,7 +14,9 @@ interface ImageManagerProps {
   /** 画像読み込み完了時のコールバック */
   onLoad?: () => void;
   /** 画像解像度変更時のコールバック */
-  onResolutionChange?: (resolution: { width: number; height: number } | null) => void;
+  onResolutionChange?: (
+    resolution: { width: number; height: number } | null,
+  ) => void;
 
   // レイヤー関連props
   /** グリッドパターン */
@@ -59,48 +61,54 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
   };
 
   const handleLoad = () => {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('[ImageManager] 画像読み込み完了');
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("[ImageManager] 画像読み込み完了");
 
     if (imgRef) {
       const rect = imgRef.getBoundingClientRect();
-      console.log('[ImageManager] img.naturalWidth:', imgRef.naturalWidth);
-      console.log('[ImageManager] img.naturalHeight:', imgRef.naturalHeight);
-      console.log('[ImageManager] img.width:', imgRef.width);
-      console.log('[ImageManager] img.height:', imgRef.height);
-      console.log('[ImageManager] img.clientWidth:', imgRef.clientWidth);
-      console.log('[ImageManager] img.clientHeight:', imgRef.clientHeight);
-      console.log('[ImageManager] img.getBoundingClientRect():', {
+      console.log("[ImageManager] img.naturalWidth:", imgRef.naturalWidth);
+      console.log("[ImageManager] img.naturalHeight:", imgRef.naturalHeight);
+      console.log("[ImageManager] img.width:", imgRef.width);
+      console.log("[ImageManager] img.height:", imgRef.height);
+      console.log("[ImageManager] img.clientWidth:", imgRef.clientWidth);
+      console.log("[ImageManager] img.clientHeight:", imgRef.clientHeight);
+      console.log("[ImageManager] img.getBoundingClientRect():", {
         width: rect.width,
-        height: rect.height
+        height: rect.height,
       });
       const computedStyle = getComputedStyle(imgRef);
-      console.log('[ImageManager] img computed style:', {
+      console.log("[ImageManager] img computed style:", {
         width: computedStyle.width,
         height: computedStyle.height,
         display: computedStyle.display,
-        objectFit: computedStyle.objectFit
+        objectFit: computedStyle.objectFit,
       });
 
       // 画像解像度をAppStateContextに設定
       if (props.onResolutionChange) {
         props.onResolutionChange({
           width: imgRef.naturalWidth,
-          height: imgRef.naturalHeight
+          height: imgRef.naturalHeight,
         });
       }
     }
 
     if (wrapperRef) {
       const wrapperRect = wrapperRef.getBoundingClientRect();
-      console.log('[ImageManager] wrapper.clientWidth:', wrapperRef.clientWidth);
-      console.log('[ImageManager] wrapper.clientHeight:', wrapperRef.clientHeight);
-      console.log('[ImageManager] wrapper.getBoundingClientRect():', {
+      console.log(
+        "[ImageManager] wrapper.clientWidth:",
+        wrapperRef.clientWidth,
+      );
+      console.log(
+        "[ImageManager] wrapper.clientHeight:",
+        wrapperRef.clientHeight,
+      );
+      console.log("[ImageManager] wrapper.getBoundingClientRect():", {
         width: wrapperRect.width,
-        height: wrapperRect.height
+        height: wrapperRect.height,
       });
     }
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     if (props.onLoad) {
       props.onLoad();
@@ -111,8 +119,8 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
     <div
       ref={(el) => (wrapperRef = el)}
       style={{
-        position: 'relative',
-        display: 'inline-block',
+        position: "relative",
+        display: "inline-block",
       }}
     >
       {/* Layer 1: 基礎画像 */}
@@ -123,11 +131,11 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
         onLoad={handleLoad}
         onDragStart={(e) => e.preventDefault()}
         style={{
-          display: 'block',
-          width: 'auto',
-          height: 'auto',
-          'max-width': 'none',
-          'max-height': 'none',
+          display: "block",
+          width: "auto",
+          height: "auto",
+          "max-width": "none",
+          "max-height": "none",
         }}
       />
 
@@ -144,7 +152,10 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
       </Show>
 
       {/* Layer 3: グリッドオーバーレイ */}
-      <GridOverlay gridPattern={props.gridPattern} gridOpacity={props.gridOpacity} />
+      <GridOverlay
+        gridPattern={props.gridPattern}
+        gridOpacity={props.gridOpacity}
+      />
 
       {/* 将来のレイヤー追加位置 */}
       {/* Layer 4: ... */}

@@ -1,9 +1,14 @@
-import type { Component } from 'solid-js';
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
-import { useAppState } from '../../context/AppStateContext';
+import type { Component } from "solid-js";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useAppState } from "../../context/AppStateContext";
 
 const Footer: Component = () => {
-  const { currentImagePath, currentImageFilePath, imageResolution, showFullPath } = useAppState();
+  const {
+    currentImagePath,
+    currentImageFilePath,
+    imageResolution,
+    showFullPath,
+  } = useAppState();
 
   // ファイル名を抽出する関数
   const getFileName = (path: string) => {
@@ -19,7 +24,7 @@ const Footer: Component = () => {
     const path = filePath || imagePath;
 
     if (!path) {
-      return 'No image loaded';
+      return "No image loaded";
     }
 
     // フルパス表示設定に応じて表示を切り替え
@@ -32,7 +37,7 @@ const Footer: Component = () => {
     if (resolution) {
       return `${resolution.width}×${resolution.height}`;
     }
-    return '---';
+    return "---";
   };
 
   // エクスプローラで開く処理
@@ -40,14 +45,14 @@ const Footer: Component = () => {
     const filePath = currentImageFilePath();
     if (filePath) {
       try {
-        console.log('[Footer Explorer] Opening file in explorer:', filePath);
+        console.log("[Footer Explorer] Opening file in explorer:", filePath);
         await revealItemInDir(filePath);
-        console.log('[Footer Explorer] Successfully opened in explorer');
+        console.log("[Footer Explorer] Successfully opened in explorer");
       } catch (error) {
-        console.error('[Footer Explorer] Failed to open in explorer:', error);
+        console.error("[Footer Explorer] Failed to open in explorer:", error);
       }
     } else {
-      console.warn('[Footer Explorer] No file path available');
+      console.warn("[Footer Explorer] No file path available");
     }
   };
 
@@ -56,9 +61,7 @@ const Footer: Component = () => {
       <div class="mx-auto flex h-8 max-w-5xl items-center justify-between overflow-hidden">
         {/* 左側: 解像度 */}
         <div class="flex-shrink-0 w-32">
-          <p class="whitespace-nowrap text-tabular">
-            {displayResolution()}
-          </p>
+          <p class="whitespace-nowrap text-tabular">{displayResolution()}</p>
         </div>
 
         {/* 中央: ファイルパス */}

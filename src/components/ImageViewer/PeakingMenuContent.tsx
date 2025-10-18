@@ -150,7 +150,9 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
       <div class="space-y-1">
         <div class="flex justify-between text-label">
           <span class="text-[var(--glass-text-primary)]">強度</span>
-          <span class="text-[var(--glass-text-secondary)] text-tabular">{tempIntensity()}</span>
+          <span class="text-[var(--glass-text-secondary)] text-tabular">
+            {tempIntensity()}
+          </span>
         </div>
         <input
           type="range"
@@ -219,7 +221,9 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
           class="h-4 w-4 cursor-pointer accent-white/80"
           disabled={!props.peakingEnabled}
         />
-        <span class="text-label text-[var(--glass-text-primary)]">ピーキング点滅</span>
+        <span class="text-label text-[var(--glass-text-primary)]">
+          ピーキング点滅
+        </span>
       </label>
     </div>
   );

@@ -1,7 +1,14 @@
-import type { Component } from 'solid-js';
-import { createSignal, createEffect, For, Show, onMount, onCleanup } from 'solid-js';
-import { invoke } from '@tauri-apps/api/core';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import type { Component } from "solid-js";
+import {
+  createSignal,
+  createEffect,
+  For,
+  Show,
+  onMount,
+  onCleanup,
+} from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 /**
  * ImageGalleryコンポーネントのProps
@@ -21,7 +28,7 @@ interface ImageGalleryProps {
  * ファイルパスからファイル名のみを抽出
  */
 const getFileName = (path: string): string => {
-  return path.split(/[\\/]/).pop() || '';
+  return path.split(/[\\/]/).pop() || "";
 };
 
 /**
@@ -30,7 +37,7 @@ const getFileName = (path: string): string => {
 const getParentFolder = (path: string): string | null => {
   const parts = path.split(/[\\/]/);
   parts.pop(); // ファイル名を削除
-  return parts.length > 0 ? parts.join('\\') : null;
+  return parts.length > 0 ? parts.join("\\") : null;
 };
 
 /**
@@ -58,20 +65,20 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
     setIsLoading(true);
     setError(null);
 
-    invoke<string[]>('get_folder_images', { folderPath: parentFolder })
+    invoke<string[]>("get_folder_images", { folderPath: parentFolder })
       .then((images) => {
         if (images && images.length > 0) {
           setFolderImages(images);
           setError(null);
         } else {
           setFolderImages([]);
-          setError('画像が見つかりませんでした');
+          setError("画像が見つかりませんでした");
         }
       })
       .catch((err) => {
-        console.error('画像一覧の取得に失敗しました:', err);
+        console.error("画像一覧の取得に失敗しました:", err);
         setFolderImages([]);
-        setError('画像一覧の取得に失敗しました');
+        setError("画像一覧の取得に失敗しました");
       })
       .finally(() => {
         setIsLoading(false);
@@ -86,7 +93,7 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
       // ギャラリー内、またはギャラリーボタンのクリックは無視
       if (
         target.closest('[data-gallery="sidebar"]') ||
-        target.closest('#galleryBtn')
+        target.closest("#galleryBtn")
       ) {
         return;
       }
@@ -97,10 +104,10 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
 
     onCleanup(() => {
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     });
   });
 
@@ -108,15 +115,18 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
     <div
       data-gallery="sidebar"
       class={`fixed left-0 top-8 bottom-0 w-64 bg-[var(--glass-bg-primary)] backdrop-blur-xl border-r border-[var(--glass-border-subtle)] transform transition-transform duration-300 z-[60] ${
-        props.isOpen ? 'translate-x-0' : '-translate-x-full'
+        props.isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
       {/* ヘッダー */}
       <div class="bg-[var(--glass-bg-secondary)] backdrop-blur-lg border-b border-[var(--glass-border-emphasis)] flex items-center justify-between p-2">
         <div class="flex flex-col min-w-0 flex-1">
-          <span class="text-[var(--glass-text-primary)] text-sm font-medium">画像一覧</span>
+          <span class="text-[var(--glass-text-primary)] text-sm font-medium">
+            画像一覧
+          </span>
           <span class="text-[var(--glass-text-muted)] text-caption truncate">
-            {getParentFolder(props.currentImagePath || '') || 'フォルダが選択されていません'}
+            {getParentFolder(props.currentImagePath || "") ||
+              "フォルダが選択されていません"}
           </span>
         </div>
         <button
@@ -144,7 +154,9 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
       {/* 画像リスト */}
       <div class="overflow-y-auto h-full p-2 space-y-2 pb-4">
         <Show when={isLoading()}>
-          <div class="text-white/60 text-sm text-center py-4">読み込み中...</div>
+          <div class="text-white/60 text-sm text-center py-4">
+            読み込み中...
+          </div>
         </Show>
 
         <Show when={!isLoading() && error()}>
@@ -162,8 +174,8 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
             <div
               class={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                 imagePath === props.currentImagePath
-                  ? 'border-blue-500/50 bg-blue-500/20'
-                  : 'border-transparent hover:border-white/[0.1] hover:bg-white/[0.08]'
+                  ? "border-blue-500/50 bg-blue-500/20"
+                  : "border-transparent hover:border-white/[0.1] hover:bg-white/[0.08]"
               }`}
               onClick={() => {
                 props.onImageSelect(imagePath);

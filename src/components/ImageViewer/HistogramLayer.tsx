@@ -1,26 +1,31 @@
-import { createEffect, createSignal, onCleanup, type Component } from 'solid-js';
-import { invoke } from '@tauri-apps/api/core';
-import { CONFIG } from '../../config/config';
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  type Component,
+} from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
+import { CONFIG } from "../../config/config";
 
 interface HistogramLayerProps {
   imagePath: string | null;
   imageSrc: string | null;
   enabled: boolean;
-  displayType: 'rgb' | 'luminance';
-  position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  displayType: "rgb" | "luminance";
+  position: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   size: number;
   opacity: number;
 }
 
 interface HistogramDataRGB {
-  type: 'RGB';
+  type: "RGB";
   r: number[];
   g: number[];
   b: number[];
 }
 
 interface HistogramDataLuminance {
-  type: 'Luminance';
+  type: "Luminance";
   y: number[];
 }
 
@@ -40,7 +45,8 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
   let canvasRef: HTMLCanvasElement | undefined;
   let abortController: AbortController | null = null;
 
-  const [histogramData, setHistogramData] = createSignal<HistogramResult | null>(null);
+  const [histogramData, setHistogramData] =
+    createSignal<HistogramResult | null>(null);
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
 
   // キャンバスの幅と高さ（ベースサイズ）
@@ -50,9 +56,9 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
   // Rust側のcalculate_histogramコマンドを呼び出す
   const invokeCalculateHistogram = async (
     imagePath: string,
-    displayType: string
+    displayType: string,
   ): Promise<HistogramResult> => {
-    const result = await invoke<HistogramResult>('calculate_histogram', {
+    const result = await invoke<HistogramResult>("calculate_histogram", {
       imagePath,
       displayType,
       requestId: `${imagePath}:${displayType}`,
@@ -65,25 +71,25 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     ctx: CanvasRenderingContext2D,
     data: HistogramData,
     width: number,
-    height: number
+    height: number,
   ) => {
     // キャンバスをクリア
     ctx.clearRect(0, 0, width, height);
 
     // 背景を半透明の黒で塗りつぶし
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(0, 0, width, height);
 
-    if (data.type === 'RGB') {
+    if (data.type === "RGB") {
       // RGB別表示
       const { r, g, b } = data;
-      drawHistogramLine(ctx, r, width, height, 'rgba(255, 0, 0, 0.7)');
-      drawHistogramLine(ctx, g, width, height, 'rgba(0, 255, 0, 0.7)');
-      drawHistogramLine(ctx, b, width, height, 'rgba(0, 0, 255, 0.7)');
+      drawHistogramLine(ctx, r, width, height, "rgba(255, 0, 0, 0.7)");
+      drawHistogramLine(ctx, g, width, height, "rgba(0, 255, 0, 0.7)");
+      drawHistogramLine(ctx, b, width, height, "rgba(0, 0, 255, 0.7)");
     } else {
       // 輝度表示
       const { y } = data;
-      drawHistogramLine(ctx, y, width, height, 'rgba(255, 255, 255, 0.8)');
+      drawHistogramLine(ctx, y, width, height, "rgba(255, 255, 255, 0.8)");
     }
   };
 
@@ -93,7 +99,7 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     histogram: number[],
     width: number,
     height: number,
-    color: string
+    color: string,
   ) => {
     if (histogram.length === 0) return;
 
@@ -159,7 +165,7 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     // 前回のリクエストをキャンセル
     if (abortController) {
       abortController.abort();
-      console.log('[HistogramLayer] 前回のリクエストをキャンセル');
+      console.log("[HistogramLayer] 前回のリクエストをキャンセル");
     }
 
     // 新しいAbortControllerを作成
@@ -171,7 +177,7 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       .then((result) => {
         // キャンセルされていないか確認
         if (currentController.signal.aborted) {
-          console.log('[HistogramLayer] リクエストがキャンセルされました');
+          console.log("[HistogramLayer] リクエストがキャンセルされました");
           return;
         }
 
@@ -195,10 +201,10 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       })
       .catch((error) => {
         if (currentController.signal.aborted) {
-          console.log('[HistogramLayer] リクエストがキャンセルされました');
+          console.log("[HistogramLayer] リクエストがキャンセルされました");
           return;
         }
-        console.error('[HistogramLayer] ヒストグラム取得エラー:', error);
+        console.error("[HistogramLayer] ヒストグラム取得エラー:", error);
         setHistogramData(null);
         setIsLoading(false);
       });
@@ -214,7 +220,7 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       return;
     }
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
       return;
     }
@@ -229,22 +235,22 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     // 処理中の場合は「処理中...」と表示
     if (loading) {
       // 背景を半透明の黒で塗りつぶし
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
       ctx.fillRect(0, 0, width, height);
 
       // 「処理中...」テキストを表示
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
       ctx.font = `${14 * props.size}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('処理中...', width / 2, height / 2);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("処理中...", width / 2, height / 2);
       return;
     }
 
     // データがない場合は何も描画しない
     if (!data) {
       // 背景を半透明の黒で塗りつぶし（空の状態を示す）
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
       ctx.fillRect(0, 0, width, height);
       return;
     }
@@ -263,23 +269,23 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
   // 位置に応じたスタイル
   const getPositionStyle = () => {
     const base = {
-      position: 'absolute' as const,
-      'pointer-events': 'none' as const,
-      'z-index': 30,
-      margin: '10px',
+      position: "absolute" as const,
+      "pointer-events": "none" as const,
+      "z-index": 30,
+      margin: "10px",
     };
 
     switch (props.position) {
-      case 'top-right':
-        return { ...base, top: '0', right: '0' };
-      case 'top-left':
-        return { ...base, top: '0', left: '0' };
-      case 'bottom-right':
-        return { ...base, bottom: '0', right: '0' };
-      case 'bottom-left':
-        return { ...base, bottom: '0', left: '0' };
+      case "top-right":
+        return { ...base, top: "0", right: "0" };
+      case "top-left":
+        return { ...base, top: "0", left: "0" };
+      case "bottom-right":
+        return { ...base, bottom: "0", right: "0" };
+      case "bottom-left":
+        return { ...base, bottom: "0", left: "0" };
       default:
-        return { ...base, top: '0', right: '0' };
+        return { ...base, top: "0", right: "0" };
     }
   };
 
@@ -289,9 +295,9 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       style={{
         ...getPositionStyle(),
         opacity: props.opacity,
-        border: '1px solid rgba(255, 255, 255, 0.3)',
-        'border-radius': '4px',
-        'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.3)',
+        border: "1px solid rgba(255, 255, 255, 0.3)",
+        "border-radius": "4px",
+        "box-shadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
       }}
     />
   );
