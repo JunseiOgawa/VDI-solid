@@ -550,18 +550,18 @@ const ImageViewer: Component = () => {
       ref={(el: HTMLDivElement) => (containerEl = el)}
       class="checkerboard-bg group relative flex flex-1 min-h-0 min-w-0 items-center justify-center overflow-hidden transition-colors duration-300"
       classList={{
-        'ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg-primary)]': isDragActive()
+        'ring-2 ring-blue-500 ring-offset-2 ring-offset-[var(--bg-primary)]': isDragActive()
       }}
     >
       {isDragActive() && (
-        <div class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color:rgba(0,0,0,0.35)] text-[var(--text-primary)]">
+        <div class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color:rgba(0,0,0,0.35)] text-[var(--glass-text-primary)]">
           <span class="text-lg font-semibold">ドラッグアンドドロップで画像を開きます</span>
-          <span class="text-sm opacity-80">対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF</span>
+          <span class="text-label opacity-80">対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF</span>
         </div>
       )}
       <button
         type="button"
-        class={`absolute inset-y-0 left-0 z-20 flex items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
+        class={`absolute inset-y-0 left-0 z-20 flex items-center justify-start bg-gradient-to-r from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-left text-label font-medium text-[var(--glass-text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
@@ -584,7 +584,7 @@ const ImageViewer: Component = () => {
       </button>
       <button
         type="button"
-        class={`absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-sm font-medium text-[var(--text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
+        class={`absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-gradient-to-l from-[color:rgba(0,0,0,0.35)] to-transparent px-4 text-right text-label font-medium text-[var(--glass-text-primary)] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity duration-200`}
         classList={{
           'cursor-not-allowed': !canNavigate() || isNavigating()
         }}
@@ -705,7 +705,7 @@ const ImageViewer: Component = () => {
           </Show>
         </>
       ) : (
-        <div class="rounded-md border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+        <div class="rounded-md border border-dashed border-[var(--glass-border-emphasis)] bg-[var(--glass-bg-secondary)] backdrop-blur-xl px-4 py-3 text-label text-[var(--glass-text-secondary)]">
           No image selected
         </div>
       )}

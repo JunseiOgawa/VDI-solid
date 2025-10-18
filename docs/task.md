@@ -2188,3 +2188,319 @@ applyDeadzone(value: number): number {
 - `src/components/Titlebar/index.tsx`
 - `src/App.tsx`
 - `src/context/AppStateContext.tsx`
+
+---
+
+# Modern Glassmorphism + Dark UI 改革タスク
+
+## 概要
+
+UIを**Modern Glassmorphism + Dark UI**スタイルに全面刷新する。段階的な移行により、常に動作する状態を維持する。
+
+---
+
+## フェーズ1: 基盤整備
+
+### タスク1.1: CSS変数とユーティリティクラスの定義
+
+**目的**: 新しいデザインシステムの基盤となるCSS変数とユーティリティクラスを定義
+
+**ファイル**:
+- `src/App.css`
+
+**作業内容**:
+- [ ] 既存のCSS変数を確認
+- [ ] ダークテーマ用のガラスモーフィズムCSS変数を追加
+  - `--glass-bg-primary`
+  - `--glass-bg-secondary`
+  - `--glass-border-subtle`
+  - `--glass-border-emphasis`
+  - `--glass-text-primary`
+  - `--glass-text-secondary`
+  - `--glass-text-muted`
+- [ ] ライトテーマ用のガラスモーフィズムCSS変数を追加
+- [ ] タイポグラフィ用ユーティリティクラスを追加
+  - `.text-tabular` - tabular-nums適用
+  - `.text-caption` - 11px
+  - `.text-label` - 12px
+  - `.text-small` - 13px
+- [ ] ビルドが成功することを確認
+
+**検証**:
+- `npm run build`が成功する
+- 既存のUIが正常に表示される（変数追加のみなので、見た目は変わらない）
+
+---
+
+## フェーズ2: コンポーネント移行
+
+### タスク2.1: Titlebar コンポーネントの移行
+
+**目的**: Titlebarを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/Titlebar/index.tsx`
+
+**作業内容**:
+- [ ] インラインスタイル（`<style>`タグ）を削除
+- [ ] TailwindCSSクラスを適用
+  - 背景: `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - ボーダー: `border-[var(--glass-border-subtle)]`
+- [ ] ウィンドウコントロールボタンのホバーエフェクトを実装
+  - `hover:bg-white/[0.15] hover:scale-105`
+  - `active:scale-98`
+- [ ] ギャラリーボタンのスタイル統一
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- ウィンドウコントロールボタン（最小化、最大化、閉じる）が正常に動作
+- ギャラリーボタンが正常に動作
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.2: Footer コンポーネントの移行
+
+**目的**: Footerを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/Footer/index.tsx`
+
+**作業内容**:
+- [ ] 背景とボーダーをガラスモーフィズムスタイルに変更
+  - `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - `border-[var(--glass-border-subtle)]`
+- [ ] テキストスタイルを更新
+  - 解像度表示に`text-tabular`クラスを適用
+  - ファイルパスに適切なテキストカラーを適用
+- [ ] エクスプローラボタンのスタイルを更新
+  - ホバーエフェクト: `hover:bg-white/[0.15] hover:scale-105`
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- 解像度表示が等幅フォントで表示される
+- エクスプローラボタンが正常に動作
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.3: FloatingControlPanel コンポーネントの移行
+
+**目的**: FloatingControlPanelを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/FloatingControlPanel/index.tsx`
+
+**作業内容**:
+- [ ] インラインスタイル（`<style>`タグ）を削除
+- [ ] メインパネルのスタイルをTailwindクラスに変更
+  - `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - `border border-[var(--glass-border-subtle)]`
+- [ ] ボタンのスタイルを更新
+  - 通常時: `bg-transparent`
+  - ホバー時: `hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105`
+  - アクティブ時: `active:bg-white/[0.1] active:scale-98`
+- [ ] トグルボタンのスタイルを更新
+- [ ] ズーム倍率表示に`text-tabular`クラスを適用
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- すべてのボタンが正常に動作（ズームイン/アウト、リセット、画面フィット、回転、マルチメニュー、設定）
+- トグルボタンでパネルの展開/折りたたみが正常に動作
+- ズーム倍率が等幅フォントで表示される
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.4: ImageGallery コンポーネントの移行
+
+**目的**: ImageGalleryを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/ImageGallery/index.tsx`
+
+**作業内容**:
+- [ ] インラインスタイル（`<style>`タグ）を削除
+- [ ] メインパネルのスタイルをTailwindクラスに変更
+  - `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - `border-r border-[var(--glass-border-subtle)]`
+- [ ] ヘッダーのスタイルを更新
+  - `bg-[var(--glass-bg-secondary)] backdrop-blur-lg`
+  - フォルダパス表示に`text-caption`または`text-label`を適用
+- [ ] サムネイル項目のスタイルを更新
+  - 通常時: `border-transparent`
+  - ホバー時: `hover:border-white/[0.1] hover:bg-white/[0.08]`
+  - 選択時: `border-blue-500/50 bg-blue-500/20`
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- ギャラリーの開閉が正常に動作
+- サムネイルのクリックで画像が選択される
+- 選択中の画像が視覚的に区別される
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.5: SettingsMenu コンポーネントの移行
+
+**目的**: SettingsMenuを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/SettingsMenu/index.tsx`
+
+**作業内容**:
+- [ ] インラインスタイル（`<style>`タグ）がある場合は削除
+- [ ] メニューパネルのスタイルをTailwindクラスに変更
+  - `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - `border border-[var(--glass-border-subtle)]`
+- [ ] メニュー項目のスタイルを更新
+  - 通常時: `bg-transparent`
+  - ホバー時: `hover:bg-white/[0.08] hover:backdrop-blur-sm`
+  - 選択時: `bg-blue-500/20 border-blue-500/50`
+- [ ] ラベルテキストに`text-label`または`text-small`を適用
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- 設定メニューが正常に開閉する
+- テーマ切り替えが正常に動作
+- ホイール感度調整が正常に動作
+- フルパス表示切り替えが正常に動作
+- コントロールパネル位置切り替えが正常に動作
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.6: MultiMenu コンポーネントの移行
+
+**目的**: MultiMenuを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/ImageViewer/MultiMenu.tsx`
+- `src/components/ImageViewer/GridMenuContent.tsx`
+- `src/components/ImageViewer/PeakingMenuContent.tsx`
+- `src/components/ImageViewer/HistogramMenuContent.tsx`
+
+**作業内容**:
+- [ ] MultiMenu本体のスタイルをTailwindクラスに変更
+  - `bg-[var(--glass-bg-primary)] backdrop-blur-xl`
+  - `border border-[var(--glass-border-subtle)]`
+- [ ] タブボタンのスタイルを更新
+  - 通常時: `bg-transparent`
+  - ホバー時: `hover:bg-white/[0.08]`
+  - 選択時: `bg-blue-500/20 border-blue-500/50`
+- [ ] 各サブメニューのスタイルを更新
+- [ ] スライダー、トグルボタンのスタイルを統一
+- [ ] ラベルに`text-label`または`text-small`を適用
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- マルチメニューが正常に開閉する
+- グリッド表示の設定が正常に動作
+- ピーキングの設定が正常に動作
+- ヒストグラムの設定が正常に動作
+- タブ切り替えが正常に動作
+- ホバーエフェクトが適切に表示される
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+### タスク2.7: ImageViewer関連コンポーネントの移行
+
+**目的**: ImageViewerとその関連コンポーネントを新しいスタイルに移行
+
+**ファイル**:
+- `src/components/ImageViewer/index.tsx`
+- `src/components/ImageViewer/GridOverlay.tsx`
+- `src/components/ImageViewer/PeakingLayer.tsx`
+- `src/components/ImageViewer/HistogramLayer.tsx`
+
+**作業内容**:
+- [ ] GridOverlayのスタイルを確認（必要に応じて調整）
+- [ ] PeakingLayerのスタイルを確認（必要に応じて調整）
+- [ ] HistogramLayerのスタイルをTailwindクラスに変更
+  - パネル: `bg-[var(--glass-bg-primary)] backdrop-blur-lg`
+  - ラベルに`text-label`を適用
+- [ ] ビルドと動作確認
+
+**検証**:
+- `npm run build`が成功する
+- グリッド表示が正常に動作
+- ピーキング表示が正常に動作
+- ヒストグラム表示が正常に動作
+- 各機能のオン/オフが正常に動作
+- ダーク/ライトモード切り替えが正常に動作
+
+---
+
+## フェーズ3: 検証とリファインメント
+
+### タスク3.1: 全体的な一貫性の確認
+
+**目的**: すべてのコンポーネントのスタイルが統一されていることを確認
+
+**作業内容**:
+- [ ] すべてのコンポーネントでインラインスタイルが削除されていることを確認
+- [ ] ガラスモーフィズムの表現が統一されていることを確認
+- [ ] ボーダーの太さと透明度が統一されていることを確認
+- [ ] ホバーエフェクトが統一されていることを確認
+- [ ] タイポグラフィが統一されていることを確認
+
+**検証**:
+- 視覚的にすべてのコンポーネントが統一されたデザインになっている
+- ダーク/ライトモード両方で適切に表示される
+
+---
+
+### タスク3.2: インタラクションの微調整
+
+**目的**: すべてのインタラクションが適切に動作することを確認
+
+**作業内容**:
+- [ ] すべてのボタンのホバーエフェクトを確認
+- [ ] すべてのメニューの開閉アニメーションを確認
+- [ ] すべてのトグル操作を確認
+- [ ] 必要に応じてトランジション速度を微調整
+
+**検証**:
+- すべてのインタラクションが滑らかで自然
+- ホバーエフェクトが視覚的に適切
+- アニメーションが快適な速度
+
+---
+
+### タスク3.3: ドキュメント更新
+
+**目的**: 新しいデザインシステムのドキュメントを整備
+
+**作業内容**:
+- [ ] 新しいCSS変数の使用方法をドキュメント化
+- [ ] 新しいユーティリティクラスの使用方法をドキュメント化
+- [ ] コンポーネントごとのスタイルガイドを作成（必要に応じて）
+- [ ] メモリに新しいスタイルガイドを記録
+
+**検証**:
+- ドキュメントが最新の状態になっている
+- 今後の開発者が新しいスタイルシステムを理解できる
+
+---
+
+## 完了条件
+
+- [ ] すべてのコンポーネントでインラインスタイルが削除されている
+- [ ] すべてのコンポーネントがTailwindCSSクラスでスタイリングされている
+- [ ] ダーク/ライトモード両方で適切に動作する
+- [ ] すべての既存機能が正常に動作する
+- [ ] `npm run build`が成功する
+- [ ] 視覚的に統一されたデザインになっている
+

@@ -75,9 +75,9 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           type="checkbox"
           checked={props.histogramEnabled}
           onChange={handleEnabledChange}
-          class="h-4 w-4 cursor-pointer accent-[var(--accent-primary)]"
+          class="h-4 w-4 cursor-pointer accent-white/80"
         />
-        <span class="text-sm text-[var(--text-primary)]">有効化</span>
+        <span class="text-label text-[var(--glass-text-primary)]">有効化</span>
       </label>
 
       {/* ヒストグラム詳細設定（有効時のみ表示） */}
@@ -86,13 +86,13 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           {/* 表示タイプ選択 */}
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-[var(--text-primary)]">
+              <span class="text-label font-medium text-[var(--glass-text-primary)]">
                 表示タイプ
               </span>
               <select
                 value={props.histogramDisplayType}
                 onChange={handleDisplayTypeChange}
-                class="cursor-pointer rounded border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                class="cursor-pointer rounded border border-[var(--glass-border-emphasis)] bg-white/[0.1] px-2 py-1 text-label text-[var(--glass-text-primary)] transition-colors hover:bg-white/[0.15]"
               >
                 <option value="rgb">RGB別</option>
                 <option value="luminance">輝度のみ</option>
@@ -103,13 +103,13 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           {/* 表示位置選択 */}
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-[var(--text-primary)]">
+              <span class="text-label font-medium text-[var(--glass-text-primary)]">
                 表示位置
               </span>
               <select
                 value={props.histogramPosition}
                 onChange={handlePositionChange}
-                class="cursor-pointer rounded border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                class="cursor-pointer rounded border border-[var(--glass-border-emphasis)] bg-white/[0.1] px-2 py-1 text-label text-[var(--glass-text-primary)] transition-colors hover:bg-white/[0.15]"
               >
                 <option value="top-right">右上</option>
                 <option value="top-left">左上</option>
@@ -122,7 +122,7 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           {/* サイズスライダー */}
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-[var(--text-primary)]">
+              <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
                 サイズ: {props.histogramSize.toFixed(1)}x
               </span>
               <input
@@ -132,7 +132,7 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
                 step="0.1"
                 value={props.histogramSize}
                 onInput={handleSizeChange}
-                class="w-full cursor-pointer accent-[var(--accent-primary)]"
+                class="w-full cursor-pointer accent-white/80"
               />
             </label>
           </div>
@@ -140,7 +140,7 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           {/* 不透明度スライダー */}
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-[var(--text-primary)]">
+              <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
                 不透明度: {(props.histogramOpacity * 100).toFixed(0)}%
               </span>
               <input
@@ -150,7 +150,7 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
                 step="0.01"
                 value={props.histogramOpacity}
                 onInput={handleOpacityChange}
-                class="w-full cursor-pointer accent-[var(--accent-primary)]"
+                class="w-full cursor-pointer accent-white/80"
               />
             </label>
           </div>

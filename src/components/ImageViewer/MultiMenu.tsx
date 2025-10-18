@@ -70,22 +70,21 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
    */
   const segmentButtonClass = (segment: SegmentType) => {
     const isActive = activeSegment() === segment;
-    return `relative flex-1 px-4 py-2 text-sm font-medium transition-all duration-200 ease-out ${
+    return `relative flex-1 px-4 py-2 text-label font-medium transition-all duration-200 ${
       isActive
-        ? "text-[var(--accent-primary)]"
-        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        ? "text-blue-400"
+        : "text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)]"
     }`;
   };
 
 
   return (
-    <>
     <div
-      class="min-w-[280px] rounded-lg glass-menu shadow-lg"
+      class="min-w-[280px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)]"
       data-menu="multi"
     >
       {/* セグメントコントロール */}
-      <div class="relative flex border-b border-[var(--border-secondary)]">
+      <div class="relative flex border-b border-[var(--glass-border-emphasis)]">
         {/* グリッドセグメント */}
         <button
           type="button"
@@ -98,7 +97,7 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
         </button>
 
         {/* セグメント区切り線 */}
-        <div class="w-px bg-[var(--border-secondary)]" />
+        <div class="w-px bg-[var(--glass-border-subtle)]" />
 
         {/* ピーキングセグメント */}
         <button
@@ -112,7 +111,7 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
         </button>
 
         {/* セグメント区切り線 */}
-        <div class="w-px bg-[var(--border-secondary)]" />
+        <div class="w-px bg-[var(--glass-border-subtle)]" />
 
         {/* ヒストグラムセグメント */}
         <button
@@ -127,7 +126,7 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
 
         {/* アクティブセグメントの下線 */}
         <div
-          class="absolute bottom-0 h-0.5 bg-[var(--accent-primary)] transition-all duration-200 ease-out"
+          class="absolute bottom-0 h-0.5 bg-blue-500 transition-all duration-200"
           style={{
             width: "33.333%",
             left:
@@ -198,22 +197,6 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
         </div>
       </div>
     </div>
-
-    <style>
-      {`
-        .glass-menu {
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(20px) saturate(180%);
-          -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          box-shadow:
-            0 8px 32px 0 rgba(0, 0, 0, 0.37),
-            inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-            0 0 0 1px rgba(0, 0, 0, 0.1);
-        }
-      `}
-    </style>
-  </>
   );
 };
 

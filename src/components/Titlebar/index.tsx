@@ -17,7 +17,7 @@ interface TitlebarProps {
  */
 const Titlebar: Component<TitlebarProps> = (props) => {
   const windowButtonClasses =
-    "no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]";
+    "no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98";
 
   const handleMinimize = async () => {
     const appWindow = getCurrentWindow();
@@ -41,7 +41,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
 
   return (
     <div
-      class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] transition-colors duration-300"
+      class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--glass-border-subtle)] bg-[var(--glass-bg-primary)] backdrop-blur-xl px-2 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
       data-tauri-drag-region
     >
       {/* 左側: ギャラリー展開ボタン */}
@@ -108,7 +108,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
         </button>
         <button
           id="closeBtn"
-          class={`${windowButtonClasses} hover:bg-red-500 hover:text-white`}
+          class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-red-500/90 hover:text-white hover:scale-105 active:scale-98"
           onClick={handleClose}
           aria-label="閉じる"
         >

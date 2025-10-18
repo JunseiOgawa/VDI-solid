@@ -37,12 +37,11 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   };
 
   return (
-    <>
-    <div class="min-w-[160px] rounded-lg glass-menu p-1 text-sm text-white/80 transition-colors duration-150">
+    <div class="min-w-[160px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] p-1 text-sm text-[var(--glass-text-secondary)] transition-colors duration-150">
       <div class="py-1">
         {/* テーマ設定 */}
         <button
-          class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors duration-150 hover:bg-white/10 hover:text-white rounded"
+          class="flex w-full items-center justify-between px-3 py-2 text-left transition-all duration-200 hover:bg-white/[0.08] hover:backdrop-blur-sm hover:text-[var(--glass-text-primary)] rounded"
           onClick={toggleThemeSubmenu}
         >
           <span>テーマ設定</span>
@@ -58,16 +57,16 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               {(themeDef) => (
                 <button
                   type="button"
-                  class="aria-[checked=true]:bg-white/15 aria-[checked=true]:text-white w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-white/10 hover:text-white rounded"
+                  class="aria-[checked=true]:bg-blue-500/20 aria-[checked=true]:border aria-[checked=true]:border-blue-500/50 aria-[checked=true]:text-[var(--glass-text-primary)] w-full px-3 py-2 text-left transition-all duration-200 hover:bg-white/[0.08] hover:backdrop-blur-sm hover:text-[var(--glass-text-primary)] rounded"
                   role="menuitemradio"
                   aria-checked={props.theme === themeDef.key}
                   onClick={() => props.onThemeChange(themeDef.key)}
                 >
                   <div class="flex flex-col gap-0.5">
-                    <span class="font-medium">
+                    <span class="font-medium text-label">
                       {themeDef.label} {props.theme === themeDef.key ? "✓" : ""}
                     </span>
-                    <span class="text-xs text-white/60">
+                    <span class="text-caption text-[var(--glass-text-muted)]">
                       {themeDef.description}
                     </span>
                   </div>
@@ -77,12 +76,12 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
           </div>
         )}
 
-        <hr class="my-1 border-t border-white/10" />
+        <hr class="my-1 border-t border-[var(--glass-border-subtle)]" />
 
         {/* ホイール感度設定 */}
         <div class="px-3 py-2">
           <label class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-white">
+            <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
               ホイール感度: {props.wheelSensitivity.toFixed(1)}x
             </span>
             <input
@@ -94,13 +93,13 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               onInput={handleWheelSensitivityChange}
               class="w-full cursor-pointer accent-white/80"
             />
-            <span class="text-xs text-white/60">
+            <span class="text-caption text-[var(--glass-text-muted)]">
               VRコントローラー使用時は低めに設定推奨
             </span>
           </label>
         </div>
 
-        <hr class="my-1 border-t border-white/10" />
+        <hr class="my-1 border-t border-[var(--glass-border-subtle)]" />
 
         {/* ファイルパス表示形式設定 */}
         <div class="px-3 py-2">
@@ -111,27 +110,27 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
               onChange={handleShowFullPathChange}
               class="cursor-pointer accent-white/80"
             />
-            <span class="text-xs font-medium text-white">
+            <span class="text-label font-medium text-[var(--glass-text-primary)]">
               フルパスで表示
             </span>
           </label>
-          <span class="mt-1 text-xs text-white/60 block">
+          <span class="mt-1 text-caption text-[var(--glass-text-muted)] block">
             オフの場合はファイル名のみ表示
           </span>
         </div>
 
-        <hr class="my-1 border-t border-white/10" />
+        <hr class="my-1 border-t border-[var(--glass-border-subtle)]" />
 
         {/* コントロールパネル位置設定 */}
         <div class="px-3 py-2">
           <label class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-white">
+            <span class="text-label font-medium text-[var(--glass-text-primary)]">
               コントロールパネル位置
             </span>
             <select
               value={props.controlPanelPosition}
               onChange={handleControlPanelPositionChange}
-              class="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-xs text-white cursor-pointer transition-colors hover:bg-white/15"
+              class="w-full rounded border border-[var(--glass-border-emphasis)] bg-white/[0.1] px-2 py-1 text-label text-[var(--glass-text-primary)] cursor-pointer transition-colors hover:bg-white/[0.15]"
             >
               <option value="top">上（中央）</option>
               <option value="bottom">下（中央）</option>
@@ -141,22 +140,6 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
 
       </div>
     </div>
-
-    <style>
-      {`
-        .glass-menu {
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(20px) saturate(180%);
-          -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          box-shadow:
-            0 8px 32px 0 rgba(0, 0, 0, 0.37),
-            inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-            0 0 0 1px rgba(0, 0, 0, 0.1);
-        }
-      `}
-    </style>
-    </>
   );
 };
 

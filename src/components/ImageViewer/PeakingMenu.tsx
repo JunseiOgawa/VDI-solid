@@ -131,11 +131,11 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
 
   return (
     <div
-      class="min-w-[220px] rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-secondary)] shadow-lg"
+      class="min-w-[220px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)]"
       data-menu="peaking"
     >
-      <div class="border-b border-[var(--border-secondary)] px-4 py-2">
-        <h3 class="text-sm font-semibold text-[var(--text-primary)]">フォーカスピーキング</h3>
+      <div class="border-b border-[var(--glass-border-emphasis)] px-4 py-2">
+        <h3 class="text-label font-semibold text-[var(--glass-text-primary)]">フォーカスピーキング</h3>
       </div>
       <div class="space-y-3 px-4 py-3">
         {/* ON/OFF切り替え */}
@@ -144,16 +144,16 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             type="checkbox"
             checked={props.peakingEnabled}
             onChange={handleEnabledToggle}
-            class="h-4 w-4 cursor-pointer accent-[var(--accent-primary)]"
+            class="h-4 w-4 cursor-pointer accent-white/80"
           />
-          <span class="text-sm text-[var(--text-primary)]">有効化</span>
+          <span class="text-label text-[var(--glass-text-primary)]">有効化</span>
         </label>
 
         {/* 強度スライダー */}
         <div class="space-y-1">
-          <div class="flex justify-between text-xs">
-            <span class="text-[var(--text-primary)]">強度</span>
-            <span class="text-[var(--text-secondary)]">{tempIntensity()}</span>
+          <div class="flex justify-between text-label">
+            <span class="text-[var(--glass-text-primary)]">強度</span>
+            <span class="text-[var(--glass-text-secondary)] text-tabular">{tempIntensity()}</span>
           </div>
           <input
             type="range"
@@ -162,25 +162,25 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             step="5"
             value={tempIntensity()}
             onInput={handleIntensityChange}
-            class="w-full cursor-pointer accent-[var(--accent-primary)]"
+            class="w-full cursor-pointer accent-white/80"
             disabled={!props.peakingEnabled}
           />
         </div>
 
         {/* 色選択 */}
         <div class="space-y-1">
-          <span class="text-xs text-[var(--text-primary)]">色</span>
+          <span class="text-label text-[var(--glass-text-primary)]">色</span>
           <div class="flex gap-2">
             <For each={COLOR_PRESETS}>
               {(preset) => (
                 <button
                   type="button"
-                  class="h-6 w-6 rounded border-2 transition-all duration-150"
+                  class="h-6 w-6 rounded border-2 transition-all duration-200"
                   style={{
                     'background-color': preset.value,
                     'border-color':
                       props.peakingColor === preset.value
-                        ? 'var(--text-primary)'
+                        ? 'rgba(255, 255, 255, 0.9)'
                         : 'transparent',
                   }}
                   title={preset.name}
@@ -195,9 +195,9 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
 
         {/* 不透明度スライダー */}
         <div class="space-y-1">
-          <div class="flex justify-between text-xs">
-            <span class="text-[var(--text-primary)]">不透明度</span>
-            <span class="text-[var(--text-secondary)]">{Math.round(tempOpacity() * 100)}%</span>
+          <div class="flex justify-between text-label">
+            <span class="text-[var(--glass-text-primary)]">不透明度</span>
+            <span class="text-[var(--glass-text-secondary)] text-tabular">{Math.round(tempOpacity() * 100)}%</span>
           </div>
           <input
             type="range"
@@ -206,7 +206,7 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             step="0.05"
             value={tempOpacity()}
             onInput={handleOpacityChange}
-            class="w-full cursor-pointer accent-[var(--accent-primary)]"
+            class="w-full cursor-pointer accent-white/80"
             disabled={!props.peakingEnabled}
           />
         </div>
@@ -217,10 +217,10 @@ const PeakingMenu: Component<PeakingMenuProps> = (props) => {
             type="checkbox"
             checked={props.peakingBlink}
             onChange={handleBlinkToggle}
-            class="h-4 w-4 cursor-pointer accent-[var(--accent-primary)]"
+            class="h-4 w-4 cursor-pointer accent-white/80"
             disabled={!props.peakingEnabled}
           />
-          <span class="text-sm text-[var(--text-primary)]">ピーキング点滅</span>
+          <span class="text-label text-[var(--glass-text-primary)]">ピーキング点滅</span>
         </label>
       </div>
     </div>

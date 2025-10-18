@@ -44,32 +44,32 @@ const GridMenu: Component<GridMenuProps> = (props) => {
   };
 
   return (
-    <div class="min-w-[220px] rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-secondary)] shadow-lg">
-      <div class="border-b border-[var(--border-secondary)] px-4 py-2">
-        <h3 class="text-sm font-semibold text-[var(--text-primary)]">グリッド表示</h3>
+    <div class="min-w-[220px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)]">
+      <div class="border-b border-[var(--glass-border-emphasis)] px-4 py-2">
+        <h3 class="text-label font-semibold text-[var(--glass-text-primary)]">グリッド表示</h3>
       </div>
       <div class="py-1">
         <For each={GRID_OPTIONS}>
           {(option) => (
             <button
-              class="flex w-full flex-col items-start px-4 py-2 text-left text-sm transition-colors duration-150 hover:bg-[var(--bg-tertiary)]"
+              class="flex w-full flex-col items-start px-4 py-2 text-left transition-all duration-200 hover:bg-white/[0.08] hover:backdrop-blur-sm rounded"
               classList={{
-                'bg-[var(--bg-tertiary)] font-semibold text-[var(--accent-primary)]':
+                'bg-blue-500/20 border border-blue-500/50 font-semibold text-[var(--glass-text-primary)]':
                   props.currentPattern === option.value,
-                'text-[var(--text-primary)]': props.currentPattern !== option.value,
+                'text-[var(--glass-text-primary)]': props.currentPattern !== option.value,
               }}
               onClick={() => handleSelect(option.value)}
               aria-label={option.label}
             >
-              <span class="font-medium">{option.label}</span>
-              <span class="text-xs text-[var(--text-secondary)]">{option.description}</span>
+              <span class="font-medium text-label">{option.label}</span>
+              <span class="text-caption text-[var(--glass-text-muted)]">{option.description}</span>
             </button>
           )}
         </For>
       </div>
-      <div class="border-t border-[var(--border-secondary)] px-4 py-3">
+      <div class="border-t border-[var(--glass-border-emphasis)] px-4 py-3">
         <label class="flex flex-col gap-2">
-          <span class="text-xs font-medium text-[var(--text-primary)]">
+          <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
             不透明度: {Math.round(props.currentOpacity * 100)}%
           </span>
           <input
@@ -79,7 +79,7 @@ const GridMenu: Component<GridMenuProps> = (props) => {
             step="0.01"
             value={props.currentOpacity}
             onInput={handleOpacityChange}
-            class="w-full cursor-pointer accent-[var(--accent-primary)]"
+            class="w-full cursor-pointer accent-white/80"
           />
         </label>
       </div>

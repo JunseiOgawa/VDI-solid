@@ -3566,3 +3566,290 @@ interface ImageGalleryProps {
 - `src/components/Titlebar/index.tsx`
 - `src/App.tsx`
 - `src/context/AppStateContext.tsx`
+
+---
+
+# Modern Glassmorphism + Dark UI 改革
+
+## 日付
+
+2025-10-18
+
+## 概要
+
+現在のUIを**Modern Glassmorphism + Dark UI**スタイルに全面刷新する。機能は維持しつつ、より洗練された視覚表現とユーザー体験を実現する。
+
+## 背景と目的
+
+### 現状の課題
+
+- Glassmorphismを使用しているが、デザインシステムとして統一されていない
+- インラインスタイル（`<style>`タグ）とTailwindCSSクラスが混在
+- タイポグラフィの一貫性が不足
+- マイクロインタラクションが限定的
+
+### 目的
+
+1. デザインシステムとしての一貫性を確立
+2. TailwindCSSユーティリティクラスへの完全移行
+3. 洗練されたGlassmorphism表現の実装
+4. 機能は完全に維持（退化なし）
+5. 段階的な移行により、常に動作する状態を保つ
+
+## デザイン原則
+
+### 1. Modern Glassmorphism + Dark UI
+
+#### 主な特徴
+
+**Glassmorphism（グラスモーフィズム）**
+- `backdrop-blur-xl` - ガラスのような透過ぼかし効果
+- `bg-neutral-900/80` - 半透明の背景
+- 境界線も薄く（`border-white/[0.06]`）
+
+**Subtle Elevation（微妙な階層表現）**
+- 影ではなく透明度で階層を表現（現在の実装を維持）
+- 極めて薄いボーダー（6%、8%の不透明度）
+
+**Micro-interactions（マイクロインタラクション）**
+- ホバー時の繊細な変化
+  - 透明度の変化
+  - スケールの微調整（0.98〜1.05程度）
+  - 背景のぼかし強度の変化
+- クリック/アクティブ状態の視覚的フィードバック
+- トランジションアニメーションは既存の実装を維持（cubic-bezier等は使用しない）
+
+**Typographic Refinement（洗練されたタイポグラフィ）**
+- `tabular-nums` - 数値表示全体に適用（ズーム倍率、解像度など）
+- ラベル・キャプションは小さめのフォントサイズ（11px-13px）
+- 本文やボタンテキストは現在のサイズを維持
+
+### 2. カラーパレット
+
+#### ダークテーマ（メイン）
+
+**背景**
+- Primary: `bg-neutral-950` - 最も暗い背景
+- Secondary: `bg-neutral-900/90` - セカンダリ背景
+- Tertiary: `bg-neutral-900/80` - 浮遊要素の背景
+
+**ガラス表現**
+- Panel: `bg-neutral-900/80` + `backdrop-blur-xl`
+- Button: `bg-white/[0.08]` (通常時) → `bg-white/[0.15]` (ホバー時)
+- Border: `border-white/[0.06]` (薄い境界) / `border-white/[0.08]` (強調境界)
+
+**テキスト**
+- Primary: `text-white/90` - メインテキスト
+- Secondary: `text-white/70` - セカンダリテキスト
+- Muted: `text-white/50` - 控えめなテキスト
+- Caption: `text-white/60` - キャプション、ラベル（11px-13px）
+
+**アクセント**
+- Primary: `bg-blue-500/90` - 選択状態、アクティブ状態
+- Hover: `bg-blue-400/90` - ホバー時のアクセント
+- Border: `border-blue-500/50` - アクセントボーダー
+
+#### ライトテーマ
+
+**背景**
+- Primary: `bg-neutral-50` - 最も明るい背景
+- Secondary: `bg-neutral-100/90` - セカンダリ背景
+- Tertiary: `bg-white/80` - 浮遊要素の背景
+
+**ガラス表現**
+- Panel: `bg-white/80` + `backdrop-blur-xl`
+- Button: `bg-neutral-900/[0.06]` (通常時) → `bg-neutral-900/[0.12]` (ホバー時)
+- Border: `border-neutral-900/[0.06]` (薄い境界) / `border-neutral-900/[0.08]` (強調境界)
+
+**テキスト**
+- Primary: `text-neutral-900/90` - メインテキスト
+- Secondary: `text-neutral-700/80` - セカンダリテキスト
+- Muted: `text-neutral-600/70` - 控えめなテキスト
+- Caption: `text-neutral-600/80` - キャプション、ラベル（11px-13px）
+
+**アクセント**
+- Primary: `bg-blue-600/90` - 選択状態、アクティブ状態
+- Hover: `bg-blue-500/90` - ホバー時のアクセント
+- Border: `border-blue-600/50` - アクセントボーダー
+
+### 3. マイクロインタラクション詳細
+
+#### ボタン
+```
+通常時: 
+  bg-transparent または bg-white/[0.08]
+  border-transparent
+  scale-100
+
+ホバー時:
+  bg-white/[0.15]
+  border-white/[0.1]
+  scale-105
+  backdrop-blur-md
+
+アクティブ時:
+  bg-white/[0.1]
+  scale-98
+```
+
+#### パネル
+```
+展開時:
+  opacity: 0 → 1
+  scale: 0.95 → 1.0
+  duration: 200ms-300ms
+
+折りたたみ時:
+  opacity: 1 → 0
+  scale: 1.0 → 0.95
+  duration: 200ms-300ms
+```
+
+#### メニュー項目
+```
+通常時:
+  bg-transparent
+
+ホバー時:
+  bg-white/[0.08]
+  backdrop-blur-sm
+
+選択時:
+  bg-blue-500/20
+  border-blue-500/50
+```
+
+## 技術仕様
+
+### 1. スタイリング方針
+
+**TailwindCSSへの統一**
+- インラインスタイル（`<style>`タグ）を完全に廃止
+- すべてのスタイリングをTailwindCSSユーティリティクラスで実装
+- 必要に応じてApp.cssでカスタムユーティリティクラスを定義
+
+**CSS変数の活用**
+```css
+/* ダークテーマ */
+[data-theme="dark"] {
+  --glass-bg-primary: rgb(23 23 23 / 0.8);
+  --glass-bg-secondary: rgb(38 38 38 / 0.7);
+  --glass-border-subtle: rgb(255 255 255 / 0.06);
+  --glass-border-emphasis: rgb(255 255 255 / 0.08);
+  --glass-text-primary: rgb(255 255 255 / 0.9);
+  --glass-text-secondary: rgb(255 255 255 / 0.7);
+  --glass-text-muted: rgb(255 255 255 / 0.5);
+}
+
+/* ライトテーマ */
+[data-theme="light"] {
+  --glass-bg-primary: rgb(255 255 255 / 0.8);
+  --glass-bg-secondary: rgb(245 245 245 / 0.7);
+  --glass-border-subtle: rgb(23 23 23 / 0.06);
+  --glass-border-emphasis: rgb(23 23 23 / 0.08);
+  --glass-text-primary: rgb(23 23 23 / 0.9);
+  --glass-text-secondary: rgb(64 64 64 / 0.8);
+  --glass-text-muted: rgb(82 82 82 / 0.7);
+}
+```
+
+### 2. タイポグラフィ設定
+
+```css
+/* 数値表示専用 */
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* キャプション・ラベル */
+.text-caption {
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.4;
+}
+
+.text-label {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.4;
+}
+
+.text-small {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+}
+```
+
+### 3. コンポーネント実装パターン
+
+#### ガラスパネル
+```tsx
+<div class="bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] rounded-xl">
+  {/* コンテンツ */}
+</div>
+```
+
+#### ガラスボタン
+```tsx
+<button class="
+  bg-transparent hover:bg-white/[0.15] active:bg-white/[0.1]
+  border border-transparent hover:border-white/[0.1]
+  backdrop-blur-0 hover:backdrop-blur-md
+  transition-all duration-200
+  hover:scale-105 active:scale-98
+">
+  {/* アイコンやテキスト */}
+</button>
+```
+
+## 移行戦略
+
+### 段階的移行アプローチ
+
+**フェーズ1: 基盤整備**
+1. App.cssに新しいCSS変数とユーティリティクラスを追加
+2. 既存の機能を維持しながら、新しいスタイルを並行して定義
+
+**フェーズ2: コンポーネント単位での移行**
+1. Titlebar
+2. Footer
+3. FloatingControlPanel
+4. ImageGallery
+5. SettingsMenu / MultiMenu
+6. ImageViewer関連（GridMenu、PeakingMenu、HistogramLayer等）
+
+**フェーズ3: 検証とリファインメント**
+1. 全体的な一貫性の確認
+2. ダーク/ライトモードの動作確認
+3. インタラクションの微調整
+
+### 各フェーズの成果物
+
+**フェーズ1**
+- 修正: `src/App.css` - 新しいCSS変数とユーティリティクラスの追加
+
+**フェーズ2**
+- 修正: 各コンポーネントファイル（インラインスタイル削除、Tailwindクラス適用）
+
+**フェーズ3**
+- 全体的な調整とドキュメント更新
+
+## 対象外（今回は実装しない）
+
+1. **アクセシビリティ強化** - フォーカスリング、ARIAラベル等（後続タスク）
+2. **macOS対応** - いったんWindows環境のみで検証
+3. **複雑なアニメーション** - cubic-bezier等の高度なアニメーションは使用しない
+
+## 制約事項
+
+1. **機能の退化は許容しない** - すべての既存機能は完全に動作すること
+2. **スペーシングシステムは維持** - 既存のパディング、マージンを大幅に変更しない
+3. **階層表現は維持** - 既存の透明度ベースの階層表現を維持
+
+## 検証方法
+
+各コンポーネントの移行後：
+1. ビルドが成功すること（`npm run build`）
+2. すべてのボタンが正常に動作すること
+3. ダーク/ライトモードの切り替えが正常に動作すること
+4. 既存機能（ズーム、回転、グリッド、ピーキング、ヒストグラム等）が正常に動作すること
+5. ホバー、クリック等のインタラクションが適切に動作すること
+

@@ -52,11 +52,11 @@ const Footer: Component = () => {
   };
 
   return (
-    <footer class="border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 text-xs text-[var(--text-secondary)] transition-colors duration-300">
+    <footer class="border-t border-[var(--glass-border-subtle)] bg-[var(--glass-bg-primary)] backdrop-blur-xl px-4 text-xs text-[var(--glass-text-secondary)] transition-colors duration-300">
       <div class="mx-auto flex h-8 max-w-5xl items-center justify-between overflow-hidden">
         {/* 左側: 解像度 */}
         <div class="flex-shrink-0 w-32">
-          <p class="whitespace-nowrap">
+          <p class="whitespace-nowrap text-tabular">
             {displayResolution()}
           </p>
         </div>
@@ -72,7 +72,7 @@ const Footer: Component = () => {
         <div class="flex-shrink-0 flex items-center justify-end">
           <button
             id="footerExplorerBtn"
-            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-2 text-xs text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="エクスプローラで開く"
             title="エクスプローラで開く"
             onClick={handleRevealInExplorer}

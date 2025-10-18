@@ -176,8 +176,11 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
   });
 
   // グリッド、ピーキング、ヒストグラムのいずれかが有効かチェック
-  const isAnyFeatureActive = () => 
+  const isAnyFeatureActive = () =>
     props.gridPattern !== 'off' || props.peakingEnabled || props.histogramEnabled;
+
+  // ガラスボタンの共通クラス
+  const glassButtonClasses = "w-12 h-12 min-w-[48px] min-h-[48px] flex-shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-transparent transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md hover:border-white/[0.1] hover:scale-105 active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed";
 
   /**
    * 位置設定に応じたCSSクラスを生成
@@ -253,7 +256,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
       {/* 折りたたみ時：トグルボタンのみ */}
       <Show when={!isExpanded()}>
         <button
-          class={`fixed z-50 toggle-button ${getPositionClasses()}`}
+          class={`fixed z-50 w-[70px] h-6 rounded-xl bg-[var(--glass-bg-primary)] backdrop-blur-lg border border-[var(--glass-border-subtle)] flex items-center justify-center cursor-pointer transition-all duration-200 text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:border-[var(--glass-border-emphasis)] hover:scale-105 active:scale-95 ${getPositionClasses()}`}
           onClick={toggleExpand}
           aria-label="コントロールパネルを開く"
           title="コントロールパネルを開く"
@@ -274,13 +277,13 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
       <Show when={isExpanded()}>
         <div
           ref={panelRef}
-          class={`fixed z-50 flex gap-2 right-control-panel control-panel-expanded ${getPositionClasses()}`}
+          class={`fixed z-50 flex gap-2 right-control-panel animate-expand-panel ${getPositionClasses()}`}
         >
           {/* ガラス表現のメインコンテナ */}
-          <div class="glass-panel rounded-xl p-2 flex flex-row gap-2">
+          <div class="bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] rounded-xl p-2 flex flex-row gap-2">
             {/* ズームイン */}
             <button
-              class="glass-button flex items-center justify-center"
+              class={glassButtonClasses}
               onClick={props.onZoomIn}
               aria-label="ズームイン"
               title="ズームイン"
@@ -292,19 +295,19 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* 倍率表示(クリックでリセット) */}
             <button
-              class="glass-button flex flex-col items-center justify-center"
+              class={glassButtonClasses}
               onClick={props.onZoomReset}
               aria-label="ズームリセット"
               title="ズームリセット"
             >
-              <span class="text-xs font-medium text-white/80">
+              <span class="text-xs font-medium text-white/80 text-tabular">
                 {Math.round(props.zoomScale * 100)}%
               </span>
             </button>
 
             {/* ズームアウト */}
             <button
-              class="glass-button flex items-center justify-center"
+              class={glassButtonClasses}
               onClick={props.onZoomOut}
               aria-label="ズームアウト"
               title="ズームアウト"
@@ -316,7 +319,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* 画面フィットボタン */}
             <button
-              class="glass-button"
+              class={glassButtonClasses}
               onClick={props.onScreenFit}
               aria-label="画面にフィット"
               title="画面にフィット"
@@ -330,7 +333,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* 回転ボタン */}
             <button
-              class="glass-button"
+              class={glassButtonClasses}
               onClick={props.onRotate}
               aria-label="回転"
               title="回転"
@@ -344,7 +347,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* マルチメニューボタン */}
             <button
-              class="glass-button"
+              class={glassButtonClasses}
               classList={{
                 'bg-white/20 border-white/30': isAnyFeatureActive(),
               }}
@@ -376,7 +379,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* 設定ボタン */}
             <button
-              class="glass-button"
+              class={glassButtonClasses}
               onClick={toggleSettings}
               aria-label="設定"
               title="設定"
@@ -390,7 +393,7 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
 
             {/* トグルボタン（閉じる） */}
             <button
-              class="glass-button flex items-center justify-center"
+              class={glassButtonClasses}
               onClick={toggleExpand}
               aria-label="コントロールパネルを閉じる"
               title="コントロールパネルを閉じる"
@@ -465,116 +468,6 @@ const FloatingControlPanel: Component<FloatingControlPanelProps> = (props) => {
           )}
         </div>
       </Show>
-
-      <style>
-        {`
-          /* グラスモフィズムメインパネル */
-          .glass-panel {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow:
-              0 8px 32px 0 rgba(0, 0, 0, 0.37),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-              0 0 0 1px rgba(0, 0, 0, 0.1);
-          }
-
-          .toggle-button {
-            width: 70px;
-            height: 24px;
-            border-radius: 0.75rem;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow:
-              0 4px 16px 0 rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: rgba(255, 255, 255, 0.9);
-          }
-
-          .toggle-button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-            box-shadow:
-              0 6px 20px 0 rgba(0, 0, 0, 0.4),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
-          }
-
-          .toggle-button:active {
-            transform: scale(0.95);
-          }
-
-          .control-panel-expanded {
-            animation: expandPanel 0.3s ease;
-          }
-
-          @keyframes expandPanel {
-            from {
-              opacity: 0;
-              transform: scale(0.8);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-
-          .glass-button {
-            width: 48px;
-            height: 48px;
-            min-width: 48px;
-            min-height: 48px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.5rem;
-            /* 通常時は完全に透明 */
-            background: transparent;
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-            border: 1px solid transparent;
-            box-shadow: none;
-            color: rgba(255, 255, 255, 0.9);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-          }
-
-          /* ホバー時にガラス表現を表示 */
-          .glass-button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(16px) saturate(200%);
-            -webkit-backdrop-filter: blur(16px) saturate(200%);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            box-shadow:
-              0 4px 16px 0 rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
-          }
-
-          .glass-button:active {
-            transform: translateY(0) scale(0.98);
-            background: rgba(255, 255, 255, 0.1);
-          }
-
-          .glass-button img {
-            filter: brightness(0) invert(1);
-            opacity: 0.9;
-          }
-
-          .glass-button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-          }
-        `}
-      </style>
     </>
   );
 };

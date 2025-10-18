@@ -19,6 +19,15 @@
     --nav-arrow-bg: rgba(255, 255, 255, 0.8);
     --nav-arrow-border: rgba(255, 255, 255, 0.8);
     --nav-arrow-icon: rgba(255, 255, 255, 0.8);
+
+    /* Modern Glassmorphism - Light */
+    --glass-bg-primary: rgb(255 255 255 / 0.8);
+    --glass-bg-secondary: rgb(245 245 245 / 0.7);
+    --glass-border-subtle: rgb(23 23 23 / 0.06);
+    --glass-border-emphasis: rgb(23 23 23 / 0.08);
+    --glass-text-primary: rgb(23 23 23 / 0.9);
+    --glass-text-secondary: rgb(64 64 64 / 0.8);
+    --glass-text-muted: rgb(82 82 82 / 0.7);
   }
 
   [data-theme="dark"] {
@@ -38,6 +47,15 @@
     --nav-arrow-bg: rgba(0, 0, 0, 0.8);
     --nav-arrow-border: rgba(255, 255, 255, 0.6);
     --nav-arrow-icon: rgba(255, 255, 255, 0.8);
+
+    /* Modern Glassmorphism - Dark */
+    --glass-bg-primary: rgb(23 23 23 / 0.8);
+    --glass-bg-secondary: rgb(38 38 38 / 0.7);
+    --glass-border-subtle: rgb(255 255 255 / 0.06);
+    --glass-border-emphasis: rgb(255 255 255 / 0.08);
+    --glass-text-primary: rgb(255 255 255 / 0.9);
+    --glass-text-secondary: rgb(255 255 255 / 0.7);
+    --glass-text-muted: rgb(255 255 255 / 0.5);
   }
 
   html,
@@ -78,5 +96,41 @@
       linear-gradient(-45deg, transparent 75%, var(--viewer-bg-pattern) 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  }
+
+  /* Modern Glassmorphism Typography */
+  .text-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-caption {
+    font-size: 0.6875rem; /* 11px */
+    line-height: 1.4;
+  }
+
+  .text-label {
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.4;
+  }
+
+  .text-small {
+    font-size: 0.8125rem; /* 13px */
+    line-height: 1.4;
+  }
+
+  /* Modern Glassmorphism Animations */
+  @keyframes expandPanel {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-expand-panel {
+    animation: expandPanel 0.2s ease-out;
   }
 }
