@@ -161,26 +161,20 @@ pub async fn rotate_image(image_path: String, rotation_angle: f32) -> Result<Str
 
 /// 起動時の引数から画像ファイルパスを取得する
 ///
+/// 内部的には`cli_args::LaunchConfig`を使用して引数をパースします。
+///
 /// # Returns
 ///
 /// * `Some(String)` - 起動引数の1番目に指定された画像ファイルパス（ファイルが存在する場合）
 /// * `None` - 引数が指定されていないか、ファイルが存在しない場合
 #[tauri::command]
 pub fn get_launch_image_path() -> Option<String> {
-    if let Some(path) = std::env::args().nth(1) {
-        // パスの検証：実際にファイルが存在するかチェック
-        if std::path::Path::new(&path).exists() {
-            Some(path)
-        } else {
-            println!("指定されたファイルが存在しません: {}", path);
-            None
-        }
-    } else {
-        None
-    }
+    crate::cli_args::LaunchConfig::from_args().image_path
 }
 
 /// 起動引数から２つ目（ウィンドウサイズ指定）を返す
+///
+/// 内部的には`cli_args::LaunchConfig`を使用して引数をパースします。
 ///
 /// # Returns
 ///
@@ -188,6 +182,5 @@ pub fn get_launch_image_path() -> Option<String> {
 /// * `None` - 指定がない場合
 #[tauri::command]
 pub fn get_launch_window_mode() -> Option<String> {
-    std::env::args().nth(2)
+    crate::cli_args::LaunchConfig::from_args().window_mode
 }
-

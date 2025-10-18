@@ -1,6 +1,7 @@
 use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
+mod cli_args;
 mod file_operations;
 mod histogram;
 mod img;
@@ -14,6 +15,19 @@ mod peaking;
 #[tauri::command]
 fn show_window(window: tauri::Window) -> Result<(), String> {
     window.show().map_err(|e| e.to_string())
+}
+
+/// コマンドライン引数から起動設定を取得するコマンド
+///
+/// アプリケーション起動時に指定されたコマンドライン引数をパースし、
+/// ピーキングとグリッド線の初期設定を返します。
+///
+/// # Returns
+///
+/// * `LaunchConfig` - パースされた起動設定を返します。引数が指定されていない項目は`None`になります。
+#[tauri::command]
+fn get_launch_config() -> cli_args::LaunchConfig {
+    cli_args::LaunchConfig::from_args()
 }
 
 /// OSのテーマ設定（ライト/ダークモード）を取得するコマンド
@@ -108,8 +122,9 @@ fn get_system_theme() -> String {
 /// アプリ起動時にウィンドウサイズ/モードを引数から読み取り、ウィンドウに反映します。
 ///
 /// 起動引数の仕様（例）:
-/// 1. 引数 1: 起動時に表示する画像パス（オプション、`img` モジュールで処理）
+/// 1. 引数 1: 起動時に表示する画像パス（オプション）
 /// 2. 引数 2: ウィンドウモード/サイズ（例: `FullScreen` または `1920x1080`）
+/// 3. オプション引数: `--peaking-enabled`, `--grid-pattern` など
 ///
 /// # 動作
 ///
@@ -117,8 +132,9 @@ fn get_system_theme() -> String {
 /// * `WIDTHxHEIGHT` の形式を渡すと指定解像度にウィンドウサイズを設定します。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 起動引数から画面サイズ設定を取得
-    let window_mode = std::env::args().nth(2);
+    // コマンドライン引数から起動設定を取得
+    let launch_config = cli_args::LaunchConfig::from_args();
+    let window_mode = launch_config.window_mode.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -130,6 +146,7 @@ pub fn run() {
             navigation::get_next_image,
             navigation::get_previous_image,
             get_system_theme,
+            get_launch_config,
             show_window,
             img::rotate_image,
             img::create_image_backup,

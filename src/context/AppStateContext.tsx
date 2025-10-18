@@ -1,11 +1,18 @@
-import type { ParentComponent } from 'solid-js';
-import { createContext, createSignal, onCleanup, onMount, useContext } from 'solid-js';
-import { invoke } from '@tauri-apps/api/core';
-import { convertFileToAssetUrlWithCacheBust } from '../lib/fileUtils';
-import { fetchNextImagePath, fetchPreviousImagePath } from '../lib/tauri';
-import { clampIntensity, clampOpacity } from '../lib/peakingUtils';
-import { createThemeController, isThemeKey, type ThemeKey } from '../lib/theme';
-import { CONFIG } from '../config/config';
+import type { ParentComponent } from "solid-js";
+import {
+  createContext,
+  createSignal,
+  onCleanup,
+  onMount,
+  useContext,
+} from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
+import { convertFileToAssetUrlWithCacheBust } from "../lib/fileUtils";
+import { fetchNextImagePath, fetchPreviousImagePath } from "../lib/tauri";
+import { clampIntensity, clampOpacity } from "../lib/peakingUtils";
+import { createThemeController, isThemeKey, type ThemeKey } from "../lib/theme";
+import { CONFIG } from "../config/config";
+import { getLaunchConfig } from "../lib/launchConfig";
 
 // 画像回転のためのrust関数の呼び出しに使用するオプション
 interface SetImagePathOptions {
@@ -20,7 +27,7 @@ interface SetImagePathOptions {
  * - '5x3': 5×3グリッド
  * - '4x4': 4×4グリッド
  */
-export type GridPattern = 'off' | '3x3' | '5x3' | '4x4';
+export type GridPattern = "off" | "3x3" | "5x3" | "4x4";
 
 /**
  * アプリケーションの状態を管理するためのコンテキストインターフェース。
@@ -53,7 +60,7 @@ export interface AppState {
   gridPersistEnabled: () => boolean;
   /** グリッド永続化の有効/無効を設定 */
   setGridPersistEnabled: (enabled: boolean) => void;
-  
+
   // ピーキング関連
   /** ピーキング機能の有効/無効 */
   peakingEnabled: () => boolean;
@@ -88,13 +95,19 @@ export interface AppState {
   /** ヒストグラム機能の有効/無効を設定 */
   setHistogramEnabled: (enabled: boolean) => void;
   /** ヒストグラム表示タイプ */
-  histogramDisplayType: () => 'rgb' | 'luminance';
+  histogramDisplayType: () => "rgb" | "luminance";
   /** ヒストグラム表示タイプを設定 */
-  setHistogramDisplayType: (type: 'rgb' | 'luminance') => void;
+  setHistogramDisplayType: (type: "rgb" | "luminance") => void;
   /** ヒストグラム表示位置 */
-  histogramPosition: () => 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  histogramPosition: () =>
+    | "top-right"
+    | "top-left"
+    | "bottom-right"
+    | "bottom-left";
   /** ヒストグラム表示位置を設定 */
-  setHistogramPosition: (position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left') => void;
+  setHistogramPosition: (
+    position: "top-right" | "top-left" | "bottom-right" | "bottom-left",
+  ) => void;
   /** ヒストグラムサイズ倍率 */
   histogramSize: () => number;
   /** ヒストグラムサイズ倍率を設定 */
@@ -108,7 +121,9 @@ export interface AppState {
   /** 画像解像度を取得 */
   imageResolution: () => { width: number; height: number } | null;
   /** 画像解像度を設定 */
-  setImageResolution: (resolution: { width: number; height: number } | null) => void;
+  setImageResolution: (
+    resolution: { width: number; height: number } | null,
+  ) => void;
 
   // ファイルパス表示形式関連
   /** フルパス表示の有効/無効（true: フルパス, false: ファイル名のみ） */
@@ -118,9 +133,9 @@ export interface AppState {
 
   // コントロールパネル位置関連
   /** コントロールパネルの表示位置 (top: タイトルバー付近中央, bottom: 画面下部中央) */
-  controlPanelPosition: () => 'top' | 'bottom';
+  controlPanelPosition: () => "top" | "bottom";
   /** コントロールパネルの表示位置を設定 */
-  setControlPanelPosition: (position: 'top' | 'bottom') => void;
+  setControlPanelPosition: (position: "top" | "bottom") => void;
 
   // ギャラリー表示関連
   /** ギャラリーサイドバーの表示/非表示 */
@@ -168,45 +183,69 @@ const normalizeRotation = (value: number) => {
  * - 実際のファイル回転はデバウンスとキュー管理を通じてまとめて行われ、失敗時のロールバックや残差処理（applyResidualRotation）を行う。
  */
 export const AppProvider: ParentComponent = (props) => {
-  const [currentImagePath, _setCurrentImagePath] = createSignal<string>('');
-  const [currentImageFilePath, setCurrentImageFilePath] = createSignal<string | null>(null);
+  const [currentImagePath, _setCurrentImagePath] = createSignal<string>("");
+  const [currentImageFilePath, setCurrentImageFilePath] = createSignal<
+    string | null
+  >(null);
   const [zoomScale, setZoomScale] = createSignal<number>(1);
   const [rotation, setRotation] = createSignal<number>(0);
   const [pendingRotation, setPendingRotation] = createSignal<number>(0);
   const [isRotating, setIsRotating] = createSignal<boolean>(false);
-  const [theme, setTheme] = createSignal<ThemeKey>('auto');
+  const [theme, setTheme] = createSignal<ThemeKey>("auto");
   /** グリッド表示パターンの状態管理（初期値: 'off'） */
-  const [gridPattern, setGridPattern] = createSignal<GridPattern>('off');
+  const [gridPattern, setGridPattern] = createSignal<GridPattern>("off");
   /** グリッド線の不透明度（0.0-1.0、初期値は CONFIG から取得） */
-  const [gridOpacity, setGridOpacity] = createSignal<number>(CONFIG.grid.defaultOpacity);
+  const [gridOpacity, setGridOpacity] = createSignal<number>(
+    CONFIG.grid.defaultOpacity,
+  );
   /** グリッドの永続化を有効化するかのフラグ */
-  const [gridPersistEnabled, setGridPersistEnabled] = createSignal<boolean>(false);
+  const [gridPersistEnabled, setGridPersistEnabled] =
+    createSignal<boolean>(false);
 
   // ピーキング関連Signal（新規追加）
-  const [peakingEnabled, setPeakingEnabledSignal] = createSignal<boolean>(false);
-  const [peakingIntensity, setPeakingIntensitySignal] = createSignal<number>(60);
-  const [peakingColor, setPeakingColorSignal] = createSignal<string>('lime');
+  const [peakingEnabled, setPeakingEnabledSignal] =
+    createSignal<boolean>(false);
+  const [peakingIntensity, setPeakingIntensitySignal] =
+    createSignal<number>(60);
+  const [peakingColor, setPeakingColorSignal] = createSignal<string>("lime");
   const [peakingOpacity, setPeakingOpacitySignal] = createSignal<number>(0.5);
   const [peakingBlink, setPeakingBlinkSignal] = createSignal<boolean>(false);
 
   // ホイール感度関連Signal
-  const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(CONFIG.zoom.wheelSensitivity);
+  const [wheelSensitivity, setWheelSensitivity] = createSignal<number>(
+    CONFIG.zoom.wheelSensitivity,
+  );
 
   // ヒストグラム関連Signal
-  const [histogramEnabled, setHistogramEnabled] = createSignal<boolean>(CONFIG.histogram.enabled);
-  const [histogramDisplayType, setHistogramDisplayType] = createSignal<'rgb' | 'luminance'>(CONFIG.histogram.displayType);
-  const [histogramPosition, setHistogramPosition] = createSignal<'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'>(CONFIG.histogram.position);
-  const [histogramSize, setHistogramSize] = createSignal<number>(CONFIG.histogram.size);
-  const [histogramOpacity, setHistogramOpacity] = createSignal<number>(CONFIG.histogram.opacity);
+  const [histogramEnabled, setHistogramEnabled] = createSignal<boolean>(
+    CONFIG.histogram.enabled,
+  );
+  const [histogramDisplayType, setHistogramDisplayType] = createSignal<
+    "rgb" | "luminance"
+  >(CONFIG.histogram.displayType);
+  const [histogramPosition, setHistogramPosition] = createSignal<
+    "top-right" | "top-left" | "bottom-right" | "bottom-left"
+  >(CONFIG.histogram.position);
+  const [histogramSize, setHistogramSize] = createSignal<number>(
+    CONFIG.histogram.size,
+  );
+  const [histogramOpacity, setHistogramOpacity] = createSignal<number>(
+    CONFIG.histogram.opacity,
+  );
 
   // 画像解像度関連Signal
-  const [imageResolution, setImageResolution] = createSignal<{ width: number; height: number } | null>(null);
+  const [imageResolution, setImageResolution] = createSignal<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   // ファイルパス表示形式関連Signal（デフォルト: false = ファイル名のみ）
   const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
 
   // コントロールパネル位置関連Signal
-  const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<'top' | 'bottom'>('top');
+  const [controlPanelPosition, setControlPanelPositionSignal] = createSignal<
+    "top" | "bottom"
+  >("top");
 
   // ギャラリー表示関連Signal
   const [showGallery, setShowGallerySignal] = createSignal<boolean>(false);
@@ -214,29 +253,29 @@ export const AppProvider: ParentComponent = (props) => {
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
     setPeakingEnabledSignal(enabled);
-    localStorage.setItem('vdi-peaking-enabled', enabled ? 'true' : 'false');
+    localStorage.setItem("vdi-peaking-enabled", enabled ? "true" : "false");
   };
 
   const setPeakingIntensity = (intensity: number) => {
     const clampedIntensity = clampIntensity(intensity);
     setPeakingIntensitySignal(clampedIntensity);
-    localStorage.setItem('vdi-peaking-intensity', clampedIntensity.toString());
+    localStorage.setItem("vdi-peaking-intensity", clampedIntensity.toString());
   };
 
   const setPeakingColor = (color: string) => {
     setPeakingColorSignal(color);
-    localStorage.setItem('vdi-peaking-color', color);
+    localStorage.setItem("vdi-peaking-color", color);
   };
 
   const setPeakingOpacity = (opacity: number) => {
     const clampedOpacityValue = clampOpacity(opacity);
     setPeakingOpacitySignal(clampedOpacityValue);
-    localStorage.setItem('vdi-peaking-opacity', clampedOpacityValue.toString());
+    localStorage.setItem("vdi-peaking-opacity", clampedOpacityValue.toString());
   };
 
   const setPeakingBlink = (enabled: boolean) => {
     setPeakingBlinkSignal(enabled);
-    localStorage.setItem('vdi-peaking-blink', enabled ? 'true' : 'false');
+    localStorage.setItem("vdi-peaking-blink", enabled ? "true" : "false");
   };
 
   let rotationTimer: number | undefined;
@@ -293,7 +332,10 @@ export const AppProvider: ParentComponent = (props) => {
     const normalized = normalizeRotation(total);
 
     if (normalized % 90 !== 0) {
-      console.warn('[Rotation] 90度単位以外の回転はサポートされていません:', normalized);
+      console.warn(
+        "[Rotation] 90度単位以外の回転はサポートされていません:",
+        normalized,
+      );
       setPendingRotation(() => 0);
       setRotation(() => 0);
       return;
@@ -307,17 +349,22 @@ export const AppProvider: ParentComponent = (props) => {
 
     const filePath = currentImageFilePath();
     if (!filePath) {
-      console.warn('[Rotation] 実ファイルパスが設定されていないため、回転処理をスキップします');
+      console.warn(
+        "[Rotation] 実ファイルパスが設定されていないため、回転処理をスキップします",
+      );
       setPendingRotation(() => 0);
       return;
     }
 
     setIsRotating(true);
     try {
-      await invoke('rotate_image', { imagePath: filePath, rotationAngle: normalized });
+      await invoke("rotate_image", {
+        imagePath: filePath,
+        rotationAngle: normalized,
+      });
       updateCurrentImageAssetPath(convertFileToAssetUrlWithCacheBust(filePath));
     } catch (error) {
-      console.error('[Rotation] 画像の回転に失敗しました', error);
+      console.error("[Rotation] 画像の回転に失敗しました", error);
     } finally {
       applyResidualRotation(total);
       setIsRotating(false);
@@ -357,7 +404,7 @@ export const AppProvider: ParentComponent = (props) => {
   const setCurrentImagePath = (path: string, options?: SetImagePathOptions) => {
     updateCurrentImageAssetPath(path);
 
-    if (options && Object.prototype.hasOwnProperty.call(options, 'filePath')) {
+    if (options && Object.prototype.hasOwnProperty.call(options, "filePath")) {
       setCurrentImageFilePath(options.filePath ?? null);
     }
 
@@ -365,143 +412,233 @@ export const AppProvider: ParentComponent = (props) => {
       resetRotationQueue();
     }
   };
-  
+
   //画像のシーケンシャル読み込み
   const loadImageBySequence = async (
-    resolvePath: (current: string) => Promise<string | null>
+    resolvePath: (current: string) => Promise<string | null>,
   ): Promise<boolean> => {
     const filePath = currentImageFilePath();
     if (!filePath) {
-      console.warn('[Navigation] 現在の画像ファイルパスが設定されていません');
+      console.warn("[Navigation] 現在の画像ファイルパスが設定されていません");
       return false;
     }
 
     const nextPath = await resolvePath(filePath);
     if (!nextPath) {
-      console.warn('[Navigation] 次/前の画像が取得できませんでした');
+      console.warn("[Navigation] 次/前の画像が取得できませんでした");
       return false;
     }
 
     setZoomScale(1);
-    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(nextPath), { filePath: nextPath });
+    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(nextPath), {
+      filePath: nextPath,
+    });
     return true;
   };
 
   const loadNextImage = async (): Promise<boolean> => {
-    return loadImageBySequence((current: string) => fetchNextImagePath(current, true));
+    return loadImageBySequence((current: string) =>
+      fetchNextImagePath(current, true),
+    );
   };
 
   const loadPreviousImage = async (): Promise<boolean> => {
-    return loadImageBySequence((current: string) => fetchPreviousImagePath(current, true));
+    return loadImageBySequence((current: string) =>
+      fetchPreviousImagePath(current, true),
+    );
   };
 
   createThemeController(theme);
 
-  onMount(() => {
-    const savedTheme = localStorage.getItem('vdi-theme');
+  onMount(async () => {
+    // コマンドライン引数から起動設定を取得
+    const launchConfig = await getLaunchConfig();
+
+    const savedTheme = localStorage.getItem("vdi-theme");
     if (isThemeKey(savedTheme)) {
       setTheme(savedTheme);
     }
 
     // グリッド永続化設定を復元
-    const savedGridPersist = localStorage.getItem('vdi-grid-persist');
-    const persistEnabled = savedGridPersist === 'true';
+    const savedGridPersist = localStorage.getItem("vdi-grid-persist");
+    const persistEnabled = savedGridPersist === "true";
     setGridPersistEnabled(persistEnabled);
 
-    // 永続化が有効な場合はパターンを復元
-    if (persistEnabled) {
-      const savedGridPattern = localStorage.getItem('vdi-grid-pattern');
-      if (savedGridPattern && ['off', '3x3', '5x3', '4x4'].includes(savedGridPattern)) {
+    // グリッドパターンの適用（コマンドライン引数 > localStorage）
+    if (launchConfig.gridPattern !== undefined) {
+      setGridPattern(launchConfig.gridPattern);
+    } else if (persistEnabled) {
+      const savedGridPattern = localStorage.getItem("vdi-grid-pattern");
+      if (
+        savedGridPattern &&
+        ["off", "3x3", "5x3", "4x4"].includes(savedGridPattern)
+      ) {
         setGridPattern(savedGridPattern as GridPattern);
       }
     }
 
+    // グリッド不透明度の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.gridOpacity !== undefined) {
+      setGridOpacity(launchConfig.gridOpacity);
+    }
+
     // ホイール感度設定を復元
-    const savedWheelSensitivity = localStorage.getItem('vdi-wheel-sensitivity');
+    const savedWheelSensitivity = localStorage.getItem("vdi-wheel-sensitivity");
     if (savedWheelSensitivity) {
       const sensitivity = parseFloat(savedWheelSensitivity);
       if (!isNaN(sensitivity)) {
-        setWheelSensitivity(Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity)));
+        setWheelSensitivity(
+          Math.max(
+            CONFIG.zoom.minWheelSensitivity,
+            Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity),
+          ),
+        );
       }
     }
 
-    // フォーカスピーキング設定を復元
-    const savedPeakingEnabled = localStorage.getItem('vdi-peaking-enabled');
-    if (savedPeakingEnabled !== null) {
-      setPeakingEnabled(savedPeakingEnabled === 'true');
-    }
-
-    const savedPeakingIntensity = localStorage.getItem('vdi-peaking-intensity');
-    if (savedPeakingIntensity) {
-      const intensity = parseInt(savedPeakingIntensity, 10);
-      if (!Number.isNaN(intensity)) {
-        setPeakingIntensity(intensity);
+    // ピーキング有効/無効の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.peakingEnabled !== undefined) {
+      setPeakingEnabled(launchConfig.peakingEnabled);
+    } else {
+      const savedPeakingEnabled = localStorage.getItem("vdi-peaking-enabled");
+      if (savedPeakingEnabled !== null) {
+        setPeakingEnabled(savedPeakingEnabled === "true");
       }
     }
 
-    const savedPeakingColor = localStorage.getItem('vdi-peaking-color');
-    if (savedPeakingColor) {
-      setPeakingColor(savedPeakingColor);
-    }
-
-    const savedPeakingOpacity = localStorage.getItem('vdi-peaking-opacity');
-    if (savedPeakingOpacity) {
-      const opacity = parseFloat(savedPeakingOpacity);
-      if (!Number.isNaN(opacity)) {
-        setPeakingOpacity(opacity);
+    // ピーキング閾値の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.peakingIntensity !== undefined) {
+      setPeakingIntensity(launchConfig.peakingIntensity);
+    } else {
+      const savedPeakingIntensity = localStorage.getItem(
+        "vdi-peaking-intensity",
+      );
+      if (savedPeakingIntensity) {
+        const intensity = parseInt(savedPeakingIntensity, 10);
+        if (!Number.isNaN(intensity)) {
+          setPeakingIntensity(intensity);
+        }
       }
     }
 
-    const savedPeakingBlink = localStorage.getItem('vdi-peaking-blink');
-    if (savedPeakingBlink !== null) {
-      setPeakingBlink(savedPeakingBlink === 'true');
+    // ピーキング色の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.peakingColor !== undefined) {
+      setPeakingColor(launchConfig.peakingColor);
+    } else {
+      const savedPeakingColor = localStorage.getItem("vdi-peaking-color");
+      if (savedPeakingColor) {
+        setPeakingColor(savedPeakingColor);
+      }
+    }
+
+    // ピーキング不透明度の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.peakingOpacity !== undefined) {
+      setPeakingOpacity(launchConfig.peakingOpacity);
+    } else {
+      const savedPeakingOpacity = localStorage.getItem("vdi-peaking-opacity");
+      if (savedPeakingOpacity) {
+        const opacity = parseFloat(savedPeakingOpacity);
+        if (!Number.isNaN(opacity)) {
+          setPeakingOpacity(opacity);
+        }
+      }
+    }
+
+    // ピーキング点滅の適用（コマンドライン引数 > localStorage）
+    if (launchConfig.peakingBlink !== undefined) {
+      setPeakingBlink(launchConfig.peakingBlink);
+    } else {
+      const savedPeakingBlink = localStorage.getItem("vdi-peaking-blink");
+      if (savedPeakingBlink !== null) {
+        setPeakingBlink(savedPeakingBlink === "true");
+      }
     }
 
     // ヒストグラム設定を復元
-    const savedHistogramEnabled = localStorage.getItem('vdi-histogram-enabled');
+    const savedHistogramEnabled = localStorage.getItem("vdi-histogram-enabled");
     if (savedHistogramEnabled !== null) {
-      setHistogramEnabled(savedHistogramEnabled === 'true');
+      setHistogramEnabled(savedHistogramEnabled === "true");
     }
 
-    const savedHistogramDisplayType = localStorage.getItem('vdi-histogram-display-type');
-    if (savedHistogramDisplayType && (savedHistogramDisplayType === 'rgb' || savedHistogramDisplayType === 'luminance')) {
+    const savedHistogramDisplayType = localStorage.getItem(
+      "vdi-histogram-display-type",
+    );
+    if (
+      savedHistogramDisplayType &&
+      (savedHistogramDisplayType === "rgb" ||
+        savedHistogramDisplayType === "luminance")
+    ) {
       setHistogramDisplayType(savedHistogramDisplayType);
     }
 
-    const savedHistogramPosition = localStorage.getItem('vdi-histogram-position');
-    if (savedHistogramPosition && ['top-right', 'top-left', 'bottom-right', 'bottom-left'].includes(savedHistogramPosition)) {
-      setHistogramPosition(savedHistogramPosition as 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left');
+    const savedHistogramPosition = localStorage.getItem(
+      "vdi-histogram-position",
+    );
+    if (
+      savedHistogramPosition &&
+      ["top-right", "top-left", "bottom-right", "bottom-left"].includes(
+        savedHistogramPosition,
+      )
+    ) {
+      setHistogramPosition(
+        savedHistogramPosition as
+          | "top-right"
+          | "top-left"
+          | "bottom-right"
+          | "bottom-left",
+      );
     }
 
-    const savedHistogramSize = localStorage.getItem('vdi-histogram-size');
+    const savedHistogramSize = localStorage.getItem("vdi-histogram-size");
     if (savedHistogramSize) {
       const size = parseFloat(savedHistogramSize);
       if (!isNaN(size)) {
-        setHistogramSize(Math.max(CONFIG.histogram.minSize, Math.min(CONFIG.histogram.maxSize, size)));
+        setHistogramSize(
+          Math.max(
+            CONFIG.histogram.minSize,
+            Math.min(CONFIG.histogram.maxSize, size),
+          ),
+        );
       }
     }
 
-    const savedHistogramOpacity = localStorage.getItem('vdi-histogram-opacity');
+    const savedHistogramOpacity = localStorage.getItem("vdi-histogram-opacity");
     if (savedHistogramOpacity) {
       const opacity = parseFloat(savedHistogramOpacity);
       if (!isNaN(opacity)) {
-        setHistogramOpacity(Math.max(CONFIG.histogram.minOpacity, Math.min(CONFIG.histogram.maxOpacity, opacity)));
+        setHistogramOpacity(
+          Math.max(
+            CONFIG.histogram.minOpacity,
+            Math.min(CONFIG.histogram.maxOpacity, opacity),
+          ),
+        );
       }
     }
 
     // ファイルパス表示形式設定を復元
-    const savedShowFullPath = localStorage.getItem('vdi-show-full-path');
+    const savedShowFullPath = localStorage.getItem("vdi-show-full-path");
     if (savedShowFullPath !== null) {
-      setShowFullPathSignal(savedShowFullPath === 'true');
+      setShowFullPathSignal(savedShowFullPath === "true");
     }
 
     // コントロールパネル位置設定を復元
-    const savedControlPanelPosition = localStorage.getItem('vdi-control-panel-position');
-    if (savedControlPanelPosition === 'top' || savedControlPanelPosition === 'bottom') {
+    const savedControlPanelPosition = localStorage.getItem(
+      "vdi-control-panel-position",
+    );
+    if (
+      savedControlPanelPosition === "top" ||
+      savedControlPanelPosition === "bottom"
+    ) {
       setControlPanelPositionSignal(savedControlPanelPosition);
     }
 
-    setCurrentImagePath('public/sen38402160.png', { filePath: null });
+    // 画像パスの適用（コマンドライン引数 > デフォルト画像）
+    if (launchConfig.imagePath) {
+      const assetUrl = convertFileToAssetUrlWithCacheBust(launchConfig.imagePath);
+      setCurrentImagePath(assetUrl, { filePath: launchConfig.imagePath });
+    } else {
+      setCurrentImagePath("public/sen38402160.png", { filePath: null });
+    }
   });
 
   onCleanup(() => {
@@ -511,71 +648,85 @@ export const AppProvider: ParentComponent = (props) => {
 
   const handleThemeChange = (newTheme: ThemeKey) => {
     setTheme(newTheme);
-    localStorage.setItem('vdi-theme', newTheme);
+    localStorage.setItem("vdi-theme", newTheme);
   };
 
   const handleGridPatternChange = (pattern: GridPattern) => {
     setGridPattern(pattern);
     if (gridPersistEnabled()) {
-      localStorage.setItem('vdi-grid-pattern', pattern);
+      localStorage.setItem("vdi-grid-pattern", pattern);
     }
   };
 
   const handleGridPersistChange = (enabled: boolean) => {
     setGridPersistEnabled(enabled);
-    localStorage.setItem('vdi-grid-persist', enabled ? 'true' : 'false');
+    localStorage.setItem("vdi-grid-persist", enabled ? "true" : "false");
 
     if (enabled) {
       // 有効化時は現在のパターンを保存
-      localStorage.setItem('vdi-grid-pattern', gridPattern());
+      localStorage.setItem("vdi-grid-pattern", gridPattern());
     } else {
       // 無効化時はグリッドをoffにしてストレージをクリア
-      setGridPattern('off');
-      localStorage.removeItem('vdi-grid-pattern');
+      setGridPattern("off");
+      localStorage.removeItem("vdi-grid-pattern");
     }
   };
 
   const handleWheelSensitivityChange = (sensitivity: number) => {
-    const clampedSensitivity = Math.max(CONFIG.zoom.minWheelSensitivity, Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity));
+    const clampedSensitivity = Math.max(
+      CONFIG.zoom.minWheelSensitivity,
+      Math.min(CONFIG.zoom.maxWheelSensitivity, sensitivity),
+    );
     setWheelSensitivity(clampedSensitivity);
-    localStorage.setItem('vdi-wheel-sensitivity', clampedSensitivity.toString());
+    localStorage.setItem(
+      "vdi-wheel-sensitivity",
+      clampedSensitivity.toString(),
+    );
   };
 
   const handleHistogramEnabledChange = (enabled: boolean) => {
     setHistogramEnabled(enabled);
-    localStorage.setItem('vdi-histogram-enabled', enabled ? 'true' : 'false');
+    localStorage.setItem("vdi-histogram-enabled", enabled ? "true" : "false");
   };
 
-  const handleHistogramDisplayTypeChange = (type: 'rgb' | 'luminance') => {
+  const handleHistogramDisplayTypeChange = (type: "rgb" | "luminance") => {
     setHistogramDisplayType(type);
-    localStorage.setItem('vdi-histogram-display-type', type);
+    localStorage.setItem("vdi-histogram-display-type", type);
   };
 
-  const handleHistogramPositionChange = (position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left') => {
+  const handleHistogramPositionChange = (
+    position: "top-right" | "top-left" | "bottom-right" | "bottom-left",
+  ) => {
     setHistogramPosition(position);
-    localStorage.setItem('vdi-histogram-position', position);
+    localStorage.setItem("vdi-histogram-position", position);
   };
 
   const handleHistogramSizeChange = (size: number) => {
-    const clampedSize = Math.max(CONFIG.histogram.minSize, Math.min(CONFIG.histogram.maxSize, size));
+    const clampedSize = Math.max(
+      CONFIG.histogram.minSize,
+      Math.min(CONFIG.histogram.maxSize, size),
+    );
     setHistogramSize(clampedSize);
-    localStorage.setItem('vdi-histogram-size', clampedSize.toString());
+    localStorage.setItem("vdi-histogram-size", clampedSize.toString());
   };
 
   const handleHistogramOpacityChange = (opacity: number) => {
-    const clampedOpacity = Math.max(CONFIG.histogram.minOpacity, Math.min(CONFIG.histogram.maxOpacity, opacity));
+    const clampedOpacity = Math.max(
+      CONFIG.histogram.minOpacity,
+      Math.min(CONFIG.histogram.maxOpacity, opacity),
+    );
     setHistogramOpacity(clampedOpacity);
-    localStorage.setItem('vdi-histogram-opacity', clampedOpacity.toString());
+    localStorage.setItem("vdi-histogram-opacity", clampedOpacity.toString());
   };
 
   const handleShowFullPathChange = (show: boolean) => {
     setShowFullPathSignal(show);
-    localStorage.setItem('vdi-show-full-path', show ? 'true' : 'false');
+    localStorage.setItem("vdi-show-full-path", show ? "true" : "false");
   };
 
-  const handleControlPanelPositionChange = (position: 'top' | 'bottom') => {
+  const handleControlPanelPositionChange = (position: "top" | "bottom") => {
     setControlPanelPositionSignal(position);
-    localStorage.setItem('vdi-control-panel-position', position);
+    localStorage.setItem("vdi-control-panel-position", position);
   };
 
   const handleShowGalleryChange = (show: boolean) => {
@@ -644,7 +795,7 @@ export const AppProvider: ParentComponent = (props) => {
 export const useAppState = () => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useAppState must be used within an AppProvider');
+    throw new Error("useAppState must be used within an AppProvider");
   }
   return context;
 };
