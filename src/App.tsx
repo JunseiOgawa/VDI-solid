@@ -6,7 +6,6 @@ import Titlebar from "./components/Titlebar";
 import ImageViewer from "./components/ImageViewer";
 import ImageGallery from "./components/ImageGallery";
 import Footer from "./components/Footer";
-import FloatingControlPanel from "./components/FloatingControlPanel";
 import { AppProvider, useAppState } from "./context/AppStateContext";
 import { handleScreenFit } from "./lib/screenfit";
 import { callResetImagePosition, callZoomToCenter } from "./lib/imageViewerApi";
@@ -17,10 +16,58 @@ import "./App.css";
 
 /**
  * メインコンテンツコンポーネント
- * FloatingControlPanelに必要なpropsを渡すためのラッパー
  */
 const AppContent: Component = () => {
   const {
+    showGallery,
+    setShowGallery,
+    setZoomScale,
+    currentImageFilePath,
+    setCurrentImagePath,
+  } = useAppState();
+
+  /**
+   * 画像選択時のハンドラー
+   */
+  const handleImageSelect = async (imagePath: string) => {
+    setZoomScale(1);
+    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(imagePath), {
+      filePath: imagePath,
+    });
+
+    // ギャラリーを閉じる前に状態を更新
+    setShowGallery(false);
+
+    // トランジション完了を待ってからウィンドウを縮小
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await contractWindowForGallery();
+  };
+
+  return (
+    <>
+      <main class="flex flex-1 flex-row overflow-hidden min-h-0">
+        {/* ギャラリーサイドバー */}
+        <ImageGallery
+          isOpen={showGallery()}
+          onClose={async () => {
+            setShowGallery(false);
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            await contractWindowForGallery();
+          }}
+          currentImagePath={currentImageFilePath()}
+          onImageSelect={handleImageSelect}
+        />
+        <ImageViewer />
+      </main>
+      <Footer />
+    </>
+  );
+};
+
+const AppMain: Component = () => {
+  const {
+    showGallery,
+    setShowGallery,
     zoomScale,
     setZoomScale,
     theme,
@@ -56,10 +103,6 @@ const AppContent: Component = () => {
     setShowFullPath,
     controlPanelPosition,
     setControlPanelPosition,
-    showGallery,
-    setShowGallery,
-    currentImageFilePath,
-    setCurrentImagePath,
   } = useAppState();
 
   /**
@@ -109,89 +152,6 @@ const AppContent: Component = () => {
   };
 
   /**
-   * 画像選択時のハンドラー
-   */
-  const handleImageSelect = async (imagePath: string) => {
-    setZoomScale(1);
-    setCurrentImagePath(convertFileToAssetUrlWithCacheBust(imagePath), {
-      filePath: imagePath,
-    });
-
-    // ギャラリーを閉じる前に状態を更新
-    setShowGallery(false);
-
-    // トランジション完了を待ってからウィンドウを縮小
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    await contractWindowForGallery();
-  };
-
-  return (
-    <>
-      <main class="flex flex-1 flex-row overflow-hidden min-h-0">
-        {/* ギャラリーサイドバー */}
-        <ImageGallery
-          isOpen={showGallery()}
-          onClose={async () => {
-            setShowGallery(false);
-            await new Promise((resolve) => setTimeout(resolve, 300));
-            await contractWindowForGallery();
-          }}
-          currentImagePath={currentImageFilePath()}
-          onImageSelect={handleImageSelect}
-        />
-        <ImageViewer />
-        {/* フローティングコントロールパネル */}
-        <FloatingControlPanel
-          zoomScale={zoomScale()}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onZoomReset={handleZoomReset}
-          onScreenFit={handleScreenFitClick}
-          onRotate={handleRotate}
-          gridPattern={gridPattern()}
-          onGridPatternChange={setGridPattern}
-          gridOpacity={gridOpacity()}
-          onGridOpacityChange={setGridOpacity}
-          peakingEnabled={peakingEnabled()}
-          onPeakingEnabledChange={setPeakingEnabled}
-          peakingIntensity={peakingIntensity()}
-          onPeakingIntensityChange={setPeakingIntensity}
-          peakingColor={peakingColor()}
-          onPeakingColorChange={setPeakingColor}
-          peakingOpacity={peakingOpacity()}
-          onPeakingOpacityChange={setPeakingOpacity}
-          peakingBlink={peakingBlink()}
-          onPeakingBlinkChange={setPeakingBlink}
-          histogramEnabled={histogramEnabled()}
-          onHistogramEnabledChange={setHistogramEnabled}
-          histogramDisplayType={histogramDisplayType()}
-          onHistogramDisplayTypeChange={setHistogramDisplayType}
-          histogramPosition={histogramPosition()}
-          onHistogramPositionChange={setHistogramPosition}
-          histogramSize={histogramSize()}
-          onHistogramSizeChange={setHistogramSize}
-          histogramOpacity={histogramOpacity()}
-          onHistogramOpacityChange={setHistogramOpacity}
-          theme={theme()}
-          onThemeChange={setTheme}
-          wheelSensitivity={wheelSensitivity()}
-          onWheelSensitivityChange={setWheelSensitivity}
-          showFullPath={showFullPath()}
-          onShowFullPathChange={setShowFullPath}
-          position={controlPanelPosition()}
-          onPositionChange={setControlPanelPosition}
-          currentImageFilePath={currentImageFilePath()}
-        />
-      </main>
-      <Footer />
-    </>
-  );
-};
-
-const AppMain: Component = () => {
-  const { showGallery, setShowGallery } = useAppState();
-
-  /**
    * ギャラリーの開閉をウィンドウリサイズと連動させる
    */
   const handleToggleGallery = async (open: boolean) => {
@@ -214,6 +174,44 @@ const AppMain: Component = () => {
       <Titlebar
         showGallery={showGallery()}
         onToggleGallery={handleToggleGallery}
+        zoomScale={zoomScale()}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
+        onScreenFit={handleScreenFitClick}
+        onRotate={handleRotate}
+        gridPattern={gridPattern()}
+        onGridPatternChange={setGridPattern}
+        gridOpacity={gridOpacity()}
+        onGridOpacityChange={setGridOpacity}
+        peakingEnabled={peakingEnabled()}
+        onPeakingEnabledChange={setPeakingEnabled}
+        peakingIntensity={peakingIntensity()}
+        onPeakingIntensityChange={setPeakingIntensity}
+        peakingColor={peakingColor()}
+        onPeakingColorChange={setPeakingColor}
+        peakingOpacity={peakingOpacity()}
+        onPeakingOpacityChange={setPeakingOpacity}
+        peakingBlink={peakingBlink()}
+        onPeakingBlinkChange={setPeakingBlink}
+        histogramEnabled={histogramEnabled()}
+        onHistogramEnabledChange={setHistogramEnabled}
+        histogramDisplayType={histogramDisplayType()}
+        onHistogramDisplayTypeChange={setHistogramDisplayType}
+        histogramPosition={histogramPosition()}
+        onHistogramPositionChange={setHistogramPosition}
+        histogramSize={histogramSize()}
+        onHistogramSizeChange={setHistogramSize}
+        histogramOpacity={histogramOpacity()}
+        onHistogramOpacityChange={setHistogramOpacity}
+        theme={theme()}
+        onThemeChange={setTheme}
+        wheelSensitivity={wheelSensitivity()}
+        onWheelSensitivityChange={setWheelSensitivity}
+        showFullPath={showFullPath()}
+        onShowFullPathChange={setShowFullPath}
+        controlPanelPosition={controlPanelPosition()}
+        onControlPanelPositionChange={setControlPanelPosition}
       />
       <AppContent />
     </div>
