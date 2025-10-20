@@ -41,7 +41,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
 
   return (
     <div
-      class="drag-region relative flex h-8 items-center justify-between border-b border-[var(--glass-border-subtle)] bg-[var(--glass-bg-primary)] backdrop-blur-xl px-2 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
+      class="drag-region relative flex h-8 items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-2 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
       data-tauri-drag-region
     >
       {/* 左側: ギャラリー展開ボタン */}

@@ -125,6 +125,12 @@ export interface AppState {
     resolution: { width: number; height: number } | null,
   ) => void;
 
+  // ファイルサイズ関連
+  /** 画像ファイルのサイズをバイト単位で取得 */
+  imageFileSize: () => number | null;
+  /** 画像ファイルのサイズを設定 */
+  setImageFileSize: (size: number | null) => void;
+
   // ファイルパス表示形式関連
   /** フルパス表示の有効/無効（true: フルパス, false: ファイル名のみ） */
   showFullPath: () => boolean;
@@ -238,6 +244,9 @@ export const AppProvider: ParentComponent = (props) => {
     width: number;
     height: number;
   } | null>(null);
+
+  // ファイルサイズ関連Signal
+  const [imageFileSize, setImageFileSize] = createSignal<number | null>(null);
 
   // ファイルパス表示形式関連Signal（デフォルト: false = ファイル名のみ）
   const [showFullPath, setShowFullPathSignal] = createSignal<boolean>(false);
@@ -406,6 +415,21 @@ export const AppProvider: ParentComponent = (props) => {
 
     if (options && Object.prototype.hasOwnProperty.call(options, "filePath")) {
       setCurrentImageFilePath(options.filePath ?? null);
+
+      // ファイルパスが設定されたときにファイルサイズを取得
+      const filePath = options.filePath;
+      if (filePath) {
+        invoke<number>("get_file_size", { filePath })
+          .then((size) => {
+            setImageFileSize(size);
+          })
+          .catch((error) => {
+            console.error("[AppStateContext] Failed to get file size:", error);
+            setImageFileSize(null);
+          });
+      } else {
+        setImageFileSize(null);
+      }
     }
 
     if (!options?.preserveQueue) {
@@ -779,6 +803,8 @@ export const AppProvider: ParentComponent = (props) => {
     setHistogramOpacity: handleHistogramOpacityChange,
     imageResolution,
     setImageResolution,
+    imageFileSize,
+    setImageFileSize,
     showFullPath,
     setShowFullPath: handleShowFullPathChange,
     controlPanelPosition,

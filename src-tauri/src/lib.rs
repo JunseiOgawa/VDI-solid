@@ -154,7 +154,9 @@ pub fn run() {
             img::cleanup_image_backup,
             peaking::focus_peaking,
             histogram::calculate_histogram,
-            file_operations::open_in_explorer
+            file_operations::open_in_explorer,
+            file_operations::get_file_size,
+            file_operations::delete_file
         ])
         .setup(move |app| {
             // ウィンドウサイズに応じて設定を変更
