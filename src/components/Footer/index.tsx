@@ -1,8 +1,10 @@
 import type { Component } from "solid-js";
+import { createSignal, onMount, onCleanup, Show } from "solid-js";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppState } from "../../context/AppStateContext";
+import SettingsMenu from "../SettingsMenu";
 
 const Footer: Component = () => {
   const {
@@ -13,7 +15,16 @@ const Footer: Component = () => {
     showFullPath,
     loadNextImage,
     loadPreviousImage,
+    theme,
+    setTheme,
+    wheelSensitivity,
+    setWheelSensitivity,
+    setShowFullPath,
+    controlPanelPosition,
+    setControlPanelPosition,
   } = useAppState();
+
+  const [showSettings, setShowSettings] = createSignal(false);
 
   // ファイル名を抽出する関数
   const getFileName = (path: string) => {
@@ -137,101 +148,171 @@ const Footer: Component = () => {
     }
   };
 
+  // 設定メニューの表示切り替え
+  const toggleSettings = () => {
+    setShowSettings(!showSettings());
+  };
+
+  // メニュー外クリック時に設定メニューを閉じる処理
+  onMount(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      // フッター、設定ボタン、設定メニュー内のクリックは無視
+      if (
+        target.closest("footer") ||
+        target.closest('[data-menu="footer-settings"]')
+      ) {
+        return;
+      }
+
+      // メニュー外のクリックは設定メニューを閉じる
+      setShowSettings(false);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+
+    onCleanup(() => {
+      document.removeEventListener("click", handleClickOutside);
+    });
+  });
+
   return (
-    <footer class="border-t border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-4 text-xs text-[var(--glass-text-secondary)] transition-colors duration-300">
-      <div class="mx-auto flex h-8 items-center justify-between overflow-hidden gap-2">
-        {/* 左側: ファイルサイズと解像度 */}
-        <div class="flex-shrink-0 flex items-center gap-3">
-          <p class="whitespace-nowrap text-tabular w-20">{displayFileSize()}</p>
-          <p class="whitespace-nowrap text-tabular w-24">
-            {displayResolution()}
-          </p>
-        </div>
-
-        {/* 中央: ファイルパス */}
-        <div class="flex-1 mx-4 overflow-hidden">
-          <p class="overflow-hidden text-ellipsis whitespace-nowrap text-center">
-            {displayPath()}
-          </p>
-        </div>
-
-        {/* 右側: 削除、エクスプローラ、フルスクリーンボタン */}
-        <div class="flex-shrink-0 flex items-center justify-end gap-1">
-          {/* 削除ボタン */}
-          <button
-            id="footerDeleteBtn"
-            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-red-500/20 hover:text-red-400 hover:backdrop-blur-md hover:scale-105 hover:border-red-500/30 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="削除"
-            title="削除"
-            onClick={handleDeleteFile}
-            disabled={!currentImageFilePath()}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+    <>
+      <footer class="border-t border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-4 text-xs text-[var(--glass-text-secondary)] transition-colors duration-300">
+        <div class="mx-auto flex h-8 items-center justify-between overflow-hidden gap-2">
+          {/* 左側: 設定ボタン、ファイルサイズ、解像度 */}
+          <div class="flex-shrink-0 flex items-center gap-2">
+            {/* 設定ボタン */}
+            <button
+              id="footerSettingsBtn"
+              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-transparent bg-transparent text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
+              aria-label="設定"
+              title="設定"
+              onClick={toggleSettings}
             >
-              <path
-                d="M5 1v1H2v1h12V2h-3V1H5zm1 1h4V1H6v1z"
-                fill="currentColor"
+              <img
+                class="h-4 w-4 brightness-0 invert dark:invert-0 dark:brightness-100 opacity-90"
+                src="/setting_ge_h.svg"
+                alt="設定"
               />
-              <path
-                d="M3 4v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4H3zm2 1h6v9H5V5z"
-                fill="currentColor"
-              />
-              <path d="M6 6h1v7H6V6zm3 0h1v7H9V6z" fill="currentColor" />
-            </svg>
-          </button>
+            </button>
 
-          {/* エクスプローラで開くボタン */}
-          <button
-            id="footerExplorerBtn"
-            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="エクスプローラで開く"
-            title="エクスプローラで開く"
-            onClick={handleRevealInExplorer}
-            disabled={!currentImageFilePath()}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M2 3v10h12V6h-4V3H2zm1 1h5v3h5v6H3V4z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
+            <p class="whitespace-nowrap text-tabular w-20">
+              {displayFileSize()}
+            </p>
+            <p class="whitespace-nowrap text-tabular w-24">
+              {displayResolution()}
+            </p>
+          </div>
 
-          {/* フルスクリーンボタン */}
-          <button
-            id="footerFullscreenBtn"
-            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
-            aria-label="フルスクリーン"
-            title="フルスクリーン"
-            onClick={handleToggleFullscreen}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+          {/* 中央: ファイルパス */}
+          <div class="flex-1 mx-4 overflow-hidden">
+            <p class="overflow-hidden text-ellipsis whitespace-nowrap text-center">
+              {displayPath()}
+            </p>
+          </div>
+
+          {/* 右側: 削除、エクスプローラ、フルスクリーンボタン */}
+          <div class="flex-shrink-0 flex items-center justify-end gap-1">
+            {/* 削除ボタン */}
+            <button
+              id="footerDeleteBtn"
+              class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-red-500/20 hover:text-red-400 hover:backdrop-blur-md hover:scale-105 hover:border-red-500/30 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="削除"
+              title="削除"
+              onClick={handleDeleteFile}
+              disabled={!currentImageFilePath()}
             >
-              <path
-                d="M2 2v4h1V3h3V2H2zm8 0v1h3v3h1V2h-4zM2 10v4h4v-1H3v-3H2zm11 0v3h-3v1h4v-4h-1z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 1v1H2v1h12V2h-3V1H5zm1 1h4V1H6v1z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M3 4v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4H3zm2 1h6v9H5V5z"
+                  fill="currentColor"
+                />
+                <path d="M6 6h1v7H6V6zm3 0h1v7H9V6z" fill="currentColor" />
+              </svg>
+            </button>
+
+            {/* エクスプローラで開くボタン */}
+            <button
+              id="footerExplorerBtn"
+              class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="エクスプローラで開く"
+              title="エクスプローラで開く"
+              onClick={handleRevealInExplorer}
+              disabled={!currentImageFilePath()}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 3v10h12V6h-4V3H2zm1 1h5v3h5v6H3V4z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+
+            {/* フルスクリーンボタン */}
+            <button
+              id="footerFullscreenBtn"
+              class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
+              aria-label="フルスクリーン"
+              title="フルスクリーン"
+              onClick={handleToggleFullscreen}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 2v4h1V3h3V2H2zm8 0v1h3v3h1V2h-4zM2 10v4h4v-1H3v-3H2zm11 0v3h-3v1h4v-4h-1z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
-    </footer>
+      </footer>
+
+      {/* SettingsMenu - Footerの上に表示 */}
+      <Show when={showSettings()}>
+        <div
+          class="absolute bottom-8 left-4 z-50"
+          data-menu="footer-settings"
+        >
+          <SettingsMenu
+            theme={theme()}
+            onThemeChange={(newTheme) => {
+              setTheme(newTheme);
+              setShowSettings(false);
+            }}
+            wheelSensitivity={wheelSensitivity()}
+            onWheelSensitivityChange={setWheelSensitivity}
+            showFullPath={showFullPath()}
+            onShowFullPathChange={setShowFullPath}
+            controlPanelPosition={controlPanelPosition()}
+            onControlPanelPositionChange={setControlPanelPosition}
+          />
+        </div>
+      </Show>
+    </>
   );
 };
 
