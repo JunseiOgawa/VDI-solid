@@ -73,13 +73,14 @@ jobs:
 
       # 8. Tauri アプリのビルド
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run tauri build -- --target ${{ matrix.target }}
+
+      # 9. リリースの作成
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'VDI-solid ${{ github.ref_name }}'
-          releaseBody: |
+          name: 'VDI-solid ${{ github.ref_name }}'
+          body: |
             ## VDI-solid ${{ github.ref_name }}
             
             ### Downloads
@@ -88,6 +89,9 @@ jobs:
             - **Linux**: `.AppImage` または `.deb`
             
             詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。
-          releaseDraft: false
+          files: |
+            ./src-tauri/target/${{ matrix.target }}/release/bundle/**/*
+          draft: false
           prerelease: false
-          args: --target ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
