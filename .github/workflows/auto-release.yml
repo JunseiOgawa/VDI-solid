@@ -11,6 +11,8 @@ on:
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -174,11 +176,7 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # 11. フロントエンドのビルド
-      - name: Build frontend
-        run: npm run build
-
-      # 12. Tauriアプリのビルドとリリース
+      # 11. Tauriアプリのビルドとリリース
       - name: Build and Release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
