@@ -3853,3 +3853,693 @@ interface ImageGalleryProps {
 4. 既存機能（ズーム、回転、グリッド、ピーキング、ヒストグラム等）が正常に動作すること
 5. ホバー、クリック等のインタラクションが適切に動作すること
 
+---
+
+# 自動アップデート機能 設計書
+
+## 日付
+
+2025-01-21
+
+## 概要
+
+GitHub ActionsとTauriの公式updaterプラグインを使用して、mainブランチへのプッシュ時に自動的にWindows/Linux向けにビルド・リリースし、アプリ側では起動時のバックグラウンドチェックと手動チェック機能を提供する完全な自動アップデートシステムを実装します。
+
+## 背景と要件
+
+### 現在の実装状況
+
+- **GitHub Workflows**: タグベース（`v*`）のリリースワークフローが存在
+- **Tauri設定**: updaterプラグインは未導入
+- **バージョン管理**: package.json、Cargo.toml、tauri.conf.jsonで手動管理
+
+### 要件
+
+#### GitHub Actionsワークフロー
+
+1. **トリガー**: mainブランチへのプッシュで自動実行
+2. **ビルド対象**: Windows（x64）とLinux（x64）
+3. **リリース**: GitHubのReleaseページで自動公開
+4. **バージョン管理**:
+   - PATCH番号（0.1.**X**）は自動インクリメント
+   - MAJOR/MINOR（**X.Y**.0）は手動で変更可能
+5. **パッチノート**: コミットメッセージから自動生成、後から手動編集可能
+
+#### アプリ側の機能
+
+1. **起動時のバックグラウンドチェック**:
+   - 最終アップデートチェック時刻を参照
+   - 6時間経過していればGitHub Releaseをチェック
+   - アップデートがあればダイアログ表示
+   - OKでアップデート実行、キャンセルで無視
+
+2. **手動チェック機能**:
+   - 設定メニューの「バージョン情報」画面から実行
+   - 最終チェック時刻を無視してチェック
+   - 連続実行回数を制限（レート制限）
+
+3. **アップデートダイアログ**:
+   - バージョン情報表示
+   - リリースノート表示
+   - 進捗表示（ダウンロード、インストール）
+   - キャンセル機能
+
+## バージョン管理の詳細設計
+
+### セマンティックバージョニング（MAJOR.MINOR.PATCH）
+
+- **MAJOR**: 手動変更（破壊的変更）
+- **MINOR**: 手動変更（新機能追加）
+- **PATCH**: 自動インクリメント（バグ修正、小規模な変更）
+
+### バージョン管理の流れ
+
+1. **通常のコミット → mainブランチプッシュ**:
+   - GitHub Actionsが最新のGitタグを取得
+   - PATCH番号を自動インクリメント（例: 0.1.2 → 0.1.3）
+   - 新しいバージョンでビルド・リリース
+
+2. **MAJOR/MINORの手動変更**:
+   - package.json、Cargo.toml、tauri.conf.jsonのバージョンを手動更新
+   - Gitタグを手動作成（例: `git tag v1.0.0`）
+   - mainブランチにプッシュ
+   - ワークフローは既存のタグを検出してそのバージョンでリリース
+
+### バージョン同期の実装
+
+3つのファイルでバージョンを管理：
+1. `package.json` - npmパッケージバージョン
+2. `src-tauri/Cargo.toml` - Rustクレートバージョン
+3. `src-tauri/tauri.conf.json` - Tauriアプリバージョン
+
+GitHub Actionsでこれらを自動同期します。
+
+## 技術設計
+
+### 1. GitHub Actions ワークフロー
+
+#### ファイル構成
+
+**新規作成**: `.github/workflows/auto-release.yml`
+
+**トリガー条件**:
+```yaml
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/build.yml'
+```
+
+**主要ステップ**:
+
+1. **バージョン決定**:
+   ```yaml
+   - name: Determine version
+     id: version
+     run: |
+       # 最新のGitタグを取得
+       LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+
+       # タグからバージョン番号を抽出（vプレフィックスを除去）
+       CURRENT_VERSION=${LATEST_TAG#v}
+
+       # package.jsonのバージョンを確認
+       PACKAGE_VERSION=$(node -p "require('./package.json').version")
+
+       # package.jsonのバージョンが最新タグと異なる場合は手動更新と判断
+       if [ "$PACKAGE_VERSION" != "$CURRENT_VERSION" ]; then
+         NEW_VERSION=$PACKAGE_VERSION
+       else
+         # PATCH番号を自動インクリメント
+         IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+         PATCH=$((PATCH + 1))
+         NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+       fi
+
+       echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+       echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+   ```
+
+2. **バージョンファイル更新**:
+   ```yaml
+   - name: Update version files
+     run: |
+       VERSION=${{ steps.version.outputs.version }}
+
+       # package.json更新
+       npm version $VERSION --no-git-tag-version
+
+       # Cargo.toml更新
+       sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+
+       # tauri.conf.json更新
+       sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+   ```
+
+3. **パッチノート生成**:
+   ```yaml
+   - name: Generate release notes
+     id: release_notes
+     run: |
+       LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+       if [ -z "$LATEST_TAG" ]; then
+         NOTES="初回リリース"
+       else
+         # 前回のタグから今回までのコミットログを取得
+         NOTES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+       fi
+
+       # マルチライン出力対応
+       echo "notes<<EOF" >> $GITHUB_OUTPUT
+       echo "$NOTES" >> $GITHUB_OUTPUT
+       echo "EOF" >> $GITHUB_OUTPUT
+   ```
+
+4. **Gitタグ作成とプッシュ**:
+   ```yaml
+   - name: Create and push tag
+     run: |
+       git config user.name "github-actions[bot]"
+       git config user.email "github-actions[bot]@users.noreply.github.com"
+       git tag -a ${{ steps.version.outputs.tag }} -m "Release ${{ steps.version.outputs.tag }}"
+       git push origin ${{ steps.version.outputs.tag }}
+   ```
+
+5. **Tauriビルド・リリース**:
+   ```yaml
+   - name: Build and Release
+     uses: tauri-apps/tauri-action@v0
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     with:
+       tagName: ${{ steps.version.outputs.tag }}
+       releaseName: 'VDI-solid ${{ steps.version.outputs.tag }}'
+       releaseBody: |
+         ## VDI-solid ${{ steps.version.outputs.tag }}
+
+         ### 変更内容
+         ${{ steps.release_notes.outputs.notes }}
+
+         ### ダウンロード
+         - **Windows**: `.msi` または `-setup.exe`
+         - **Linux**: `.AppImage` または `.deb`
+       releaseDraft: false
+       prerelease: false
+       args: --target ${{ matrix.target }}
+   ```
+
+#### Matrix戦略
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix:
+    include:
+      - platform: 'windows-latest'
+        target: 'x86_64-pc-windows-msvc'
+
+      - platform: 'ubuntu-22.04'
+        target: 'x86_64-unknown-linux-gnu'
+```
+
+### 2. Tauri Updaterプラグイン設定
+
+#### Rust側の設定
+
+**ファイル**: `src-tauri/Cargo.toml`
+
+```toml
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-updater = "2.0"
+tauri-plugin-dialog = "2.0"
+tauri-plugin-process = "2.0"
+```
+
+**ファイル**: `src-tauri/src/lib.rs`
+
+```rust
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            Ok(())
+        })
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        // 既存のプラグイン...
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+#### tauri.conf.jsonの設定
+
+```json
+{
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/ユーザー名/リポジトリ名/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": ""
+    }
+  }
+}
+```
+
+**注意**: `pubkey`は署名を使用しない場合は空文字列のままでOK（GitHub Releasesの場合）
+
+### 3. フロントエンド実装
+
+#### 依存関係の追加
+
+**ファイル**: `package.json`
+
+```json
+{
+  "dependencies": {
+    "@tauri-apps/plugin-updater": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-process": "^2"
+  }
+}
+```
+
+#### UpdateManagerサービスの実装
+
+**新規作成**: `src/services/UpdateManager.ts`
+
+```typescript
+import { check, Update } from '@tauri-apps/plugin-updater';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6時間
+const RATE_LIMIT_MAX_CHECKS = 3; // 最大チェック回数
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1時間
+
+export interface UpdateCheckResult {
+  available: boolean;
+  update?: Update;
+  error?: string;
+}
+
+export class UpdateManager {
+  private lastCheckTime: number = 0;
+  private manualCheckHistory: number[] = [];
+
+  /**
+   * ローカルストレージから最終チェック時刻を読み込む
+   */
+  loadLastCheckTime(): void {
+    const stored = localStorage.getItem('lastUpdateCheckTime');
+    if (stored) {
+      this.lastCheckTime = parseInt(stored, 10);
+    }
+  }
+
+  /**
+   * 最終チェック時刻を保存
+   */
+  private saveLastCheckTime(): void {
+    this.lastCheckTime = Date.now();
+    localStorage.setItem('lastUpdateCheckTime', this.lastCheckTime.toString());
+  }
+
+  /**
+   * バックグラウンドでアップデートをチェック（起動時に実行）
+   */
+  async checkForUpdatesBackground(): Promise<void> {
+    const now = Date.now();
+
+    // 6時間経過していない場合はスキップ
+    if (now - this.lastCheckTime < UPDATE_CHECK_INTERVAL_MS) {
+      console.log('[UpdateManager] 前回のチェックから6時間経過していないためスキップ');
+      return;
+    }
+
+    try {
+      const result = await this.performUpdateCheck();
+
+      if (result.available && result.update) {
+        await this.showUpdateDialog(result.update);
+      }
+    } catch (error) {
+      console.error('[UpdateManager] バックグラウンドチェック失敗:', error);
+    }
+  }
+
+  /**
+   * 手動でアップデートをチェック
+   */
+  async checkForUpdatesManual(): Promise<UpdateCheckResult> {
+    // レート制限チェック
+    if (!this.canPerformManualCheck()) {
+      return {
+        available: false,
+        error: '短時間に連続してチェックすることはできません。しばらくお待ちください。',
+      };
+    }
+
+    this.recordManualCheck();
+
+    try {
+      return await this.performUpdateCheck();
+    } catch (error) {
+      return {
+        available: false,
+        error: error instanceof Error ? error.message : 'アップデートチェックに失敗しました',
+      };
+    }
+  }
+
+  /**
+   * 実際のアップデートチェック処理
+   */
+  private async performUpdateCheck(): Promise<UpdateCheckResult> {
+    console.log('[UpdateManager] アップデートをチェック中...');
+
+    const update = await check();
+
+    this.saveLastCheckTime();
+
+    if (update) {
+      console.log(`[UpdateManager] アップデート利用可能: ${update.version}`);
+      return { available: true, update };
+    } else {
+      console.log('[UpdateManager] 最新版です');
+      return { available: false };
+    }
+  }
+
+  /**
+   * アップデートダイアログを表示
+   */
+  private async showUpdateDialog(update: Update): Promise<void> {
+    const message = `新しいバージョン ${update.version} が利用可能です。\n\n` +
+      `リリースノート:\n${update.body || '詳細はGitHubをご覧ください'}\n\n` +
+      `今すぐアップデートしますか？`;
+
+    const shouldUpdate = await ask(message, {
+      title: 'アップデート利用可能',
+      kind: 'info',
+      okLabel: 'アップデート',
+      cancelLabel: 'キャンセル',
+    });
+
+    if (shouldUpdate) {
+      await this.performUpdate(update);
+    }
+  }
+
+  /**
+   * アップデートをダウンロード・インストール
+   */
+  private async performUpdate(update: Update): Promise<void> {
+    try {
+      console.log('[UpdateManager] アップデートをダウンロード・インストール中...');
+
+      await update.downloadAndInstall((progress) => {
+        if (progress.event === 'Started') {
+          console.log(`[UpdateManager] ダウンロード開始: ${progress.data.contentLength} bytes`);
+        } else if (progress.event === 'Progress') {
+          console.log(`[UpdateManager] ダウンロード中: ${progress.data.chunkLength} bytes`);
+        } else if (progress.event === 'Finished') {
+          console.log('[UpdateManager] ダウンロード完了');
+        }
+      });
+
+      console.log('[UpdateManager] アップデート完了、再起動中...');
+      await update.close();
+      await relaunch();
+    } catch (error) {
+      console.error('[UpdateManager] アップデート失敗:', error);
+      await ask(`アップデートに失敗しました: ${error}`, {
+        title: 'エラー',
+        kind: 'error',
+      });
+    }
+  }
+
+  /**
+   * 手動チェックのレート制限を確認
+   */
+  private canPerformManualCheck(): boolean {
+    const now = Date.now();
+
+    // 1時間以上前のチェック履歴を削除
+    this.manualCheckHistory = this.manualCheckHistory.filter(
+      (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
+    );
+
+    return this.manualCheckHistory.length < RATE_LIMIT_MAX_CHECKS;
+  }
+
+  /**
+   * 手動チェック履歴を記録
+   */
+  private recordManualCheck(): void {
+    this.manualCheckHistory.push(Date.now());
+  }
+
+  /**
+   * 現在のバージョンを取得
+   */
+  getCurrentVersion(): string {
+    // package.jsonから取得（ビルド時に埋め込まれる）
+    return import.meta.env.PACKAGE_VERSION || '0.1.0';
+  }
+}
+
+export const updateManager = new UpdateManager();
+```
+
+#### Appコンポーネントでの初期化
+
+**ファイル**: `src/App.tsx`
+
+```typescript
+import { onMount } from 'solid-js';
+import { updateManager } from './services/UpdateManager';
+
+const App: Component = () => {
+  onMount(() => {
+    // アップデートチェックの初期化
+    updateManager.loadLastCheckTime();
+
+    // バックグラウンドでアップデートチェック
+    updateManager.checkForUpdatesBackground().catch((error) => {
+      console.error('[App] アップデートチェック失敗:', error);
+    });
+  });
+
+  // 既存の実装...
+};
+```
+
+#### バージョン情報画面の実装
+
+**新規作成**: `src/components/Settings/VersionInfo.tsx`
+
+```typescript
+import { Component, createSignal } from 'solid-js';
+import { updateManager } from '../../services/UpdateManager';
+
+const VersionInfo: Component = () => {
+  const [isChecking, setIsChecking] = createSignal(false);
+  const [message, setMessage] = createSignal('');
+
+  const handleCheckUpdate = async () => {
+    setIsChecking(true);
+    setMessage('アップデートをチェック中...');
+
+    const result = await updateManager.checkForUpdatesManual();
+
+    if (result.error) {
+      setMessage(result.error);
+    } else if (result.available && result.update) {
+      setMessage(`新しいバージョン ${result.update.version} が利用可能です`);
+    } else {
+      setMessage('最新版を使用しています');
+    }
+
+    setIsChecking(false);
+  };
+
+  return (
+    <div class="p-4 space-y-4">
+      <h2 class="text-lg font-semibold text-[var(--glass-text-primary)]">
+        バージョン情報
+      </h2>
+
+      <div class="space-y-2">
+        <div class="text-sm text-[var(--glass-text-secondary)]">
+          現在のバージョン: <span class="font-mono">{updateManager.getCurrentVersion()}</span>
+        </div>
+
+        <button
+          onClick={handleCheckUpdate}
+          disabled={isChecking()}
+          class="px-4 py-2 bg-blue-500/90 hover:bg-blue-400/90 disabled:bg-gray-500/50
+                 rounded-lg text-white transition-all duration-200"
+        >
+          {isChecking() ? 'チェック中...' : '最新版をチェック'}
+        </button>
+
+        {message() && (
+          <div class="text-sm text-[var(--glass-text-secondary)] mt-2">
+            {message()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default VersionInfo;
+```
+
+#### SettingsMenuへの統合
+
+**ファイル**: `src/components/Settings/index.tsx`
+
+```typescript
+import VersionInfo from './VersionInfo';
+
+// 既存のSettingsMenuコンポーネントに追加
+<div class="settings-section">
+  <VersionInfo />
+</div>
+```
+
+### 4. 環境変数の設定
+
+**ファイル**: `vite.config.ts`
+
+```typescript
+import { defineConfig } from 'vite';
+import solidPlugin from 'vite-plugin-solid';
+import { readFileSync } from 'fs';
+
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+
+export default defineConfig({
+  plugins: [solidPlugin()],
+  define: {
+    'import.meta.env.PACKAGE_VERSION': JSON.stringify(packageJson.version),
+  },
+  // 既存の設定...
+});
+```
+
+## 実装手順
+
+### フェーズ1: GitHub Actionsワークフロー
+
+1. `.github/workflows/auto-release.yml`を作成
+2. バージョン自動インクリメントロジックを実装
+3. パッチノート自動生成を実装
+4. ローカルでワークフローをテスト（act等を使用）
+
+### フェーズ2: Tauri Updaterプラグイン導入
+
+1. 依存関係の追加（Cargo.toml、package.json）
+2. Rust側のプラグイン登録
+3. tauri.conf.jsonの設定
+4. ビルドが通ることを確認
+
+### フェーズ3: フロントエンド実装
+
+1. UpdateManagerサービスの実装
+2. Appコンポーネントでの初期化
+3. VersionInfo画面の実装
+4. SettingsMenuへの統合
+
+### フェーズ4: テストとリリース
+
+1. 開発環境でテスト
+2. mainブランチへプッシュしてワークフローをテスト
+3. 実際のアップデート動作を検証
+
+## テストケース
+
+### GitHub Actionsワークフロー
+
+- [ ] mainブランチへのプッシュで自動実行される
+- [ ] バージョン番号が正しく自動インクリメントされる
+- [ ] package.jsonのバージョンを手動変更した場合、そのバージョンでリリースされる
+- [ ] パッチノートが正しく生成される
+- [ ] Windows/Linux両方のビルドが成功する
+- [ ] GitHubのReleaseページに自動公開される
+
+### アプリ側のアップデート機能
+
+- [ ] 起動時にバックグラウンドでアップデートをチェックする
+- [ ] 6時間以内の場合はチェックをスキップする
+- [ ] アップデートがある場合、ダイアログが表示される
+- [ ] OKを押すとアップデートがダウンロード・インストールされる
+- [ ] キャンセルを押すとアップデートをスキップする
+- [ ] バージョン情報画面から手動チェックができる
+- [ ] 手動チェックのレート制限が正しく動作する
+- [ ] 最新版の場合、適切なメッセージが表示される
+
+### エラーハンドリング
+
+- [ ] ネットワークエラー時に適切なメッセージが表示される
+- [ ] アップデートダウンロード失敗時に適切なエラー処理がされる
+- [ ] レート制限に達した場合、適切なメッセージが表示される
+
+## 注意事項
+
+### セキュリティ
+
+- GitHub Releaseからのダウンロードは基本的に安全
+- 署名を追加する場合は、Tauriの署名機能を使用
+
+### パフォーマンス
+
+- バックグラウンドチェックは非同期で実行され、起動に影響しない
+- アップデートファイルのダウンロードは進捗表示を提供
+
+### ユーザー体験
+
+- アップデートは強制せず、ユーザーの判断に任せる
+- レート制限により、連続チェックによるサーバー負荷を防止
+
+## 成果物
+
+### 新規作成
+
+- `.github/workflows/auto-release.yml` - 自動リリースワークフロー
+- `src/services/UpdateManager.ts` - アップデート管理サービス
+- `src/components/Settings/VersionInfo.tsx` - バージョン情報画面
+
+### 修正
+
+- `src-tauri/Cargo.toml` - updaterプラグイン依存関係追加
+- `src-tauri/src/lib.rs` - updaterプラグイン登録
+- `src-tauri/tauri.conf.json` - updater設定追加
+- `package.json` - updaterプラグイン依存関係追加
+- `vite.config.ts` - バージョン環境変数追加
+- `src/App.tsx` - アップデートチェック初期化
+- `src/components/Settings/index.tsx` - バージョン情報画面統合
+
+### 削除
+
+- `.github/workflows/release.yml` - 既存のタグベースリリースワークフロー（置き換え）
+
