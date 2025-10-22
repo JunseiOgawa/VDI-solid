@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     branches:
-      - main  # mainブランチへのプッシュでトリガー
+      - release  # releaseブランチへのプッシュでトリガー
 
 jobs:
   version:
@@ -89,7 +89,7 @@ jobs:
       # 8. 変更をプッシュ（これにより次のリリースジョブがトリガーされる）
       - name: Push version changes
         run: |
-          git push origin main
+          git push origin release
 
   release:
     # バージョン更新コミットの場合のみ実行
