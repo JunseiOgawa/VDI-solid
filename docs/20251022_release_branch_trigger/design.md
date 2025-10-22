@@ -23,6 +23,11 @@ GitHub Actions のリリースワークフローを、main ブランチではな
 - L87のバージョン更新コミットメッセージに`[skip ci]`が含まれていた
 - バージョン更新コミットがプッシュされてもワークフロー全体がスキップされるため、releaseジョブが実行されなかった
 
+### 問題4: releaseジョブの実行条件が厳しすぎる
+- releaseジョブが「bump versionを含む」コミットでのみ実行される設定だった
+- これにより、通常のコミットではリリースが作成されず、手動でバージョンを上げないとリリースできない状態だった
+- ユーザーの要求: releaseブランチへのコミットは**必ず**リリースにつなげたい
+
 ## 要件
 
 ### 機能要件
@@ -62,17 +67,25 @@ GitHub Actions のリリースワークフローを、main ブランチではな
    git push origin release
    ```
 
-3. **L97: ジョブ依存関係の削除**
+3. **L96-97: releaseジョブの実行条件を変更**
    ```yaml
-   # 変更前
+   # 最初の変更（問題2の修正）
    release:
      if: ${{ contains(github.event.head_commit.message, 'bump version') }}
-     needs: version
+     needs: version  # 削除
 
-   # 変更後
+   # 2回目の変更（問題4の修正 - 一時的）
    release:
-     if: ${{ contains(github.event.head_commit.message, 'bump version') }}
+     needs: version
+     if: always()  # versionジョブがスキップされても常に実行
+
+   # 最終的な変更（無駄なビルドを削除）
+   release:
+     needs: version
+     if: always() && contains(github.event.head_commit.message, 'bump version')
    ```
+   - `always()`により、versionジョブがスキップされても条件チェック可能
+   - `contains(..., 'bump version')`により、バージョン更新コミットでのみ実行
 
 4. **L118-127: バージョン情報の取得ステップを追加**
    - package.jsonから直接バージョンを読み取る新しいステップを追加
@@ -148,12 +161,15 @@ GitHubリリースページに公開
 ### フェーズ2: ビルドとリリース（releaseジョブ）
 
 #### トリガー条件
-- **ブランチ**: releaseブランチへのプッシュ
-- **条件**: コミットメッセージに`bump version`を**含む**
+- **依存関係**: versionジョブの完了後に実行
   ```yaml
-  if: ${{ contains(github.event.head_commit.message, 'bump version') }}
+  needs: version
+  if: always() && contains(github.event.head_commit.message, 'bump version')
   ```
-- **注意**: `needs: version`は削除されているため、versionジョブとは独立して実行される
+- **実行条件**:
+  - `always()`により、versionジョブがスキップされた場合でも条件チェック可能
+  - `contains(..., 'bump version')`により、バージョン更新コミットでのみ実行
+- **結果**: バージョン更新コミット後のみビルドが実行される（効率的）
 
 #### 並列実行（マトリックス戦略）
 
@@ -226,7 +242,12 @@ GitHubリリースページに公開
 1. **無限ループの防止**
    - versionジョブは`bump version`を**含まない**コミットで実行
    - releaseジョブは`bump version`を**含む**コミットで実行
-   - この条件分岐により、バージョン更新コミットが再度versionジョブをトリガーすることを防ぐ
+   - releaseジョブはコミットをプッシュしない
+   - バージョン更新コミット（`bump version`を含む）がプッシュされると：
+     - versionジョブがスキップされる（条件falseのため）
+     - releaseジョブのみが実行される（条件trueのため）
+   - releaseジョブが終了してもコミットがないため、ワークフローは終了
+   - この仕組みにより、無限ループを防ぐ
 
 2. **`[skip ci]`を使用しない理由**
    - 以前は`[skip ci]`を使用して無限ループを防いでいた
@@ -266,14 +287,21 @@ git push origin release
 
 **タイムライン例**:
 ```
-00:00 - プッシュ
+00:00 - プッシュ（例: "feat: 新機能追加"）
 00:01 - versionジョブ開始
-00:02 - バージョン更新完了、コミット＆プッシュ
-00:03 - releaseジョブ開始（Windows・Linux並列）
-00:10 - Windowsビルド完了（約7分）
-00:12 - Linuxビルド完了（約9分）
-00:13 - GitHubリリースページに公開
+00:02 - バージョン更新完了（0.1.5 → 0.1.6）、コミット＆プッシュ
+00:03 - releaseジョブスキップ（「bump version」を含まないため）
+
+# 直後にバージョン更新コミットがトリガーとなる
+00:03 - プッシュ（"chore: bump version to 0.1.6"）
+00:04 - versionジョブスキップ（「bump version」を含むため）
+00:04 - releaseジョブ開始（条件を満たすため実行）
+00:11 - Windowsビルド完了（約7分）
+00:13 - Linuxビルド完了（約9分）
+00:14 - GitHubリリースページに公開（v0.1.6）
 ```
+
+**効率化のポイント**: バージョン更新後の1回のみビルドが実行されるため、計算リソースを無駄にしません。
 
 ### ケース2: 緊急のホットフィックス
 
