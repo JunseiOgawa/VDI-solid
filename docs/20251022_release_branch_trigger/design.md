@@ -97,8 +97,278 @@ GitHub Actions のリリースワークフローを、main ブランチではな
 2. 変更内容を確認
 3. コミット前にユーザーに確認を求める
 
+## CD（継続的デリバリー）の動作フロー詳細
+
+### 全体の流れ
+
+```
+releaseブランチへのプッシュ
+    ↓
+versionジョブ実行（バージョン更新）
+    ↓
+バージョン更新コミットをreleaseブランチにプッシュ
+    ↓
+releaseジョブ実行（ビルド＆リリース）
+    ↓
+GitHubリリースページに公開
+```
+
+### フェーズ1: バージョン更新（versionジョブ）
+
+#### トリガー条件
+- **ブランチ**: releaseブランチへのプッシュ
+- **条件**: コミットメッセージに`bump version`を**含まない**
+  ```yaml
+  if: ${{ !contains(github.event.head_commit.message, 'bump version') }}
+  ```
+
+#### 実行内容
+
+1. **リポジトリのチェックアウト**
+   - 全履歴を取得（`fetch-depth: 0`）してタグを参照可能にする
+
+2. **最新バージョンの取得とインクリメント**
+   - Gitタグから最新バージョンを取得（例: `v0.1.5`）
+   - vプレフィックスを除去（例: `0.1.5`）
+   - バージョンをパース（MAJOR.MINOR.PATCH）
+   - PATCHバージョンをインクリメント（例: `0.1.5` → `0.1.6`）
+   - 新しいタグを生成（例: `v0.1.6`）
+
+3. **バージョンファイルの更新**
+   - `package.json`の`version`フィールドを更新
+   - `src-tauri/tauri.conf.json`の`version`フィールドを更新
+   - `src-tauri/Cargo.toml`の`version`フィールドを更新
+
+4. **変更のコミットとプッシュ**
+   - 3つのファイルをステージング
+   - コミットメッセージ: `chore: bump version to X.Y.Z`
+   - releaseブランチにプッシュ
+   - **重要**: このコミットメッセージに`bump version`が含まれるため、次のプッシュでreleaseジョブがトリガーされる
+
+### フェーズ2: ビルドとリリース（releaseジョブ）
+
+#### トリガー条件
+- **ブランチ**: releaseブランチへのプッシュ
+- **条件**: コミットメッセージに`bump version`を**含む**
+  ```yaml
+  if: ${{ contains(github.event.head_commit.message, 'bump version') }}
+  ```
+- **注意**: `needs: version`は削除されているため、versionジョブとは独立して実行される
+
+#### 並列実行（マトリックス戦略）
+
+2つのプラットフォームで並列にビルド:
+- **Windows**: `windows-latest` / `x86_64-pc-windows-msvc`
+- **Linux**: `ubuntu-22.04` / `x86_64-unknown-linux-gnu`
+
+#### 各プラットフォームでの実行内容
+
+1. **リポジトリのチェックアウト**
+   - デフォルトの履歴深度でチェックアウト
+
+2. **バージョン情報の取得**
+   - `package.json`から現在のバージョンを読み取る
+   - バージョン番号（例: `0.1.6`）とタグ（例: `v0.1.6`）を環境変数に設定
+   - `VERSION`: バージョン番号
+   - `TAG`: vプレフィックス付きタグ
+
+3. **新しいタグの作成とプッシュ**
+   - ローカルでGitタグを作成
+   - リモートにタグをプッシュ
+   - このタグがGitHubリリースに使用される
+
+4. **開発環境のセットアップ**
+   - **Node.js 20**のセットアップ
+   - **Rust**のセットアップ（ターゲットプラットフォーム指定）
+   - Rustキャッシュの有効化（ビルド高速化）
+
+5. **Linuxのみ: システム依存関係のインストール**
+   ```bash
+   libwebkit2gtk-4.1-dev
+   libappindicator3-dev
+   librsvg2-dev
+   patchelf
+   libssl-dev
+   ```
+
+6. **依存関係のインストール**
+   - `npm ci`で依存関係をインストール
+
+7. **フロントエンドのビルド**
+   - `npm run build`でSolidJSアプリをビルド
+
+8. **Tauriアプリのビルドとリリース**
+   - `tauri-apps/tauri-action@v0`を使用
+   - **生成される成果物**:
+     - **Windows**: `.msi`インストーラー、`-setup.exe`セットアップファイル
+     - **Linux**: `.AppImage`実行ファイル、`.deb`パッケージ
+   - **リリース情報**:
+     - タグ名: `${{ env.TAG }}`（例: `v0.1.6`）
+     - リリース名: `VDI-solid ${{ env.TAG }}`
+     - リリース本文: ダウンロードリンクと説明
+     - ドラフト: `false`（即座に公開）
+     - プレリリース: `false`（正式リリース）
+
+### 成果物の公開
+
+両プラットフォームのビルドが完了すると、GitHubのリリースページに以下が公開される:
+
+- **リリースタグ**: `v0.1.6`
+- **リリースタイトル**: `VDI-solid v0.1.6`
+- **添付ファイル**:
+  - `VDI-solid_0.1.6_x64.msi`
+  - `VDI-solid_0.1.6_x64-setup.exe`
+  - `vdi-solid_0.1.6_amd64.AppImage`
+  - `vdi-solid_0.1.6_amd64.deb`
+
+### 重要な注意事項
+
+1. **無限ループの防止**
+   - versionジョブは`bump version`を**含まない**コミットで実行
+   - releaseジョブは`bump version`を**含む**コミットで実行
+   - この条件分岐により、バージョン更新コミットが再度versionジョブをトリガーすることを防ぐ
+
+2. **`[skip ci]`を使用しない理由**
+   - 以前は`[skip ci]`を使用して無限ループを防いでいた
+   - しかし、これによりreleaseジョブもスキップされてしまう
+   - 現在は条件分岐により適切に制御
+
+3. **タグの作成タイミング**
+   - versionジョブではタグを作成しない
+   - releaseジョブでビルド前にタグを作成
+   - これにより、ビルドが失敗した場合でもリトライが可能
+
+4. **並列ビルドの利点**
+   - WindowsとLinuxのビルドが同時に実行される
+   - 全体の実行時間が短縮される
+   - 一方が失敗しても他方は継続（`fail-fast: false`）
+
+## 実際の運用例
+
+### ケース1: 通常のリリース
+
+```bash
+# 1. releaseブランチに切り替え
+git checkout release
+
+# 2. mainブランチの最新の変更をマージ
+git merge main
+
+# 3. releaseブランチにプッシュ
+git push origin release
+
+# 以降は自動実行される
+# - versionジョブが実行され、バージョンが0.1.5 → 0.1.6に更新
+# - バージョン更新コミットがプッシュされる
+# - releaseジョブが実行され、WindowsとLinuxのビルドが並列実行
+# - GitHubリリースページに成果物が公開される
+```
+
+**タイムライン例**:
+```
+00:00 - プッシュ
+00:01 - versionジョブ開始
+00:02 - バージョン更新完了、コミット＆プッシュ
+00:03 - releaseジョブ開始（Windows・Linux並列）
+00:10 - Windowsビルド完了（約7分）
+00:12 - Linuxビルド完了（約9分）
+00:13 - GitHubリリースページに公開
+```
+
+### ケース2: 緊急のホットフィックス
+
+```bash
+# 1. releaseブランチで直接修正
+git checkout release
+# 修正作業...
+git add .
+git commit -m "fix: 緊急バグ修正"
+git push origin release
+
+# 自動的にリリースプロセスが開始
+```
+
+### ケース3: ビルドが失敗した場合
+
+releaseジョブでビルドが失敗した場合:
+
+```bash
+# 1. 問題を修正
+git checkout release
+# 修正作業...
+git add .
+git commit -m "fix: ビルドエラーを修正"
+
+# 2. プッシュ
+git push origin release
+
+# versionジョブが再度実行され、0.1.6 → 0.1.7にインクリメント
+# releaseジョブが実行され、正常にリリース
+```
+
+### ケース4: バージョンを手動で調整したい場合
+
+マイナーバージョンやメジャーバージョンを上げたい場合:
+
+```bash
+# 1. releaseブランチで手動でバージョンを変更
+git checkout release
+
+# package.json、tauri.conf.json、Cargo.tomlを手動編集
+# 例: 0.1.6 → 0.2.0
+
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git commit -m "chore: bump version to 0.2.0"
+git push origin release
+
+# 注意: このコミットメッセージには "bump version" が含まれるため、
+# releaseジョブが実行される（versionジョブはスキップ）
+```
+
+## トラブルシューティング
+
+### 問題: versionジョブもreleaseジョブも実行されない
+
+**原因**: コミットメッセージに`[skip ci]`や`[ci skip]`が含まれている
+
+**解決策**: コミットメッセージから`[skip ci]`を削除してプッシュ
+
+### 問題: versionジョブは実行されるがreleaseジョブがスキップされる
+
+**原因1**: バージョン更新コミットのメッセージに`bump version`が含まれていない
+
+**解決策**: ワークフローのL87を確認し、正しいコミットメッセージを使用しているか確認
+
+**原因2**: コミットメッセージに`[skip ci]`が含まれている
+
+**解決策**: L87から`[skip ci]`を削除
+
+### 問題: releaseジョブが実行されるがビルドが失敗する
+
+**原因**: 依存関係の問題、コードのエラー、環境の問題など
+
+**解決策**:
+1. GitHub Actionsのログでエラーメッセージを確認
+2. 問題を修正してプッシュ（新しいバージョンでリリースが再実行される）
+
+### 問題: タグが重複してエラーになる
+
+**原因**: 既に同じタグが存在する
+
+**解決策**:
+```bash
+# ローカルとリモートのタグを削除
+git tag -d v0.1.6
+git push origin :refs/tags/v0.1.6
+
+# 再度プッシュ
+git push origin release
+```
+
 ## テスト計画
 
 1. release ブランチにプッシュして、ワークフローがトリガーされることを確認
 2. バージョンが自動的にインクリメントされることを確認
 3. ビルドとリリースが正常に実行されることを確認
+4. GitHubリリースページに成果物が公開されることを確認
+5. ダウンロードしたインストーラーが正常に動作することを確認
