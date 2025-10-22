@@ -94,7 +94,6 @@ jobs:
   release:
     # バージョン更新コミットの場合のみ実行
     if: ${{ contains(github.event.head_commit.message, 'bump version') }}
-    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -116,32 +115,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 新しいタグを作成
+      # 2. バージョン情報の取得
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+          TAG="v$VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "Version: $VERSION"
+          echo "Tag: $TAG"
+
+      # 3. 新しいタグを作成
       - name: Create new tag
         run: |
-          git tag ${{ needs.version.outputs.new_tag }}
-          git push origin ${{ needs.version.outputs.new_tag }}
-          echo "Created and pushed tag ${{ needs.version.outputs.new_tag }}"
+          git tag ${{ env.TAG }}
+          git push origin ${{ env.TAG }}
+          echo "Created and pushed tag ${{ env.TAG }}"
 
-      # 3. Node.js のセットアップ
+      # 4. Node.js のセットアップ
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3. Rust のセットアップ
+      # 5. Rust のセットアップ
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      # 4. Rust キャッシュ（ビルド高速化）
+      # 6. Rust キャッシュ（ビルド高速化）
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 5. Linux: システム依存関係のインストール
+      # 7. Linux: システム依存関係のインストール
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -153,24 +163,24 @@ jobs:
             patchelf \
             libssl-dev
 
-      # 6. npm 依存関係のインストール
+      # 8. npm 依存関係のインストール
       - name: Install npm dependencies
         run: npm ci
 
-      # 7. フロントエンドのビルド
+      # 9. フロントエンドのビルド
       - name: Build frontend
         run: npm run build
 
-      # 8. Tauri アプリのビルドとリリース
+      # 10. Tauri アプリのビルドとリリース
       - name: Build and Release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ needs.version.outputs.new_tag }}
-          releaseName: 'VDI-solid ${{ needs.version.outputs.new_tag }}'
+          tagName: ${{ env.TAG }}
+          releaseName: 'VDI-solid ${{ env.TAG }}'
           releaseBody: |
-            ## VDI-solid ${{ needs.version.outputs.new_tag }}
+            ## VDI-solid ${{ env.TAG }}
 
             ### Downloads
             - **Windows**: `.msi` または `-setup.exe`
