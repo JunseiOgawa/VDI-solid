@@ -19,6 +19,10 @@ GitHub Actions のリリースワークフローを、main ブランチではな
 - releaseジョブは「bump versionを含む」コミットで実行
 - この論理的矛盾により、releaseジョブが実行されない状態だった
 
+### 問題3: [skip ci]によるワークフローのスキップ
+- L87のバージョン更新コミットメッセージに`[skip ci]`が含まれていた
+- バージョン更新コミットがプッシュされてもワークフロー全体がスキップされるため、releaseジョブが実行されなかった
+
 ## 要件
 
 ### 機能要件
@@ -77,6 +81,15 @@ GitHub Actions のリリースワークフローを、main ブランチではな
 5. **L132-134, L180-183: 環境変数への参照変更**
    - `${{ needs.version.outputs.new_tag }}`を`${{ env.TAG }}`に変更
    - タグ作成とtauri-actionのパラメータで使用
+
+6. **L87: [skip ci]の削除**
+   ```yaml
+   # 変更前
+   git commit -m "chore: bump version to ... [skip ci]"
+
+   # 変更後
+   git commit -m "chore: bump version to ..."
+   ```
 
 ## 実装方針
 
