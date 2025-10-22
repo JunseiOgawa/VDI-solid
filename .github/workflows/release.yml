@@ -1,0 +1,182 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main  # mainブランチへのプッシュでトリガー
+
+jobs:
+  version:
+    # バージョン更新コミットでない場合のみ実行
+    if: ${{ !contains(github.event.head_commit.message, 'bump version') }}
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      new_tag: ${{ steps.version.outputs.new_tag }}
+
+    steps:
+      # 1. リポジトリのチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴を取得してタグを参照できるようにする
+
+      # 2. Node.js のセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. 最新バージョンの取得とインクリメント
+      - name: Get latest version and increment
+        id: version
+        run: |
+          # 最新のタグを取得（vプレフィックス付き）
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # vプレフィックスを除去
+          VERSION=${LATEST_TAG#v}
+          echo "Current version: $VERSION"
+
+          # バージョンをパース
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          # PATCHバージョンをインクリメント
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          NEW_TAG="v$NEW_VERSION"
+
+          echo "New version: $NEW_VERSION"
+          echo "New tag: $NEW_TAG"
+
+          # 出力
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      # 4. package.json のバージョン更新
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" package.json
+          echo "Updated package.json version to $NEW_VERSION"
+
+      # 5. tauri.conf.json のバージョン更新
+      - name: Update tauri.conf.json version
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" src-tauri/tauri.conf.json
+          echo "Updated tauri.conf.json version to $NEW_VERSION"
+
+      # 6. Cargo.toml のバージョン更新
+      - name: Update Cargo.toml version
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i "s/version = \"[^\"]*\"/version = \"$NEW_VERSION\"/" src-tauri/Cargo.toml
+          echo "Updated Cargo.toml version to $NEW_VERSION"
+
+      # 7. 変更をコミット
+      - name: Commit version changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+
+      # 8. 変更をプッシュ（これにより次のリリースジョブがトリガーされる）
+      - name: Push version changes
+        run: |
+          git push origin main
+
+  release:
+    # バージョン更新コミットの場合のみ実行
+    if: ${{ contains(github.event.head_commit.message, 'bump version') }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows (x64)
+          - platform: 'windows-latest'
+            os_name: 'Windows'
+            target: 'x86_64-pc-windows-msvc'
+
+          # Linux (x64)
+          - platform: 'ubuntu-22.04'
+            os_name: 'Linux'
+            target: 'x86_64-unknown-linux-gnu'
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      # 1. リポジトリのチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 新しいタグを作成
+      - name: Create new tag
+        run: |
+          git tag ${{ needs.version.outputs.new_tag }}
+          git push origin ${{ needs.version.outputs.new_tag }}
+          echo "Created and pushed tag ${{ needs.version.outputs.new_tag }}"
+
+      # 3. Node.js のセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. Rust のセットアップ
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # 4. Rust キャッシュ（ビルド高速化）
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 5. Linux: システム依存関係のインストール
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      # 6. npm 依存関係のインストール
+      - name: Install npm dependencies
+        run: npm ci
+
+      # 7. フロントエンドのビルド
+      - name: Build frontend
+        run: npm run build
+
+      # 8. Tauri アプリのビルドとリリース
+      - name: Build and Release Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ needs.version.outputs.new_tag }}
+          releaseName: 'VDI-solid ${{ needs.version.outputs.new_tag }}'
+          releaseBody: |
+            ## VDI-solid ${{ needs.version.outputs.new_tag }}
+
+            ### Downloads
+            - **Windows**: `.msi` または `-setup.exe`
+            - **Linux**: `.AppImage` または `.deb`
+
+            詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
