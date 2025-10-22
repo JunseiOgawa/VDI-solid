@@ -2,6 +2,7 @@ import type { Component } from "solid-js";
 import { createSignal, For } from "solid-js";
 import { AVAILABLE_THEMES, type ThemeKey } from "../../lib/theme";
 import { CONFIG } from "../../config/config";
+import VersionInfo from "./VersionInfo";
 
 interface SettingsMenuProps {
   theme: ThemeKey;
@@ -137,6 +138,11 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
             </select>
           </label>
         </div>
+
+        <hr class="my-1 border-t border-[var(--glass-border-subtle)]" />
+
+        {/* バージョン情報 */}
+        <VersionInfo />
       </div>
     </div>
   );

@@ -1,11 +1,17 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
 import solid from "vite-plugin-solid";
+import { readFileSync } from 'fs';
+
 const host = process.env.TAURI_DEV_HOST;
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [solid()],
+  define: {
+    'import.meta.env.PACKAGE_VERSION': JSON.stringify(packageJson.version),
+  },
   test: {
     environment: 'jsdom',
     globals: true,

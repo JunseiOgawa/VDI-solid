@@ -139,6 +139,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(fs_init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             img::get_launch_image_path,
             img::get_launch_window_mode,
@@ -159,6 +160,14 @@ pub fn run() {
             file_operations::delete_file
         ])
         .setup(move |app| {
+            // Desktop専用のプラグインを登録
+            #[cfg(desktop)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                app.handle().plugin(tauri_plugin_process::init())?;
+            }
+
             // ウィンドウサイズに応じて設定を変更
             if let Some(mode) = &window_mode {
                 match mode.as_str() {

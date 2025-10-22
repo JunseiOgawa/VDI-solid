@@ -21,10 +21,17 @@ tauri-build = { version = "2.0", features = [] }
 tauri = { version = "2.0", features = ["protocol-asset"] }
 tauri-plugin-opener = "2.0"
 tauri-plugin-fs = "2.0"
+tauri-plugin-dialog = "2.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 image = "0.24"
 tokio = { version = "1", features = ["full"] }
 rayon = "1.8"
 lazy_static = "1.4"
+
+# Desktop専用の依存関係
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-updater = "2.0"
+tauri-plugin-process = "2.0"
 

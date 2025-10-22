@@ -11,6 +11,7 @@ import { handleScreenFit } from "./lib/screenfit";
 import { callResetImagePosition, callZoomToCenter } from "./lib/imageViewerApi";
 import { convertFileToAssetUrlWithCacheBust } from "./lib/fileUtils";
 import { expandWindowForGallery, contractWindowForGallery } from "./lib/tauri";
+import { updateManager } from "./services/UpdateManager";
 
 import "./App.css";
 
@@ -226,6 +227,14 @@ const App: Component = () => {
       invoke("show_window").catch((err: unknown) =>
         console.error("Failed to show window:", err),
       );
+    });
+
+    // アップデートチェックの初期化
+    updateManager.loadLastCheckTime();
+
+    // バックグラウンドでアップデートチェック
+    updateManager.checkForUpdatesBackground().catch((error) => {
+      console.error('[App] アップデートチェック失敗:', error);
     });
   });
 
