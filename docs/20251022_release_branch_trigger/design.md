@@ -67,25 +67,15 @@ GitHub Actions のリリースワークフローを、main ブランチではな
    git push origin release
    ```
 
-3. **L96-97: releaseジョブの実行条件を変更**
+3. **L96: releaseジョブの実行条件**
    ```yaml
-   # 最初の変更（問題2の修正）
+   # 変更なし（元の条件のまま）
    release:
      if: ${{ contains(github.event.head_commit.message, 'bump version') }}
-     needs: version  # 削除
-
-   # 2回目の変更（問題4の修正 - 一時的）
-   release:
-     needs: version
-     if: always()  # versionジョブがスキップされても常に実行
-
-   # 最終的な変更（無駄なビルドを削除）
-   release:
-     needs: version
-     if: always() && contains(github.event.head_commit.message, 'bump version')
    ```
-   - `always()`により、versionジョブがスキップされても条件チェック可能
-   - `contains(..., 'bump version')`により、バージョン更新コミットでのみ実行
+   - versionジョブとreleaseジョブは完全に独立
+   - それぞれ異なるコミットで実行される
+   - `needs`を使わないため、同時処理の問題なし
 
 4. **L118-127: バージョン情報の取得ステップを追加**
    - package.jsonから直接バージョンを読み取る新しいステップを追加
@@ -161,14 +151,12 @@ GitHubリリースページに公開
 ### フェーズ2: ビルドとリリース（releaseジョブ）
 
 #### トリガー条件
-- **依存関係**: versionジョブの完了後に実行
+- **ブランチ**: releaseブランチへのプッシュ
+- **条件**: コミットメッセージに`bump version`を**含む**
   ```yaml
-  needs: version
-  if: always() && contains(github.event.head_commit.message, 'bump version')
+  if: ${{ contains(github.event.head_commit.message, 'bump version') }}
   ```
-- **実行条件**:
-  - `always()`により、versionジョブがスキップされた場合でも条件チェック可能
-  - `contains(..., 'bump version')`により、バージョン更新コミットでのみ実行
+- **依存関係**: なし（versionジョブと完全に独立）
 - **結果**: バージョン更新コミット後のみビルドが実行される（効率的）
 
 #### 並列実行（マトリックス戦略）

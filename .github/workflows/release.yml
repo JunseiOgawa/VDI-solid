@@ -92,9 +92,8 @@ jobs:
           git push origin release
 
   release:
-    # versionジョブの後、バージョン更新コミットの場合のみ実行
-    needs: version
-    if: always() && contains(github.event.head_commit.message, 'bump version')
+    # バージョン更新コミットの場合のみ実行
+    if: ${{ contains(github.event.head_commit.message, 'bump version') }}
     strategy:
       fail-fast: false
       matrix:
