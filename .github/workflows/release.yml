@@ -82,22 +82,57 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      # 9. Tauri アプリのビルドとリリース
-      - name: Build and Release Tauri app
-        uses: tauri-apps/tauri-action@v0
+      # 9. Tauri アプリのビルド
+      - name: Build Tauri app
+        run: npm run tauri build -- --target ${{ matrix.target }}
+
+      # 10. ビルド成果物の確認
+      - name: List build artifacts
+        run: |
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/msi/ || true
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || true
+          else
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/appimage/ || true
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/deb/ || true
+          fi
+        shell: bash
+
+      # 11. リリースの作成（最初のジョブのみ）
+      - name: Create Release
+        if: matrix.platform == 'windows-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ env.TAG }}
-          releaseName: 'VDI-solid ${{ env.TAG }}'
-          releaseBody: |
-            ## VDI-solid ${{ env.TAG }}
+        run: |
+          gh release create ${{ env.TAG }} \
+            --title "VDI-solid ${{ env.TAG }}" \
+            --notes "## VDI-solid ${{ env.TAG }}
 
-            ### Downloads
-            - **Windows**: `.msi` または `-setup.exe`
-            - **Linux**: `.AppImage` または `.deb`
+          ### Downloads
+          - **Windows**: \`.msi\` または \`-setup.exe\`
+          - **Linux**: \`.AppImage\` または \`.deb\`
 
-            詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+          詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。" \
+            || echo "Release already exists"
+
+      # 12. Windows成果物のアップロード
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ env.TAG }} \
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi \
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe \
+            --clobber
+
+      # 13. Linux成果物のアップロード
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ env.TAG }} \
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage \
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb \
+            --clobber
