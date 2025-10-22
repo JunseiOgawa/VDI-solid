@@ -4909,7 +4909,7 @@ dependencies = [
 
 [[package]]
 name = "vdi"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "image",
  "lazy_static",

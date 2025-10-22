@@ -101,6 +101,7 @@ jobs:
       # 11. リリースの作成（最初のジョブのみ）
       - name: Create Release
         if: matrix.platform == 'windows-latest'
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -118,6 +119,7 @@ jobs:
       # 12. Windows成果物のアップロード
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows-latest'
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -129,6 +131,7 @@ jobs:
       # 13. Linux成果物のアップロード
       - name: Upload Linux artifacts
         if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
