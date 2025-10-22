@@ -144,19 +144,15 @@ cargo install tauri-cli
      ```bash
      npm run tauri build
      ```
-   - **macOS**
-     ```bash
-     npm run tauri build:mac
-     ```
    - **Linux**
      ```bash
      npm run tauri build:linux
      ```
 
-3. **一括ビルド（すべてのプラットフォーム）**
+3. **一括ビルド（WindowsとLinux）**
    ```bash
-   npm run build-all
-   ```
+     npm run build-all
+     ```
 
 ### 開発時の実行
 
