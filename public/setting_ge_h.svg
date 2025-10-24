@@ -3,7 +3,7 @@
     <style>
       .a, .b {
         fill: none;
-        stroke: #231815;
+        stroke: currentColor;
         stroke-width: 2px;
       }
 

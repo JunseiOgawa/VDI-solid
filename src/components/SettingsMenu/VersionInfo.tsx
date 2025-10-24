@@ -1,13 +1,13 @@
-import { Component, createSignal } from 'solid-js';
-import { updateManager } from '../../services/UpdateManager';
+import { Component, createSignal } from "solid-js";
+import { updateManager } from "../../services/UpdateManager";
 
 const VersionInfo: Component = () => {
   const [isChecking, setIsChecking] = createSignal(false);
-  const [message, setMessage] = createSignal('');
+  const [message, setMessage] = createSignal("");
 
   const handleCheckUpdate = async () => {
     setIsChecking(true);
-    setMessage('アップデートをチェック中...');
+    setMessage("アップデートをチェック中...");
 
     const result = await updateManager.checkForUpdatesManual();
 
@@ -16,7 +16,7 @@ const VersionInfo: Component = () => {
     } else if (result.available && result.update) {
       setMessage(`新しいバージョン ${result.update.version} が利用可能です`);
     } else {
-      setMessage('最新版を使用しています');
+      setMessage("最新版を使用しています");
     }
 
     setIsChecking(false);
@@ -39,7 +39,7 @@ const VersionInfo: Component = () => {
             disabled={isChecking()}
             class="px-3 py-1.5 bg-blue-500/90 hover:bg-blue-400/90 disabled:bg-gray-500/50 disabled:cursor-not-allowed rounded text-white transition-all duration-200 text-small"
           >
-            {isChecking() ? 'チェック中...' : '最新版をチェック'}
+            {isChecking() ? "チェック中..." : "最新版をチェック"}
           </button>
 
           {message() && (
