@@ -84,6 +84,9 @@ jobs:
 
       # 9. Tauri アプリのビルド
       - name: Build Tauri app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --target ${{ matrix.target }}
 
       # 10. ビルド成果物の確認
@@ -125,7 +128,11 @@ jobs:
         run: |
           gh release upload ${{ env.TAG }} \
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi \
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip \
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip.sig \
             src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe \
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip \
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip.sig \
             --clobber
 
       # 13. Linux成果物のアップロード
@@ -137,5 +144,55 @@ jobs:
         run: |
           gh release upload ${{ env.TAG }} \
             src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage \
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz \
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz.sig \
             src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb \
             --clobber
+
+      # 14. latest.jsonの生成とアップロード
+      - name: Generate and upload latest.json
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 最初にビルド成果物を確認
+          echo "=== Windows artifacts ==="
+          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/ -name "*.sig" 2>/dev/null || echo "Windows署名ファイルが見つかりません"
+
+          echo "=== Linux artifacts ==="
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/ -name "*.sig" 2>/dev/null || echo "Linux署名ファイルが見つかりません"
+
+          # Windows MSIの署名ファイルを取得
+          WINDOWS_SIG=$(cat src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip.sig 2>/dev/null | head -n 1)
+          WINDOWS_FILE=$(basename src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip 2>/dev/null | head -n 1)
+
+          # Linux AppImageの署名ファイルを取得
+          LINUX_SIG=$(cat src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz.sig 2>/dev/null | head -n 1)
+          LINUX_FILE=$(basename src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz 2>/dev/null | head -n 1)
+
+          # latest.jsonを生成
+          cat > latest.json << EOF
+          {
+            "version": "${{ env.TAG }}",
+            "notes": "VDI-solid ${{ env.TAG }} がリリースされました",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${WINDOWS_SIG}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}"
+              },
+              "linux-x86_64": {
+                "signature": "${LINUX_SIG}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${LINUX_FILE}"
+              }
+            }
+          }
+          EOF
+
+          # latest.jsonの内容を確認
+          echo "=== latest.json の内容 ==="
+          cat latest.json
+
+          # アップロード
+          gh release upload ${{ env.TAG }} latest.json --clobber
