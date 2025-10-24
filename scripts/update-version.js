@@ -48,7 +48,7 @@ console.log('✓ Cargo.toml を更新しました');
 
 console.log(`\n完了！ すべてのファイルのバージョンを ${newVersion} に更新しました。`);
 console.log('\n次のステップ:');
-console.log('  git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml');
+console.log('  git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock');
 console.log(`  git commit -m "chore: bump version to ${newVersion}"`);
 console.log('  git push origin main');
 console.log(`  git tag v${newVersion}`);

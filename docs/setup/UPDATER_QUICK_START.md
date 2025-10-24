@@ -19,13 +19,7 @@ npx @tauri-apps/cli signer generate -w ~/.tauri/vdi-solid.key -p
 
 ### 1-3. 公開鍵をコピー
 
-出力された公開鍵をコピーします：
-
-```
-Your public key is:
-dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6...
-UldRMTIzNDU2Nzg5MAo=
-```
+出力された公開鍵をコピーします
 
 **↑この部分をすべてコピー**
 
