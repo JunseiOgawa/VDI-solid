@@ -234,7 +234,7 @@ const App: Component = () => {
 
     // バックグラウンドでアップデートチェック
     updateManager.checkForUpdatesBackground().catch((error) => {
-      console.error('[App] アップデートチェック失敗:', error);
+      console.error("[App] アップデートチェック失敗:", error);
     });
   });
 

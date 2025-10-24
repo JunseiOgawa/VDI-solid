@@ -658,7 +658,9 @@ export const AppProvider: ParentComponent = (props) => {
 
     // 画像パスの適用（コマンドライン引数 > デフォルト画像）
     if (launchConfig.imagePath) {
-      const assetUrl = convertFileToAssetUrlWithCacheBust(launchConfig.imagePath);
+      const assetUrl = convertFileToAssetUrlWithCacheBust(
+        launchConfig.imagePath,
+      );
       setCurrentImagePath(assetUrl, { filePath: launchConfig.imagePath });
     } else {
       setCurrentImagePath("public/sen38402160.png", { filePath: null });

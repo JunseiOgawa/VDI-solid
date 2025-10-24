@@ -255,7 +255,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             title="画面にフィット"
           >
             <img
-              class="h-4 w-4 brightness-0 invert dark:invert-0 dark:brightness-100 opacity-90"
+              class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/全画面表示ボタン5.svg"
               alt="画面フィット"
             />
@@ -269,7 +269,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             title="回転"
           >
             <img
-              class="h-4 w-4 brightness-0 invert dark:invert-0 dark:brightness-100 opacity-90"
+              class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/reload_hoso.svg"
               alt="回転"
             />
@@ -315,7 +315,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             title="設定"
           >
             <img
-              class="h-4 w-4 brightness-0 invert dark:invert-0 dark:brightness-100 opacity-90"
+              class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/setting_ge_h.svg"
               alt="設定"
             />

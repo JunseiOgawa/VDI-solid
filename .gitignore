@@ -4,6 +4,10 @@
 /src-tauri/Cargo.lock
 /src-tauri/tauri.conf.json
 /src-tauri/gen
+.tauri
+
+# Tauri Updater signing keys (NEVER commit these!)
+*.key
 
 # Node.js
 node_modules

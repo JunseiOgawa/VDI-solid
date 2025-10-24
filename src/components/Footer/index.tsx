@@ -140,9 +140,7 @@ const Footer: Component = () => {
     try {
       const isFullscreen = await appWindow.isFullscreen();
       await appWindow.setFullscreen(!isFullscreen);
-      console.log(
-        `[Footer Fullscreen] Toggled fullscreen: ${!isFullscreen}`,
-      );
+      console.log(`[Footer Fullscreen] Toggled fullscreen: ${!isFullscreen}`);
     } catch (error) {
       console.error("[Footer Fullscreen] Failed to toggle fullscreen:", error);
     }
@@ -192,7 +190,7 @@ const Footer: Component = () => {
               onClick={toggleSettings}
             >
               <img
-                class="h-4 w-4 brightness-0 invert dark:invert-0 dark:brightness-100 opacity-90"
+                class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
                 src="/setting_ge_h.svg"
                 alt="設定"
               />
@@ -293,10 +291,7 @@ const Footer: Component = () => {
 
       {/* SettingsMenu - Footerの上に表示 */}
       <Show when={showSettings()}>
-        <div
-          class="absolute bottom-8 left-4 z-50"
-          data-menu="footer-settings"
-        >
+        <div class="absolute bottom-8 left-4 z-50" data-menu="footer-settings">
           <SettingsMenu
             theme={theme()}
             onThemeChange={(newTheme) => {
