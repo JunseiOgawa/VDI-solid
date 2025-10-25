@@ -74,10 +74,10 @@ const Titlebar: Component<TitlebarProps> = (props) => {
   const [showSettings, setShowSettings] = createSignal(false);
 
   const windowButtonClasses =
-    "no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98";
+    "no-drag flex h-full w-12 items-center justify-center text-[var(--glass-text-secondary)] transition-colors duration-200 hover:bg-white/[0.15]";
 
   const controlButtonClasses =
-    "no-drag flex h-7 w-7 items-center justify-center rounded-md bg-transparent border border-transparent transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md hover:border-white/[0.1] hover:scale-105 active:scale-98";
+    "no-drag flex h-9 w-9 items-center justify-center rounded-md bg-transparent border border-transparent transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md hover:border-white/[0.1] hover:scale-105 active:scale-98";
 
   const handleMinimize = async () => {
     const appWindow = getCurrentWindow();
@@ -86,8 +86,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
 
   const handleMaximize = async () => {
     const appWindow = getCurrentWindow();
-    const isMaximized = await appWindow.isMaximized();
-    if (isMaximized) {
+    const maximized = await appWindow.isMaximized();
+    if (maximized) {
       await appWindow.unmaximize();
     } else {
       await appWindow.maximize();
@@ -122,9 +122,9 @@ const Titlebar: Component<TitlebarProps> = (props) => {
   };
 
   /**
-   * メニュー外クリック時に全メニューを閉じる処理
+   * メニュー外クリック時に全メニューを閉じる処理と最大化状態の初期化
    */
-  onMount(() => {
+  onMount(async () => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
 
@@ -149,24 +149,18 @@ const Titlebar: Component<TitlebarProps> = (props) => {
     });
   });
 
-  // グリッド、ピーキング、ヒストグラムのいずれかが有効かチェック
-  const isAnyFeatureActive = () =>
-    props.gridPattern !== "off" ||
-    props.peakingEnabled ||
-    props.histogramEnabled;
-
   return (
     <>
       <div
         id="titlebar"
-        class="drag-region relative flex h-10 items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-2 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
+        class="drag-region relative flex h-10 items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md pl-2 pr-0 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
         data-tauri-drag-region
       >
-        {/* 左側: ギャラリー展開ボタン */}
-        <div class="flex items-center gap-1">
+        {/* 左側: ギャラリー展開ボタンとズームコントロール */}
+        <div class="flex items-center gap-2">
           <button
             id="galleryBtn"
-            class={windowButtonClasses}
+            class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98"
             onClick={() => props.onToggleGallery(!props.showGallery)}
             aria-label="ギャラリー表示"
           >
@@ -177,76 +171,113 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path
-                d="M3 6h18M3 12h18M3 18h18"
+              <rect
+                x="3"
+                y="3"
+                width="7"
+                height="18"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+              />
+              <line
+                x1="14"
+                y1="6"
+                x2="21"
+                y2="6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <line
+                x1="14"
+                y1="12"
+                x2="21"
+                y2="12"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <line
+                x1="14"
+                y1="18"
+                x2="21"
+                y2="18"
                 stroke="currentColor"
                 stroke-width="2"
                 stroke-linecap="round"
               />
             </svg>
           </button>
+
+          {/* ズーム3ボタングループ */}
+          <div class="flex items-center border border-white/20 dark:border-white/10 rounded-md bg-transparent transition-all duration-200">
+            {/* ズームイン */}
+            <button
+              class="no-drag flex h-7 w-7 items-center justify-center rounded-l-md rounded-r-none bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
+              onClick={props.onZoomIn}
+              aria-label="ズームイン"
+              title="ズームイン"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+
+            <div class="border-l border-white/10 dark:border-white/5 h-4" />
+
+            {/* 倍率表示(クリックでリセット) */}
+            <button
+              class="no-drag flex h-7 min-w-[3rem] items-center justify-center rounded-none bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
+              onClick={props.onZoomReset}
+              aria-label="ズームリセット"
+              title="ズームリセット"
+            >
+              <span class="text-xs font-medium text-tabular">
+                {Math.round(props.zoomScale * 100)}%
+              </span>
+            </button>
+
+            <div class="border-l border-white/10 dark:border-white/5 h-4" />
+
+            {/* ズームアウト */}
+            <button
+              class="no-drag flex h-7 w-7 items-center justify-center rounded-l-none rounded-r-md bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
+              onClick={props.onZoomOut}
+              aria-label="ズームアウト"
+              title="ズームアウト"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 12h14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* 中央右寄り: コントロールボタン群 */}
+        {/* 中央右寄り: ビュー操作ボタン */}
         <div class="flex items-center gap-1 mr-2">
-          {/* ズームアウト */}
-          <button
-            class={controlButtonClasses}
-            onClick={props.onZoomOut}
-            aria-label="ズームアウト"
-            title="ズームアウト"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M5 12h14"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
-
-          {/* 倍率表示(クリックでリセット) */}
-          <button
-            class={`${controlButtonClasses} min-w-[3rem]`}
-            onClick={props.onZoomReset}
-            aria-label="ズームリセット"
-            title="ズームリセット"
-          >
-            <span class="text-xs font-medium text-tabular">
-              {Math.round(props.zoomScale * 100)}%
-            </span>
-          </button>
-
-          {/* ズームイン */}
-          <button
-            class={controlButtonClasses}
-            onClick={props.onZoomIn}
-            aria-label="ズームイン"
-            title="ズームイン"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 5v14M5 12h14"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
-
           {/* 画面フィットボタン */}
           <button
             class={controlButtonClasses}
@@ -278,10 +309,6 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           {/* マルチメニューボタン */}
           <button
             class={controlButtonClasses}
-            classList={{
-              "bg-white/20 border-white/30 dark:bg-white/10":
-                isAnyFeatureActive(),
-            }}
             onClick={toggleMultiMenu}
             aria-label="表示機能メニュー"
             title="表示機能メニュー"
@@ -306,7 +333,10 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               />
             </svg>
           </button>
+        </div>
 
+        {/* 右側: グローバル操作とウィンドウコントロール */}
+        <div class="flex items-center h-full gap-1">
           {/* 設定ボタン */}
           <button
             class={controlButtonClasses}
@@ -320,10 +350,10 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               alt="設定"
             />
           </button>
-        </div>
 
-        {/* 右側: ウィンドウコントロールボタン */}
-        <div class="flex items-center gap-1">
+          {/* 区切り線 */}
+          <div class="h-6 w-px bg-white/20 dark:bg-white/10 mx-1" />
+
           <button
             id="minimizeBtn"
             class={windowButtonClasses}
@@ -358,7 +388,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           </button>
           <button
             id="closeBtn"
-            class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-red-500/90 hover:text-white hover:scale-105 active:scale-98"
+            class="no-drag flex h-full w-12 items-center justify-center text-[var(--glass-text-secondary)] transition-colors duration-200 hover:bg-red-600 hover:text-white"
             onClick={handleClose}
             aria-label="閉じる"
           >
@@ -383,57 +413,61 @@ const Titlebar: Component<TitlebarProps> = (props) => {
       {/* MultiMenu - Titlebarの下に表示 */}
       <Show when={showMultiMenu()}>
         <div
-          class="absolute top-10 left-1/2 -translate-x-1/2 z-50 mt-2"
+          class="fixed top-10 left-0 right-0 z-50 mt-2 flex justify-center pointer-events-none"
           data-menu="multi"
         >
-          <MultiMenu
-            gridPattern={props.gridPattern}
-            onGridPatternChange={props.onGridPatternChange}
-            gridOpacity={props.gridOpacity}
-            onGridOpacityChange={props.onGridOpacityChange}
-            peakingEnabled={props.peakingEnabled}
-            onPeakingEnabledChange={props.onPeakingEnabledChange}
-            peakingIntensity={props.peakingIntensity}
-            onPeakingIntensityChange={props.onPeakingIntensityChange}
-            peakingColor={props.peakingColor}
-            onPeakingColorChange={props.onPeakingColorChange}
-            peakingOpacity={props.peakingOpacity}
-            onPeakingOpacityChange={props.onPeakingOpacityChange}
-            peakingBlink={props.peakingBlink}
-            onPeakingBlinkChange={props.onPeakingBlinkChange}
-            histogramEnabled={props.histogramEnabled}
-            onHistogramEnabledChange={props.onHistogramEnabledChange}
-            histogramDisplayType={props.histogramDisplayType}
-            onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
-            histogramPosition={props.histogramPosition}
-            onHistogramPositionChange={props.onHistogramPositionChange}
-            histogramSize={props.histogramSize}
-            onHistogramSizeChange={props.onHistogramSizeChange}
-            histogramOpacity={props.histogramOpacity}
-            onHistogramOpacityChange={props.onHistogramOpacityChange}
-          />
+          <div class="pointer-events-auto">
+            <MultiMenu
+              gridPattern={props.gridPattern}
+              onGridPatternChange={props.onGridPatternChange}
+              gridOpacity={props.gridOpacity}
+              onGridOpacityChange={props.onGridOpacityChange}
+              peakingEnabled={props.peakingEnabled}
+              onPeakingEnabledChange={props.onPeakingEnabledChange}
+              peakingIntensity={props.peakingIntensity}
+              onPeakingIntensityChange={props.onPeakingIntensityChange}
+              peakingColor={props.peakingColor}
+              onPeakingColorChange={props.onPeakingColorChange}
+              peakingOpacity={props.peakingOpacity}
+              onPeakingOpacityChange={props.onPeakingOpacityChange}
+              peakingBlink={props.peakingBlink}
+              onPeakingBlinkChange={props.onPeakingBlinkChange}
+              histogramEnabled={props.histogramEnabled}
+              onHistogramEnabledChange={props.onHistogramEnabledChange}
+              histogramDisplayType={props.histogramDisplayType}
+              onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
+              histogramPosition={props.histogramPosition}
+              onHistogramPositionChange={props.onHistogramPositionChange}
+              histogramSize={props.histogramSize}
+              onHistogramSizeChange={props.onHistogramSizeChange}
+              histogramOpacity={props.histogramOpacity}
+              onHistogramOpacityChange={props.onHistogramOpacityChange}
+            />
+          </div>
         </div>
       </Show>
 
       {/* SettingsMenu - Titlebarの下に表示 */}
       <Show when={showSettings()}>
         <div
-          class="absolute top-10 left-1/2 -translate-x-1/2 z-50 mt-2"
+          class="fixed top-10 left-0 right-0 z-50 mt-2 flex justify-center pointer-events-none"
           data-menu="settings"
         >
-          <SettingsMenu
-            theme={props.theme}
-            onThemeChange={(newTheme) => {
-              props.onThemeChange(newTheme);
-              setShowSettings(false);
-            }}
-            wheelSensitivity={props.wheelSensitivity}
-            onWheelSensitivityChange={props.onWheelSensitivityChange}
-            showFullPath={props.showFullPath}
-            onShowFullPathChange={props.onShowFullPathChange}
-            controlPanelPosition={props.controlPanelPosition}
-            onControlPanelPositionChange={props.onControlPanelPositionChange}
-          />
+          <div class="pointer-events-auto">
+            <SettingsMenu
+              theme={props.theme}
+              onThemeChange={(newTheme) => {
+                props.onThemeChange(newTheme);
+                setShowSettings(false);
+              }}
+              wheelSensitivity={props.wheelSensitivity}
+              onWheelSensitivityChange={props.onWheelSensitivityChange}
+              showFullPath={props.showFullPath}
+              onShowFullPathChange={props.onShowFullPathChange}
+              controlPanelPosition={props.controlPanelPosition}
+              onControlPanelPositionChange={props.onControlPanelPositionChange}
+            />
+          </div>
         </div>
       </Show>
     </>

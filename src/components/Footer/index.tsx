@@ -1,10 +1,8 @@
 import type { Component } from "solid-js";
-import { createSignal, onMount, onCleanup, Show } from "solid-js";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppState } from "../../context/AppStateContext";
-import SettingsMenu from "../SettingsMenu";
 
 const Footer: Component = () => {
   const {
@@ -15,16 +13,7 @@ const Footer: Component = () => {
     showFullPath,
     loadNextImage,
     loadPreviousImage,
-    theme,
-    setTheme,
-    wheelSensitivity,
-    setWheelSensitivity,
-    setShowFullPath,
-    controlPanelPosition,
-    setControlPanelPosition,
   } = useAppState();
-
-  const [showSettings, setShowSettings] = createSignal(false);
 
   // ファイル名を抽出する関数
   const getFileName = (path: string) => {
@@ -146,56 +135,12 @@ const Footer: Component = () => {
     }
   };
 
-  // 設定メニューの表示切り替え
-  const toggleSettings = () => {
-    setShowSettings(!showSettings());
-  };
-
-  // メニュー外クリック時に設定メニューを閉じる処理
-  onMount(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-
-      // フッター、設定ボタン、設定メニュー内のクリックは無視
-      if (
-        target.closest("footer") ||
-        target.closest('[data-menu="footer-settings"]')
-      ) {
-        return;
-      }
-
-      // メニュー外のクリックは設定メニューを閉じる
-      setShowSettings(false);
-    };
-
-    document.addEventListener("click", handleClickOutside);
-
-    onCleanup(() => {
-      document.removeEventListener("click", handleClickOutside);
-    });
-  });
-
   return (
     <>
       <footer class="border-t border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-4 text-xs text-[var(--glass-text-secondary)] transition-colors duration-300">
-        <div class="mx-auto flex h-8 items-center justify-between overflow-hidden gap-2">
-          {/* 左側: 設定ボタン、ファイルサイズ、解像度 */}
-          <div class="flex-shrink-0 flex items-center gap-2">
-            {/* 設定ボタン */}
-            <button
-              id="footerSettingsBtn"
-              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-transparent bg-transparent text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
-              aria-label="設定"
-              title="設定"
-              onClick={toggleSettings}
-            >
-              <img
-                class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
-                src="/setting_ge_h.svg"
-                alt="設定"
-              />
-            </button>
-
+        <div class="mx-auto flex h-8 items-center overflow-hidden gap-2">
+          {/* 左側: ファイルサイズ、解像度 */}
+          <div class="flex items-center gap-2 min-w-0" style="flex: 1 1 0;">
             <p class="whitespace-nowrap text-tabular w-20">
               {displayFileSize()}
             </p>
@@ -205,14 +150,20 @@ const Footer: Component = () => {
           </div>
 
           {/* 中央: ファイルパス */}
-          <div class="flex-1 mx-4 overflow-hidden">
+          <div
+            class="flex items-center justify-center min-w-0"
+            style="flex: 1 1 0;"
+          >
             <p class="overflow-hidden text-ellipsis whitespace-nowrap text-center">
               {displayPath()}
             </p>
           </div>
 
           {/* 右側: 削除、エクスプローラ、フルスクリーンボタン */}
-          <div class="flex-shrink-0 flex items-center justify-end gap-1">
+          <div
+            class="flex items-center justify-end gap-1 min-w-0"
+            style="flex: 1 1 0;"
+          >
             {/* 削除ボタン */}
             <button
               id="footerDeleteBtn"
@@ -288,25 +239,6 @@ const Footer: Component = () => {
           </div>
         </div>
       </footer>
-
-      {/* SettingsMenu - Footerの上に表示 */}
-      <Show when={showSettings()}>
-        <div class="absolute bottom-8 left-4 z-50" data-menu="footer-settings">
-          <SettingsMenu
-            theme={theme()}
-            onThemeChange={(newTheme) => {
-              setTheme(newTheme);
-              setShowSettings(false);
-            }}
-            wheelSensitivity={wheelSensitivity()}
-            onWheelSensitivityChange={setWheelSensitivity}
-            showFullPath={showFullPath()}
-            onShowFullPathChange={setShowFullPath}
-            controlPanelPosition={controlPanelPosition()}
-            onControlPanelPositionChange={setControlPanelPosition}
-          />
-        </div>
-      </Show>
     </>
   );
 };

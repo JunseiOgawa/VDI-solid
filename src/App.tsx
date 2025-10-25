@@ -1,6 +1,7 @@
 import type { Component } from "solid-js";
-import { onMount } from "solid-js";
+import { onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Titlebar from "./components/Titlebar";
 import ImageViewer from "./components/ImageViewer";
@@ -235,6 +236,29 @@ const App: Component = () => {
     // バックグラウンドでアップデートチェック
     updateManager.checkForUpdatesBackground().catch((error) => {
       console.error("[App] アップデートチェック失敗:", error);
+    });
+
+    // F11キーでフルスクリーン切り替え
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key === "F11") {
+        event.preventDefault();
+        const appWindow = getCurrentWindow();
+        try {
+          const isFullscreen = await appWindow.isFullscreen();
+          await appWindow.setFullscreen(!isFullscreen);
+          console.log(
+            `[App] F11 pressed - Toggled fullscreen: ${!isFullscreen}`,
+          );
+        } catch (error) {
+          console.error("[App] Failed to toggle fullscreen:", error);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    onCleanup(() => {
+      document.removeEventListener("keydown", handleKeyDown);
     });
   });
 
