@@ -126,14 +126,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ env.TAG }} \
-            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi \
-            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip \
-            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip.sig \
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe \
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip \
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip.sig \
-            --clobber
+          # MSI にはアップデータ用の .zip/.sig は生成されません（Windows Updater は NSIS を利用）
+          # globs が存在しない場合でも失敗しないように nullglob を有効化
+          shopt -s nullglob
+
+          files=(
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip.sig
+          )
+
+          echo "Will upload the following files (if any):"
+          printf ' - %s\n' "${files[@]}"
+
+          if [ ${#files[@]} -gt 0 ]; then
+            gh release upload ${{ env.TAG }} "${files[@]}" --clobber
+          else
+            echo "No Windows artifacts found to upload."
+          fi
 
       # 13. Linux成果物のアップロード
       - name: Upload Linux artifacts
@@ -156,32 +167,56 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 最初にビルド成果物を確認
-          echo "=== Windows artifacts ==="
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/ -name "*.sig" 2>/dev/null || echo "Windows署名ファイルが見つかりません"
+          set -euo pipefail
 
-          echo "=== Linux artifacts ==="
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/ -name "*.sig" 2>/dev/null || echo "Linux署名ファイルが見つかりません"
+          echo "=== Confirm local Linux artifacts ==="
+          ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ || true
+          ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/ || true
 
-          # Windows MSIの署名ファイルを取得
-          WINDOWS_SIG=$(cat src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip.sig 2>/dev/null | head -n 1)
-          WINDOWS_FILE=$(basename src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip 2>/dev/null | head -n 1)
+          # Linux AppImage の署名・ファイル名（ローカル生成物から取得）
+          LINUX_SIG=$(cat src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz.sig | head -n 1)
+          LINUX_FILE=$(basename src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz)
 
-          # Linux AppImageの署名ファイルを取得
-          LINUX_SIG=$(cat src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz.sig 2>/dev/null | head -n 1)
-          LINUX_FILE=$(basename src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz 2>/dev/null | head -n 1)
+          # Windows の updater 用アセット（NSIS .nsis.zip と .sig）は Windows ジョブがアップロードする
+          # その出現を待って取得する（最大 2 分待機）
+          echo "=== Wait for Windows NSIS assets to be available on the Release ==="
+          for i in {1..12}; do
+            WINDOWS_FILE=$(gh release view ${{ env.TAG }} --json assets -q '.assets[].name' | grep -E '\.nsis\.zip$' || true)
+            if [ -n "$WINDOWS_FILE" ]; then
+              echo "Found Windows NSIS zip asset: $WINDOWS_FILE"
+              break
+            fi
+            echo "Windows NSIS asset not found yet. Retry $i/12..."
+            sleep 10
+          done
 
-          # latest.jsonを生成
+          if [ -z "$WINDOWS_FILE" ]; then
+            echo "Windows NSIS updater asset not found on the release. latest.json will not include Windows updater entry."
+          else
+            # 署名ファイルをダウンロードして内容を取得
+            mkdir -p tmp-latest
+            gh release download ${{ env.TAG }} -p "*-setup.nsis.zip.sig" -D tmp-latest
+            WINDOWS_SIG=$(cat tmp-latest/*-setup.nsis.zip.sig | head -n 1)
+          fi
+
+          # Windows の JSON 片を必要に応じて生成
+          WINDOWS_JSON=""
+          if [ -n "${WINDOWS_FILE:-}" ] && [ -n "${WINDOWS_SIG:-}" ]; then
+            WINDOWS_JSON=$(printf '%s\n' \
+              '              "windows-x86_64": {' \
+              "                \"signature\": \"${WINDOWS_SIG}\"," \
+              "                \"url\": \"https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}\"" \
+              '              },')
+          fi
+
+          # latest.json を生成（Windows は見つかった時のみ埋める）
           cat > latest.json << EOF
           {
             "version": "${{ env.TAG }}",
             "notes": "VDI-solid ${{ env.TAG }} がリリースされました",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
-              "windows-x86_64": {
-                "signature": "${WINDOWS_SIG}",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}"
-              },
+              ${WINDOWS_JSON}
               "linux-x86_64": {
                 "signature": "${LINUX_SIG}",
                 "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${LINUX_FILE}"
