@@ -19,11 +19,6 @@ jobs:
             os_name: 'Windows'
             target: 'x86_64-pc-windows-msvc'
 
-          # Linux (x64)
-          - platform: 'ubuntu-22.04'
-            os_name: 'Linux'
-            target: 'x86_64-unknown-linux-gnu'
-
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -62,48 +57,30 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # 6. Linux: システム依存関係のインストール
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev
-
-      # 7. npm 依存関係のインストール
+      # 6. npm 依存関係のインストール
       - name: Install npm dependencies
         run: npm ci
 
-      # 8. フロントエンドのビルド
+      # 7. フロントエンドのビルド
       - name: Build frontend
         run: npm run build
 
-      # 9. Tauri アプリのビルド
+      # 8. Tauri アプリのビルド
       - name: Build Tauri app
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --target ${{ matrix.target }}
 
-      # 10. ビルド成果物の確認
+      # 9. ビルド成果物の確認
       - name: List build artifacts
-        run: |
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/msi/ || true
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || true
-          else
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/appimage/ || true
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/deb/ || true
-          fi
         shell: bash
+        run: |
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/msi/ || true
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || true
 
-      # 11. リリースの作成（最初のジョブのみ）
+      # 10. リリースの作成
       - name: Create Release
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -114,14 +91,12 @@ jobs:
 
           ### Downloads
           - **Windows**: \`.msi\` または \`-setup.exe\`
-          - **Linux**: \`.AppImage\` または \`.deb\`
 
           詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。" \
             || echo "Release already exists"
 
-      # 12. Windows成果物のアップロード
+      # 11. Windows成果物のアップロード
       - name: Upload Windows artifacts
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -146,80 +121,43 @@ jobs:
             echo "No Windows artifacts found to upload."
           fi
 
-      # 13. Linux成果物のアップロード
-      - name: Upload Linux artifacts
-        if: matrix.platform == 'ubuntu-22.04'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload ${{ env.TAG }} \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz.sig \
-            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb \
-            --clobber
-
-      # 14. latest.jsonの生成とアップロード
+      # 12. latest.jsonの生成とアップロード（Windows専用）
       - name: Generate and upload latest.json
-        if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          echo "=== Confirm local Linux artifacts ==="
-          ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/ || true
-          ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/ || true
+          echo "=== Generating latest.json for Windows platform ==="
 
-          # Linux AppImage の署名・ファイル名（ローカル生成物から取得）
-          LINUX_SIG=$(cat src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz.sig | head -n 1)
-          LINUX_FILE=$(basename src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz)
+          # Windows NSIS の署名とファイル名を取得
+          NSIS_DIR="src-tauri/target/${{ matrix.target }}/release/bundle/nsis"
 
-          # Windows の updater 用アセット（NSIS .nsis.zip と .sig）は Windows ジョブがアップロードする
-          # その出現を待って取得する（最大 2 分待機）
-          echo "=== Wait for Windows NSIS assets to be available on the Release ==="
-          for i in {1..12}; do
-            WINDOWS_FILE=$(gh release view ${{ env.TAG }} --json assets -q '.assets[].name' | grep -E '\.nsis\.zip$' || true)
-            if [ -n "$WINDOWS_FILE" ]; then
-              echo "Found Windows NSIS zip asset: $WINDOWS_FILE"
-              break
-            fi
-            echo "Windows NSIS asset not found yet. Retry $i/12..."
-            sleep 10
-          done
+          echo "Looking for NSIS artifacts in: $NSIS_DIR"
+          ls -la "$NSIS_DIR" || true
 
-          if [ -z "$WINDOWS_FILE" ]; then
-            echo "Windows NSIS updater asset not found on the release. latest.json will not include Windows updater entry."
+          # .nsis.zip.sig ファイルから署名を取得
+          if [ -f "$NSIS_DIR"/*-setup.nsis.zip.sig ]; then
+            WINDOWS_SIG=$(cat "$NSIS_DIR"/*-setup.nsis.zip.sig | head -n 1)
+            WINDOWS_FILE=$(basename "$NSIS_DIR"/*-setup.nsis.zip)
+            echo "Found signature: ${WINDOWS_SIG:0:50}..."
+            echo "Found file: $WINDOWS_FILE"
           else
-            # 署名ファイルをダウンロードして内容を取得
-            mkdir -p tmp-latest
-            gh release download ${{ env.TAG }} -p "*-setup.nsis.zip.sig" -D tmp-latest
-            WINDOWS_SIG=$(cat tmp-latest/*-setup.nsis.zip.sig | head -n 1)
+            echo "ERROR: NSIS signature file not found!"
+            exit 1
           fi
 
-          # Windows の JSON 片を必要に応じて生成
-          WINDOWS_JSON=""
-          if [ -n "${WINDOWS_FILE:-}" ] && [ -n "${WINDOWS_SIG:-}" ]; then
-            WINDOWS_JSON=$(printf '%s\n' \
-              '              "windows-x86_64": {' \
-              "                \"signature\": \"${WINDOWS_SIG}\"," \
-              "                \"url\": \"https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}\"" \
-              '              },')
-          fi
-
-          # latest.json を生成（Windows は見つかった時のみ埋める）
+          # latest.json を生成
           cat > latest.json << EOF
           {
             "version": "${{ env.TAG }}",
             "notes": "VDI-solid ${{ env.TAG }} がリリースされました",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
-              ${WINDOWS_JSON}
-              "linux-x86_64": {
-                "signature": "${LINUX_SIG}",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${LINUX_FILE}"
+              "windows-x86_64": {
+                "signature": "${WINDOWS_SIG}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}"
               }
             }
           }
@@ -230,4 +168,6 @@ jobs:
           cat latest.json
 
           # アップロード
+          echo "=== Uploading latest.json to release ==="
           gh release upload ${{ env.TAG }} latest.json --clobber
+          echo "✓ Successfully uploaded latest.json"

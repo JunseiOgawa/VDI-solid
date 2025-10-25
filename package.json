@@ -1,6 +1,6 @@
 {
   "name": "vid-solid",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "",
   "type": "module",
   "scripts": {
@@ -11,9 +11,10 @@
     "test": "vitest",
     "tauri": "tauri",
     "build-all": "npm run build && npm run tauri build",
-    "tauri:build": "npm run build && npm run tauri build",
-    "tauri:build:mac": "npm run build && npm run tauri build -- --target universal-apple-darwin",
-    "tauri:build:linux": "npm run build && npm run tauri build -- --target x86_64-unknown-linux-gnu",
+    "tauri:build": "export $(cat .env | xargs) && npm run build && npm run tauri build",
+    "tauri:build:windows": "powershell -ExecutionPolicy Bypass -File build-with-signing.ps1",
+    "tauri:build:mac": "export $(cat .env | xargs) && npm run build && npm run tauri build -- --target universal-apple-darwin",
+    "tauri:build:linux": "export $(cat .env | xargs) && npm run build && npm run tauri build -- --target x86_64-unknown-linux-gnu",
     "version:update": "node scripts/update-version.js"
   },
   "license": "MIT",
