@@ -23,7 +23,8 @@ GitHub Workflows を使用して、Tauri アプリの自動ビルドとリリー
 - **トリガー**: `push` (v*.*.* タグ)
 - **プラットフォーム**: Windows (x86_64-pc-windows-msvc) のみ
 - **内容**: Windows向けビルド + GitHub Release 自動作成
-- **ステータス**: 作成済み・Windows専用に修正
+- **修正**: tauri-action@v0 → 直接tauri build実行 + softprops/action-gh-release使用
+- **ステータス**: 作成済み・修正済み
 
 ### 2. 使用した主要コンポーネント
 - **tauri-action@v0**: Tauri 公式アクションでビルドとリリースを自動化
