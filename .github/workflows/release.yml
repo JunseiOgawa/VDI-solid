@@ -52,10 +52,10 @@ jobs:
         run: npm run tauri build  # リリースビルド（最適化有効）
         env:
           # アップデータ署名に使用する秘密鍵。リポジトリのSecretsに設定してください。
-          # TAURI_PRIVATE_KEY: PEM形式の秘密鍵（Base64可）
-          # TAURI_KEY_PASSWORD: 上記秘密鍵のパスワード（設定している場合）
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # TAURI_SIGNING_PRIVATE_KEY: PEM形式の秘密鍵（Base64可）
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: 上記秘密鍵のパスワード
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       # ステップ6.5: アップデータ用latest.jsonの生成（およびアップデータ成果物の収集）
       - name: Prepare updater assets and latest.json
