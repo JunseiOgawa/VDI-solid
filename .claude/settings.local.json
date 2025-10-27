@@ -28,7 +28,8 @@
       "Bash(git add src-tauri/capabilities/default.json)",
       "Bash(git commit -m \"$(cat <<''EOF''\nフルスクリーン機能のパーミッションを追加\n\nTauriのcapabilities設定にフルスクリーン関連のパーミッションを追加:\n- core:window:allow-set-fullscreen\n- core:window:allow-is-fullscreen\n\nこれにより、Footerのフルスクリーンボタンが正常に動作します。\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(mkdir:*)",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "WebFetch(domain:v2.tauri.app)"
     ],
     "deny": [],
     "ask": []
