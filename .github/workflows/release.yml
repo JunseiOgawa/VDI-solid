@@ -19,11 +19,6 @@ jobs:
             os_name: 'Windows'
             target: 'x86_64-pc-windows-msvc'
 
-          # Linux (x64)
-          - platform: 'ubuntu-22.04'
-            os_name: 'Linux'
-            target: 'x86_64-unknown-linux-gnu'
-
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -62,48 +57,30 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # 6. Linux: システム依存関係のインストール
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev
-
-      # 7. npm 依存関係のインストール
+      # 6. npm 依存関係のインストール
       - name: Install npm dependencies
         run: npm ci
 
-      # 8. フロントエンドのビルド
+      # 7. フロントエンドのビルド
       - name: Build frontend
         run: npm run build
 
-      # 9. Tauri アプリのビルド
+      # 8. Tauri アプリのビルド
       - name: Build Tauri app
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --target ${{ matrix.target }}
 
-      # 10. ビルド成果物の確認
+      # 9. ビルド成果物の確認
       - name: List build artifacts
         run: |
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/msi/ || true
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || true
-          else
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/appimage/ || true
-            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/deb/ || true
-          fi
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/msi/ || true
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || true
         shell: bash
 
-      # 11. リリースの作成（最初のジョブのみ）
+      # 10. リリースの作成
       - name: Create Release
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -119,9 +96,8 @@ jobs:
           詳細は [README](https://github.com/${{ github.repository }}/blob/main/README.md) を参照してください。" \
             || echo "Release already exists"
 
-      # 12. Windows成果物のアップロード
+      # 11. Windows成果物のアップロード
       - name: Upload Windows artifacts
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,64 +111,58 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.nsis.zip.sig \
             --clobber
 
-      # 13. Linux成果物のアップロード
-      - name: Upload Linux artifacts
-        if: matrix.platform == 'ubuntu-22.04'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload ${{ env.TAG }} \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz \
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.tar.gz.sig \
-            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb \
-            --clobber
-
-      # 14. latest.jsonの生成とアップロード
+      # 12. latest.jsonの生成とアップロード（Windows ビルドで生成）
       - name: Generate and upload latest.json
-        if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 最初にビルド成果物を確認
-          echo "=== Windows artifacts ==="
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/ -name "*.sig" 2>/dev/null || echo "Windows署名ファイルが見つかりません"
+          WINDOWS_SIG=$(cat src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip.sig 2>/dev/null | head -n 1)
+          WINDOWS_FILE=$(basename src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.zip 2>/dev/null | head -n 1)
 
-          echo "=== Linux artifacts ==="
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/ -name "*.sig" 2>/dev/null || echo "Linux署名ファイルが見つかりません"
+          if [ -z "$WINDOWS_SIG" ] || [ -z "$WINDOWS_FILE" ]; then
+            echo "Windows のアップデート署名またはアーカイブが見つかりません" >&2
+            exit 1
+          fi
 
-          # Windows MSIの署名ファイルを取得
-          WINDOWS_SIG=$(cat src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip.sig 2>/dev/null | head -n 1)
-          WINDOWS_FILE=$(basename src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.zip 2>/dev/null | head -n 1)
+          export WINDOWS_SIG
+          export WINDOWS_FILE
 
-          # Linux AppImageの署名ファイルを取得
-          LINUX_SIG=$(cat src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz.sig 2>/dev/null | head -n 1)
-          LINUX_FILE=$(basename src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.tar.gz 2>/dev/null | head -n 1)
+          node <<'EOF'
+          const fs = require('fs');
 
-          # latest.jsonを生成
-          cat > latest.json << EOF
-          {
-            "version": "${{ env.TAG }}",
-            "notes": "VDI-solid ${{ env.TAG }} がリリースされました",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "${WINDOWS_SIG}",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${WINDOWS_FILE}"
-              },
-              "linux-x86_64": {
-                "signature": "${LINUX_SIG}",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${LINUX_FILE}"
+          const tag = process.env.TAG;
+          const repo = process.env.GITHUB_REPOSITORY;
+          const windowsSig = (process.env.WINDOWS_SIG || '').trim();
+          const windowsFile = process.env.WINDOWS_FILE || '';
+
+          if (!tag) {
+            console.error('TAG environment variable is missing');
+            process.exit(1);
+          }
+
+          if (!repo) {
+            console.error('GITHUB_REPOSITORY environment variable is missing');
+            process.exit(1);
+          }
+
+          const latest = {
+            version: tag,
+            notes: `VDI-solid ${tag} がリリースされました`,
+            pub_date: new Date().toISOString(),
+            platforms: {
+              'windows-x86_64': {
+                signature: windowsSig,
+                url: `https://github.com/${repo}/releases/download/${tag}/${windowsFile}`
               }
             }
-          }
+          };
+
+          fs.writeFileSync('latest.json', JSON.stringify(latest, null, 2));
+          console.log('latest.json generated:', latest);
           EOF
 
-          # latest.jsonの内容を確認
           echo "=== latest.json の内容 ==="
           cat latest.json
 
-          # アップロード
           gh release upload ${{ env.TAG }} latest.json --clobber
