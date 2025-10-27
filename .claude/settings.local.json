@@ -29,7 +29,12 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nフルスクリーン機能のパーミッションを追加\n\nTauriのcapabilities設定にフルスクリーン関連のパーミッションを追加:\n- core:window:allow-set-fullscreen\n- core:window:allow-is-fullscreen\n\nこれにより、Footerのフルスクリーンボタンが正常に動作します。\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(mkdir:*)",
       "Bash(npx prettier:*)",
-      "WebFetch(domain:v2.tauri.app)"
+      "WebFetch(domain:v2.tauri.app)",
+      "mcp__Context7__resolve-library-id",
+      "mcp__Context7__get-library-docs",
+      "Bash(node scripts/update-version.js:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
