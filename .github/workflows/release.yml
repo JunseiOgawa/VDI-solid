@@ -50,6 +50,57 @@ jobs:
       #   - NSIS インストーラ（src-tauri/target/release/bundle/nsis/）
       - name: Build Tauri app
         run: npm run tauri build  # リリースビルド（最適化有効）
+        env:
+          # アップデータ署名に使用する秘密鍵。リポジトリのSecretsに設定してください。
+          # TAURI_PRIVATE_KEY: PEM形式の秘密鍵（Base64可）
+          # TAURI_KEY_PASSWORD: 上記秘密鍵のパスワード（設定している場合）
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      # ステップ6.5: アップデータ用latest.jsonの生成（およびアップデータ成果物の収集）
+      - name: Prepare updater assets and latest.json
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = "${{ github.ref_name }}"  # 例: v0.2.8
+          $version = $tag.TrimStart('v')
+          $owner,$repo = "${{ github.repository }}".Split('/')
+
+          $updaterDir = "src-tauri/target/release/bundle/updater"
+          if (!(Test-Path $updaterDir)) { throw "Updater artifacts not found: $updaterDir" }
+
+          # Windows用のzip（なければ最初のzip）を特定
+          $zip = Get-ChildItem $updaterDir -Recurse -Filter *.zip | Where-Object { $_.Name -match 'windows|win|x64' } | Select-Object -First 1
+          if (-not $zip) { $zip = Get-ChildItem $updaterDir -Recurse -Filter *.zip | Select-Object -First 1 }
+          if (-not $zip) { throw "No updater .zip found under $updaterDir" }
+
+          # 署名ファイル（.sig）を読み取り
+          $sigPath = "$($zip.FullName).sig"
+          if (!(Test-Path $sigPath)) {
+            $sigCandidate = Join-Path $zip.DirectoryName ($zip.BaseName + ".sig")
+            if (Test-Path $sigCandidate) { $sigPath = $sigCandidate } else { throw "Signature file not found for $($zip.Name)" }
+          }
+          $signature = (Get-Content $sigPath -Raw).Trim()
+
+          # リリースアセットのURL（この後のアップロードで同名ファイルを公開予定）
+          $url = "https://github.com/$owner/$repo/releases/download/$tag/$($zip.Name)"
+          $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+          $json = @{
+            version = $version
+            notes = "Automatic update for $tag"
+            pub_date = $pubDate
+            platforms = @{
+              "windows-x86_64" = @{
+                url = $url
+                signature = $signature
+              }
+            }
+          } | ConvertTo-Json -Depth 5
+
+          Set-Content -Path "latest.json" -Value $json -Encoding UTF8
+          Write-Host "Generated latest.json:"
+          Write-Host $json
 
       # ステップ7: ビルド成果物をGitHub Releasesにアップロード
       - name: Upload Release Assets
@@ -63,6 +114,9 @@ jobs:
           files: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/updater/**/*.zip
+            src-tauri/target/release/bundle/updater/**/*.sig
+            latest.json
         env:
           # GitHubの認証トークン（自動で設定）
           # このトークンによってReleasesページへの書き込み権限が有効化される
