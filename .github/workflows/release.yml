@@ -67,18 +67,33 @@ jobs:
           $owner,$repo = "${{ github.repository }}".Split('/')
 
           $updaterDir = "src-tauri/target/release/bundle/updater"
-          if (!(Test-Path $updaterDir)) { throw "Updater artifacts not found: $updaterDir" }
+
+          # updaterディレクトリが存在しない場合は警告を出してスキップ
+          if (!(Test-Path $updaterDir)) {
+            Write-Warning "Updater artifacts not found at $updaterDir"
+            Write-Warning "This is expected if TAURI_SIGNING_PRIVATE_KEY is not configured."
+            Write-Warning "Skipping latest.json generation."
+            exit 0
+          }
 
           # Windows用のzip（なければ最初のzip）を特定
           $zip = Get-ChildItem $updaterDir -Recurse -Filter *.zip | Where-Object { $_.Name -match 'windows|win|x64' } | Select-Object -First 1
           if (-not $zip) { $zip = Get-ChildItem $updaterDir -Recurse -Filter *.zip | Select-Object -First 1 }
-          if (-not $zip) { throw "No updater .zip found under $updaterDir" }
+          if (-not $zip) {
+            Write-Warning "No updater .zip found under $updaterDir"
+            exit 0
+          }
 
           # 署名ファイル（.sig）を読み取り
           $sigPath = "$($zip.FullName).sig"
           if (!(Test-Path $sigPath)) {
             $sigCandidate = Join-Path $zip.DirectoryName ($zip.BaseName + ".sig")
-            if (Test-Path $sigCandidate) { $sigPath = $sigCandidate } else { throw "Signature file not found for $($zip.Name)" }
+            if (Test-Path $sigCandidate) {
+              $sigPath = $sigCandidate
+            } else {
+              Write-Warning "Signature file not found for $($zip.Name)"
+              exit 0
+            }
           }
           $signature = (Get-Content $sigPath -Raw).Trim()
 
@@ -103,6 +118,8 @@ jobs:
           Write-Host $json
 
       # ステップ7: ビルド成果物をGitHub Releasesにアップロード
+      # 注: 存在しないファイルパターンは自動的にスキップされます
+      #     (署名鍵がない場合、updaterファイルとlatest.jsonは生成されません)
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2.0.9
         with:

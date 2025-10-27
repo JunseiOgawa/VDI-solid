@@ -56,10 +56,29 @@ VDI-solidは、VRゴーグルのパススルー機能を活用して画像チェ
 
 ## 🚀 インストール・ビルド
 
-1. 依存関係のインストール
-   ---```bash
+### リリースビルド時の署名鍵設定
 
-npm run tauri build:linux # Linux の場合
+自動更新機能を有効にするには、Tauriの署名鍵を設定する必要があります:
+
+1. **署名鍵の生成**
+
+   ```bash
+   npm run tauri signer generate
+   ```
+
+   これにより、公開鍵と秘密鍵が生成されます。
+
+2. **GitHub Secretsへの登録**
+
+   リポジトリの Settings > Secrets and variables > Actions から以下を追加:
+   - `TAURI_SIGNING_PRIVATE_KEY`: 生成された秘密鍵
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: 秘密鍵のパスワード
+
+3. **公開鍵の設定**
+
+   公開鍵は `src-tauri/tauri.conf.json` の `plugins.updater.pubkey` に設定済みです。
+
+**注**: 署名鍵が設定されていない場合、GitHub Actionsでのビルドは成功しますが、自動更新用のアーティファクト(.zipと.sig)は生成されません。インストーラー(.msiと.exe)のみが生成されます。
 
 ## 技術スタック
 
