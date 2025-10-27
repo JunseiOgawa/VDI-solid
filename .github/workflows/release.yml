@@ -1,56 +1,69 @@
+# このワークフローは、タグがプッシュされたときにWindows向けのアプリケーションをビルドし、
+# GitHub Releasesページに自動的にアップロードします
+
 name: 'Release'
 
+# トリガー設定：v*.*.*形式のタグがプッシュされた時に実行
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'  # 例: v0.2.7, v1.0.0
 
 jobs:
-  publish-tauri:
+  build-windows:
+    # GitHub Releasesにアップロードするための権限を付与
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'windows-latest'
-            args: ''
-
-    runs-on: ${{ matrix.platform }}
+    
+    # Windows環境でビルドを実行
+    runs-on: windows-latest
+    
     steps:
+      # ステップ1: リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ステップ2: Node.js環境をセットアップ（フロントエンドビルド用）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: 'npm'
+          node-version: lts/*        # 最新LTS版を使用
+          cache: 'npm'                # npm キャッシュを有効化（高速化）
 
+      # ステップ3: Rust 安定版ツールチェーンをインストール
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # ステップ4: Rustビルドのキャッシュを設定（高速化）
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: './src-tauri -> target'  # src-tauri/targetをキャッシュ対象に指定
 
+      # ステップ5: フロントエンドの依存パッケージをインストール
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci  # npm ci を使用（本番環境向けの安定インストール）
 
+      # ステップ6: Tauriアプリケーションをビルド
+      # このステップで以下のファイルが生成されます：
+      #   - MSI インストーラ（src-tauri/target/release/bundle/msi/）
+      #   - NSIS インストーラ（src-tauri/target/release/bundle/nsis/）
       - name: Build Tauri app
-        run: npm run tauri build
+        run: npm run tauri build  # リリースビルド（最適化有効）
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2.0.9  # 最新安定版を使用（Context7 MCP より確認）
+      # ステップ7: ビルド成果物をGitHub Releasesにアップロード
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2.0.9
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: See the assets to download this version and install.
-          draft: false
-          prerelease: false
+          tag_name: ${{ github.ref_name }}        # タグ名を使用（例: v0.2.7）
+          name: Release ${{ github.ref_name }}    # リリース名
+          body: Windows installers for VDI-solid  # リリース説明文
+          draft: false                            # 公開リリース（下書きではない）
+          prerelease: false                       # 正式リリース（プレリリースではない）
           files: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
         env:
+          # GitHubの認証トークン（自動で設定）
+          # このトークンによってReleasesページへの書き込み権限が有効化される
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
