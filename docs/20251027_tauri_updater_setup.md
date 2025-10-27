@@ -1,194 +1,321 @@
-# Tauri アップデート配信（latest.json）導入ガイド
+# Tauri v2 アップデート配信（latest.json）導入ガイド
 
-本ドキュメントは、VDI-solid（Tauri v2）でアプリの自己更新を実現するために必要な設定・ワークフロー・運用手順をまとめたものです。GitHub Releases の「最新リリース（releases/latest）」に `latest.json` を公開し、アプリがそこから更新情報を取得します。
+本ドキュメントは、VDI-solid（Tauri v2）でアプリの自己更新を実現するために必要な設定・ワークフロー・運用手順をまとめたものです。GitHub Releases の「最新リリース（releases/latest）」に `latest.json` を公開し、アプリがプラグイン経由でそこから更新情報を取得します。
 
 - 対象: Windows（必要に応じて他プラットフォームも拡張可能）
-- 方式: Tauri Updater（署名付きアップデータ成果物 + latest.json）
+- 方式: Tauri Updater Plugin v2 + 署名付きアップデータ成果物 + latest.json
 - 配信先: GitHub Releases（`https://github.com/<OWNER>/<REPO>/releases/latest/download/latest.json`）
 
 ---
 
 ## 1. 仕組みの全体像
 
-Tauri Updater では、以下の3点が重要です。
+Tauri v2 では、**プラグイン** をベースにした updater アーキテクチャを採用しています。以下の3点が重要です。
 
-1) アップデータ成果物（zip 形式）
-   - 通常のインストーラ（MSI / NSIS）とは別に、アップデータ用の zip がビルドされます。
-   - `src-tauri/tauri.conf.json` の `bundle.createUpdaterArtifacts: true` で生成されます。
+### 1.1) アップデータ成果物（zip 形式）
 
-2) 署名（.sig）
-   - 各アップデータ成果物（zip）に対して、秘密鍵で署名された `.sig` ファイルを生成します。
-   - アプリ側は公開鍵（pubkey）を組み込み、ダウンロードした zip の真正性を検証します。
+- 通常のインストーラ（MSI / NSIS）とは別に、アップデータ用の zip がビルドされます
+- `src-tauri/tauri.conf.json` の `bundle.createUpdaterArtifacts: true` で生成
+- 出力先: `src-tauri/target/release/bundle/updater/`
 
-3) latest.json
-   - 現在の最新バージョン・配布 URL・署名などを記載したマニフェストです。
-   - 例（Windows x64 の最小構成）:
-     ```json
-     {
-       "version": "0.2.8",
-       "notes": "Automatic update for v0.2.8",
-       "pub_date": "2025-10-27T00:00:00Z",
-       "platforms": {
-         "windows-x86_64": {
-           "url": "https://github.com/JunseiOgawa/VDI-solid/releases/download/v0.2.8/vdi-solid_0.2.8_x64_en-US.zip",
-           "signature": "<対応する .sig の中身>"
-         }
-       }
-     }
-     ```
+### 1.2) 署名（.sig）
+
+- 各アップデータ成果物（zip）に対して、秘密鍵で署名された `.sig` ファイルを生成
+- アプリ側は **フロント** の Updater Plugin で公開鍵を設定し、ダウンロード zip の真正性を検証
+
+### 1.3) latest.json（マニフェスト）
+
+- 現在の最新バージョン・配布 URL・署名などを記載したマニフェスト
+- 例（Windows x64）:
+  ```json
+  {
+    "version": "0.2.9",
+    "notes": "Automatic update for v0.2.9",
+    "pub_date": "2025-10-27T00:00:00Z",
+    "platforms": {
+      "windows-x86_64": {
+        "url": "https://github.com/JunseiOgawa/VDI-solid/releases/download/v0.2.9/vdi-solid_0.2.9_x64_en-US.zip",
+        "signature": "<対応する .sig ファイルの内容>"
+      }
+    }
+  }
+  ```
 
 ---
 
 ## 2. 事前準備（鍵の生成とSecrets設定）
 
-1) アップデータ用の鍵（公開鍵/秘密鍵ペア）を生成します。
-   - Tauri CLI（v2）を利用します。
-   - 実行例（どれか一つの方法でOK）:
-     ```bash
-     # 1) npx を使う
-     npx @tauri-apps/cli signer generate
+### 2.1) アップデータ用の鍵ペアを生成
 
-     # 2) 既存の npm scripts がある場合
-     npm run tauri signer generate
+Tauri CLI を使用します。
 
-     # 3) グローバルに CLI インストール済みなら
-     tauri signer generate
-     ```
-   - 生成時に表示される "Public Key" と、保存される秘密鍵（およびパスワード）を控えておきます。
+```bash
+# ターミナルで以下のどれか一つを実行
+npx @tauri-apps/cli signer generate
+# または
+npm run tauri signer generate
+```
 
-2) GitHub リポジトリの Secrets を設定します。
-   - リポジトリ設定 > Secrets and variables > Actions > New repository secret
-   - 追加:
-     - `TAURI_PRIVATE_KEY`: 生成した秘密鍵（必要に応じて Base64 化してください）
-     - `TAURI_KEY_PASSWORD`: 秘密鍵にパスワードを設定した場合はその値（未設定なら空で可）
+実行後、以下の情報が表示/保存されます。**必ず控えておいてください**。
 
-3) アプリ側設定に公開鍵（pubkey）を埋め込みます。
-   - `src-tauri/tauri.conf.json` の `bundle.updater.pubkey` に手順1で得た Public Key を設定します。
+- **Public Key**: `Dx...` で始まる長い文字列 → フロント側で使用
+- **秘密鍵**: ファイル（通常 `~/.tauri/key.key`）
+- **パスワード**: 秘密鍵に設定されたパスフレーズ（必要な場合）
+
+### 2.2) GitHub Secrets に登録
+
+リポジトリ > Settings > Secrets and variables > Actions > New repository secret
+
+以下を追加:
+
+- **TAURI_PRIVATE_KEY**: 生成した秘密鍵の内容（テキスト形式またはBase64）
+- **TAURI_KEY_PASSWORD**: 秘密鍵パスフレーズ（設定していない場合は空のまま可）
 
 ---
 
 ## 3. Tauri 設定（tauri.conf.json）
 
-本リポジトリでは、以下のように設定しています（抜粋）。
+本リポジトリの設定（現在）:
 
 ```json
 {
   "bundle": {
+    "active": true,
+    "targets": "all",
     "createUpdaterArtifacts": true,
-    "updater": {
-      "active": false,
-      "endpoints": [
-        "https://github.com/JunseiOgawa/VDI-solid/releases/latest/download/latest.json"
-      ],
-      "pubkey": "<あなたの公開鍵に置換>"
-    }
+    "icon": [...]
   }
 }
 ```
 
-- 運用開始時は `active: true` に変更してください（公開鍵と `latest.json` の配信が整った後）。
-- `endpoints` は GitHub Releases の "最新リリース" に常に追従する固定 URL です。
-- `createUpdaterArtifacts: true` により、`src-tauri/target/release/bundle/updater/` 配下に zip と sig が生成されます。
+- `createUpdaterArtifacts: true` → ビルド時にアップデータ成果物（zip + sig）を生成
+- `updater` セクション は **tauri.conf.json には不要** です（Tauri v2 ではプラグイン側で設定）
 
 ---
 
-## 4. GitHub Actions（release.yml）の要点
+## 4. Rust 側（src-tauri/src/lib.rs）
 
-`.github/workflows/release.yml` を以下の方針で更新済みです。
+既に設定済みですが、以下のようにプラグインが初期化されています。
 
-- ビルド時に秘密鍵（Secrets）を環境変数で供給
-  ```yaml
-  env:
-    TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-    TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-  ```
+```rust
+#[cfg(desktop)]
+{
+    app.handle()
+        .plugin(tauri_plugin_updater::Builder::new().build())?;
+    app.handle().plugin(tauri_plugin_process::init())?;
+}
+```
 
-- ビルド後に PowerShell で `latest.json` を生成
-  - `src-tauri/target/release/bundle/updater/**/*.zip` を検出
-  - 対応する `.sig` を読み取って `latest.json` を作成
-
-- リリースに以下を同梱
-  - MSI / NSIS インストーラ
-  - アップデータ成果物（zip / sig）
-  - `latest.json`
-
-- `latest.json` は `releases/latest/download/latest.json` で常に最新を取得可能
-  - アプリは `endpoints` の URL を参照して更新情報を取得
-
-> 補足: 現在 `bundle.updater.active` は false です。Secrets の登録と公開鍵の設定が完了したら `true` に変更してください。
+- Updater プラグインはデスクトップ環境でのみ初期化
+- エンドポイント・公開鍵の設定は **フロント側（TypeScript）** で指定
 
 ---
 
-## 5. アプリ側（更新チェックの実装）
+## 5. フロント側の実装（@tauri-apps/plugin-updater）
 
-Tauri v2 では、標準の Updater 機能または公式プラグイン（`@tauri-apps/plugin-updater`）を利用します。UI から明示的にチェックしたい場合はプラグインを導入します。
+アップデータの初期化と定期チェック、またはボタンクリックでのチェックを実装します。
 
-- 例（フロントエンド）:
-  ```ts
-  import { check, install, onUpdaterEvent } from '@tauri-apps/plugin-updater'
+### 5.1) 基本的な更新チェック
 
-  async function runUpdate() {
-    const info = await check() // latest.json を取得して差分を判断
-    if (info?.available) {
-      onUpdaterEvent(({ event, payload }) => {
-        console.log('updater:', event, payload) // ダウンロード進捗など
-      })
-      await install() // ダウンロード＆適用
+```typescript
+import { check, update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+async function checkAndUpdate() {
+  try {
+    const { shouldUpdate, manifest } = await check();
+    
+    if (shouldUpdate) {
+      console.log(`更新利用可能: ${manifest?.version}`);
+      
+      // ダウンロード＆インストール
+      await update();
+      
+      // 再起動
+      await relaunch();
+    } else {
+      console.log('最新版を使用中です');
     }
+  } catch (error) {
+    console.error('更新チェックエラー:', error);
   }
-  ```
+}
+```
 
-必要に応じて、アプリ起動時の自動チェックやメニュー/UI ボタンでの手動更新などを実装してください。
+### 5.2) エンドポイント・公開鍵の設定方法
+
+フロント起動時に環境変数またはコンフィグから読み込み、アプリ初期化時に設定します。
+
+**パターン1: 環境変数から**
+
+```typescript
+// 例：vite.config.ts または frontend initialization
+const UPDATER_ENDPOINT = import.meta.env.VITE_UPDATER_ENDPOINT 
+  || 'https://github.com/JunseiOgawa/VDI-solid/releases/latest/download/latest.json';
+const UPDATER_PUBKEY = import.meta.env.VITE_UPDATER_PUBKEY
+  || 'Dx....'; // 生成した公開鍵
+```
+
+**パターン2: TypeScript設定ファイルから**
+
+```typescript
+// config/updater.ts
+export const updaterConfig = {
+  endpoint: 'https://github.com/JunseiOgawa/VDI-solid/releases/latest/download/latest.json',
+  pubkey: 'Dx...', // 生成した公開鍵
+};
+```
+
+**パターン3: 起動時に指定**
+
+```typescript
+import { installUpdate, onUpdaterEvent } from '@tauri-apps/plugin-updater';
+
+// リスナーを設定して進捗を監視
+onUpdaterEvent(({ event, payload }) => {
+  switch (event) {
+    case 'CHECKING':
+      console.log('更新をチェック中...');
+      break;
+    case 'UPDATE_AVAILABLE':
+      console.log(`更新利用可能: ${payload.version}`);
+      break;
+    case 'DOWNLOADING':
+      console.log(`ダウンロード中: ${payload.contentLength} bytes`);
+      break;
+    case 'DOWNLOADED':
+      console.log('ダウンロード完了。再起動を促す UI を表示');
+      break;
+    case 'ERROR':
+      console.error('更新エラー:', payload);
+      break;
+  }
+});
+
+// 定期的にチェック（例: 5分ごと）
+setInterval(async () => {
+  await installUpdate(); // チェックしてダウンロード
+}, 5 * 60 * 1000);
+```
 
 ---
 
-## 6. リリース手順（運用フロー）
+## 6. GitHub Actions（release.yml）
 
-1) バージョンを更新（例: `0.2.9`）
-2) タグを作成して push（`v0.2.9`）
-3) GitHub Actions がビルド／署名／`latest.json` 生成／リリース公開
-4) エンドユーザのアプリが `latest.json` を参照し、更新を検知
+ワークフローは既に以下のステップを含んでいます。
 
-> 重要: `active: true` にするのはSecretsと公開鍵の設定が完了し、`latest.json` の配信が整った後にしてください。
+1) **秘密鍵を環境変数で供給**
+   ```yaml
+   env:
+     TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+     TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+   ```
 
----
+2) **ビルド実行**
+   - `npm run tauri build` で MSI/NSIS インストーラ＋ Updater zip/sig を生成
 
-## 7. よくあるハマりどころ（トラブルシュート）
+3) **PowerShell で latest.json を生成**
+   - `src-tauri/target/release/bundle/updater/**/*.zip` を検出
+   - `.sig` を読み取り
+   - `latest.json` を作成
 
-- ビルドに署名情報が入らない / `.sig` が生成されない
-  - `TAURI_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` が Actions Secrets に未登録、もしくは誤り
-  - `bundle.updater.pubkey` が未設定
-  - `createUpdaterArtifacts` が `true` になっていない
-
-- `latest.json` でダウンロード URL が 404
-  - リリースに zip をアップロードしているか確認
-  - ファイル名と `latest.json` の `url` が一致しているか確認
-
-- アプリが更新を検知しない
-  - `endpoints` の URL が正しいか
-  - `bundle.updater.active` が `true` か
-  - アプリのバージョン（`tauri.conf.json` の `version`）が `latest.json` の `version` より古いか
-
-- 署名検証エラー
-  - `latest.json.signature` とアップロードされた `.sig` の内容が一致しているか
-  - アプリに埋め込んだ `pubkey` が正しいか
+4) **リリースにアセットを添付**
+   - MSI / NSIS インストーラ
+   - Updater zip / sig
+   - **latest.json**
 
 ---
 
-## 8. 次に行うこと（あなたがやるべきこと）
+## 7. リリース手順（運用フロー）
 
-- [ ] Tauri CLI で鍵ペアを生成（公開鍵/秘密鍵）
-- [ ] 公開鍵を `src-tauri/tauri.conf.json` の `bundle.updater.pubkey` に設定
-- [ ] リポジトリ Secrets に `TAURI_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` を登録
-- [ ] `bundle.updater.active` を `true` に変更
-- [ ] 新しいバージョンタグ（`vX.Y.Z`）をプッシュして動作確認
+### 7.1) 準備が整った前提
+
+- [ ] Tauri CLI で鍵ペアを生成済み
+- [ ] GitHub Secrets に `TAURI_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` を登録済み
+- [ ] フロント側に公開鍵とエンドポイントを設定済み
+
+### 7.2) リリース手順
+
+1) バージョンを更新（`package.json` / `src-tauri/tauri.conf.json`）
+   ```bash
+   npm run version:update  # またはコマンド実行
+   ```
+
+2) コミット
+   ```bash
+   git commit -m "chore: bump version to X.Y.Z"
+   ```
+
+3) タグを作成してプッシュ
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+4) GitHub Actions がトリガーされ、以下が自動実行
+   - ビルド
+   - 署名＆Updater 成果物生成
+   - `latest.json` 生成
+   - Release に全てを添付
+
+5) Release が公開されたら、`latest.json` はこのエンドポイントで配信
+   ```
+   https://github.com/JunseiOgawa/VDI-solid/releases/latest/download/latest.json
+   ```
+
+6) エンドユーザのアプリが定期チェック/手動チェックで `latest.json` を取得
+   - 新バージョンが利用可能なら更新ダイアログ表示
+   - ユーザが同意すれば zip をダウンロード＆インストール
 
 ---
 
-## 9. 参考（最新仕様）
+## 8. トラブルシュート
 
-- Tauri v2 Config（`bundle.createUpdaterArtifacts` / `bundle.updater`）
-- 公式 Updater プラグイン: `@tauri-apps/plugin-updater`
-- GitHub Releases（`releases/latest/download/latest.json` の固定 URL）
+### 8.1) ビルドエラー: `Additional properties are not allowed ('updater' was unexpected)`
 
-本ガイドは Tauri v2 系の一般的な運用に基づいています。詳細や仕様変更は公式ドキュメントをご参照ください。
+- **原因**: `tauri.conf.json` に `bundle.updater` セクションがある
+- **対処**: このセクションを削除（Tauri v2 では bundle に updater 設定は不要）
+
+### 8.2) .sig ファイルが生成されない
+
+- **原因 1**: Secrets が未登録 → `npm run tauri build` で署名が行われていない
+- **原因 2**: `createUpdaterArtifacts` が `false` のまま
+- **対処**: Secrets 確認 ＋ config の `createUpdaterArtifacts: true` 確認
+
+### 8.3) アプリが更新を検知しない
+
+- **原因 1**: フロント側で updater エンドポイントが未設定
+- **原因 2**: 公開鍵が不正
+- **原因 3**: `latest.json` の URL が誤っている
+- **対処**:
+  - フロント側コードを確認（エンドポイント・公開鍵の設定）
+  - `releases/latest/download/latest.json` が 200 で返るか確認
+  - ブラウザコンソールでエラーを確認
+
+### 8.4) 署名検証エラー
+
+- **原因**: `latest.json` に記載された `.sig` とアップロード `.sig` が不一致
+- **対処**: `latest.json` 生成スクリプトが `.sig` ファイルを正しく読み込んでいるか確認
+
+---
+
+## 9. 次に行うこと（チェックリスト）
+
+- [ ] Tauri CLI で鍵ペアを生成（`npx @tauri-apps/cli signer generate`）
+- [ ] 公開鍵を控える（`Dx...` で始まる文字列）
+- [ ] GitHub Secrets に `TAURI_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` を登録
+- [ ] フロント側に公開鍵とエンドポイント URL を埋め込む
+- [ ] バージョンを上げてタグを push（`vX.Y.Z`）
+- [ ] GitHub Actions が正常に完了し、Release に latest.json が含まれるか確認
+- [ ] ローカルでアプリを起動し、更新チェックが動作するか確認
+
+---
+
+## 10. 参考情報
+
+- **Tauri v2 Updater Plugin**: `@tauri-apps/plugin-updater`（既に package.json に含まれている）
+- **公開ドキュメント**: https://tauri.app/v1/guides/distribution/updater/
+- **鍵生成**: `tauri signer generate`
+- **最新リリースの固定 URL**: `https://github.com/<OWNER>/<REPO>/releases/latest/download/<FILE>`
+
+本ガイドは Tauri v2 系の updater プラグインをベースにしています。詳細や最新情報は公式ドキュメントをご参照ください。
