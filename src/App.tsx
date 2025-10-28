@@ -227,8 +227,8 @@ const AppMain: Component = () => {
 const App: Component = () => {
   // UIがマウントされた後にウィンドウを表示
   onMount(() => {
-    // 次のフレームでウィンドウを表示(レンダリング完了を確実に待つ)
-    requestAnimationFrame(async () => {
+    // queueMicrotaskで可能な限り早くウィンドウを表示
+    queueMicrotask(async () => {
       try {
         await invoke("show_window");
 
