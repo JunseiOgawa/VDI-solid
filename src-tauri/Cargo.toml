@@ -25,7 +25,7 @@ tauri-plugin-dialog = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 image = { version = "0.24", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "fs", "process"] }
 rayon = "1.8"
 lazy_static = "1.4"
 
@@ -37,9 +37,10 @@ tauri-plugin-process = "2.0"
 
 # リリースビルド最適化設定
 [profile.release]
-lto = true              # Link Time Optimization: リンク時最適化を有効化
+lto = "thin"            # Link Time Optimization: 起動速度重視でthinに変更
 codegen-units = 1       # コード生成ユニットを1に設定し最適化を向上
-opt-level = "z"         # サイズ最適化(zはsより積極的)
+opt-level = 3           # 速度優先の最適化(3が最速)
 strip = true            # デバッグシンボルを削除してバイナリサイズ削減
 panic = "abort"         # パニック時に即座に終了(unwinding処理を削除)
+incremental = false     # インクリメンタルコンパイル無効(リリースビルドで最適化)
 

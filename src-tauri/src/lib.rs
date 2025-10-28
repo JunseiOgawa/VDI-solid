@@ -147,9 +147,10 @@ pub fn run() {
     let window_mode = launch_config.window_mode.clone();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(fs_init())
-        .plugin(tauri_plugin_dialog::init())
+        // 軽量プラグインから順に初期化して起動速度を最適化
+        .plugin(tauri_plugin_opener::init())  // 最軽量
+        .plugin(fs_init())                     // ファイルシステム(必須)
+        .plugin(tauri_plugin_dialog::init())   // ダイアログ(比較的軽量)
         .invoke_handler(tauri::generate_handler![
             img::get_launch_image_path,
             img::get_launch_window_mode,

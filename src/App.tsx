@@ -8,8 +8,9 @@ import ImageViewer from "./components/ImageViewer";
 import Footer from "./components/Footer";
 import { AppProvider, useAppState } from "./context/AppStateContext";
 
-// ImageGalleryを遅延ロード
+// 遅延ロードコンポーネント
 const ImageGallery = lazy(() => import("./components/ImageGallery"));
+const SettingsMenuPreload = lazy(() => import("./components/SettingsMenu"));
 import { handleScreenFit } from "./lib/screenfit";
 import { callResetImagePosition, callZoomToCenter } from "./lib/imageViewerApi";
 import { convertFileToAssetUrlWithCacheBust } from "./lib/fileUtils";
@@ -250,6 +251,16 @@ const App: Component = () => {
               clearTimeout(updateCheckTimeout);
             });
         }, 3000); // ウィンドウ表示から3秒後に実行(起動速度優先)
+
+        // SettingsMenuを3秒後にプリロード(初回開く際の遅延を防ぐ)
+        setTimeout(() => {
+          // プリロード用のダミーコンポーネントをレンダリング
+          const preloadDiv = document.createElement("div");
+          preloadDiv.style.display = "none";
+          document.body.appendChild(preloadDiv);
+          SettingsMenuPreload.preload();
+          console.log("[App] SettingsMenuをプリロードしました");
+        }, 3000);
       } catch (err) {
         console.error("Failed to show window:", err);
       }

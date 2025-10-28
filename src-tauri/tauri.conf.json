@@ -21,10 +21,7 @@
         "minWidth": 500,
         "minHeight": 300,
         "transparent": true,
-        "decorations": false,
-        "webview": {
-          "contextMenu": false
-        }
+        "decorations": false
       }
     ],
     "security": {

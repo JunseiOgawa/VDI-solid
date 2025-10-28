@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show, lazy, Suspense } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { TauriEvent } from "@tauri-apps/api/event";
 import { useAppState } from "../../context/AppStateContext";
@@ -15,7 +15,9 @@ import {
   registerZoomToCenter,
 } from "../../lib/imageViewerApi";
 import ImageManager from "./ImageManager";
-import HistogramLayer from "./HistogramLayer";
+
+// HistogramLayerを遅延ロード(起動速度最適化)
+const HistogramLayer = lazy(() => import("./HistogramLayer"));
 
 const logDropEvent = (label: string, payload: unknown) => {
   const timestamp = new Date().toISOString();
@@ -776,17 +778,19 @@ const ImageViewer: Component = () => {
             />
           </div>
 
-          {/* ヒストグラムレイヤー - checkerboard-bgの直下に配置 */}
+          {/* ヒストグラムレイヤー - checkerboard-bgの直下に配置(遅延ロード) */}
           <Show when={histogramEnabled() && currentImageFilePath()}>
-            <HistogramLayer
-              imagePath={currentImageFilePath()!}
-              imageSrc={imageSrc()}
-              enabled={histogramEnabled()}
-              displayType={histogramDisplayType()}
-              position={histogramPosition()}
-              size={histogramSize()}
-              opacity={histogramOpacity()}
-            />
+            <Suspense fallback={<div />}>
+              <HistogramLayer
+                imagePath={currentImageFilePath()!}
+                imageSrc={imageSrc()}
+                enabled={histogramEnabled()}
+                displayType={histogramDisplayType()}
+                position={histogramPosition()}
+                size={histogramSize()}
+                opacity={histogramOpacity()}
+              />
+            </Suspense>
           </Show>
         </>
       ) : (
