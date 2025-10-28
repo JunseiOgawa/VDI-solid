@@ -216,6 +216,51 @@ const Footer: Component = () => {
                 />
               </svg>
             </button>
+
+            {/* インフォボタン */}
+            <button
+              id="footerInfoBtn"
+              class="relative inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
+              aria-label="情報"
+              title="情報"
+              onMouseEnter={() => setShowInfoTooltip(true)}
+              onMouseLeave={() => setShowInfoTooltip(false)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M8 7v4M8 5v0.5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+
+              {/* ツールチップ */}
+              <Show when={showInfoTooltip()}>
+                <div class="absolute bottom-full right-0 mb-2 w-64 rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] p-3 text-xs text-[var(--glass-text-secondary)] shadow-lg pointer-events-none">
+                  <p class="font-medium text-[var(--glass-text-primary)] mb-1">
+                    情報表示機能
+                  </p>
+                  <p>
+                    今後引数で渡された情報を表示処理できるように今後実装予定
+                  </p>
+                </div>
+              </Show>
+            </button>
           </div>
         </div>
       </footer>
