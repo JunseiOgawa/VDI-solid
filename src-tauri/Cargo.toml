@@ -35,3 +35,11 @@ lazy_static = "1.4"
 tauri-plugin-updater = "2.0"
 tauri-plugin-process = "2.0"
 
+# リリースビルド最適化設定
+[profile.release]
+lto = true              # Link Time Optimization: リンク時最適化を有効化
+codegen-units = 1       # コード生成ユニットを1に設定し最適化を向上
+opt-level = "z"         # サイズ最適化(zはsより積極的)
+strip = true            # デバッグシンボルを削除してバイナリサイズ削減
+panic = "abort"         # パニック時に即座に終了(unwinding処理を削除)
+
