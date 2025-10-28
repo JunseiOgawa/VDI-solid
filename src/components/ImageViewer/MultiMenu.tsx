@@ -1,6 +1,7 @@
 import type { Component } from "solid-js";
 import { createSignal } from "solid-js";
 import type { GridPattern } from "../../context/AppStateContext";
+import { useAppState } from "../../context/AppStateContext";
 import GridMenuContent from "./GridMenuContent";
 import PeakingMenuContent from "./PeakingMenuContent";
 import HistogramMenuContent from "./HistogramMenuContent";
@@ -56,6 +57,7 @@ interface MultiMenuProps {
  * - キーボードナビゲーション対応
  */
 const MultiMenu: Component<MultiMenuProps> = (props) => {
+  const { t } = useAppState();
   const [activeSegment, setActiveSegment] = createSignal<SegmentType>("grid");
 
   /**
@@ -89,10 +91,10 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
           type="button"
           class={segmentButtonClass("grid")}
           onClick={() => handleSegmentClick("grid")}
-          aria-label="グリッド設定"
+          aria-label={t("multiMenu.gridSettings")}
           aria-selected={activeSegment() === "grid"}
         >
-          <span>グリッド</span>
+          <span>{t("multiMenu.grid")}</span>
         </button>
 
         {/* セグメント区切り線 */}
@@ -103,10 +105,10 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
           type="button"
           class={segmentButtonClass("peaking")}
           onClick={() => handleSegmentClick("peaking")}
-          aria-label="フォーカスピーキング設定"
+          aria-label={t("multiMenu.peakingSettings")}
           aria-selected={activeSegment() === "peaking"}
         >
-          <span>ピーキング</span>
+          <span>{t("multiMenu.peaking")}</span>
         </button>
 
         {/* セグメント区切り線 */}
@@ -117,10 +119,10 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
           type="button"
           class={segmentButtonClass("histogram")}
           onClick={() => handleSegmentClick("histogram")}
-          aria-label="ヒストグラム設定"
+          aria-label={t("multiMenu.histogramSettings")}
           aria-selected={activeSegment() === "histogram"}
         >
-          <span>ヒストグラム</span>
+          <span>{t("multiMenu.histogram")}</span>
         </button>
 
         {/* アクティブセグメントの下線 */}

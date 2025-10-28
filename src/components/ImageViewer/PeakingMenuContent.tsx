@@ -1,5 +1,6 @@
 import type { Component } from "solid-js";
 import { createSignal, For, onCleanup } from "solid-js";
+import { useAppState } from "../../context/AppStateContext";
 
 interface PeakingMenuContentProps {
   /** フォーカスピーキングのON/OFF状態 */
@@ -25,12 +26,12 @@ interface PeakingMenuContentProps {
 }
 
 /** 色プリセット定義 */
-const COLOR_PRESETS: Array<{ name: string; value: string }> = [
-  { name: "ライム", value: "lime" },
-  { name: "レッド", value: "red" },
-  { name: "シアン", value: "cyan" },
-  { name: "イエロー", value: "yellow" },
-  { name: "マゼンタ", value: "magenta" },
+const COLOR_PRESETS: Array<{ nameKey: string; value: string }> = [
+  { nameKey: "colorLime", value: "lime" },
+  { nameKey: "colorRed", value: "red" },
+  { nameKey: "colorCyan", value: "cyan" },
+  { nameKey: "colorYellow", value: "yellow" },
+  { nameKey: "colorMagenta", value: "magenta" },
 ];
 
 /**
@@ -47,6 +48,7 @@ const COLOR_PRESETS: Array<{ name: string; value: string }> = [
  * - 点滅ON/OFF
  */
 const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
+  const { t } = useAppState();
   // 一時表示用のSignal（リアルタイム表示用）
   const [tempIntensity, setTempIntensity] = createSignal(
     props.peakingIntensity,
@@ -143,13 +145,17 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
           onChange={handleEnabledToggle}
           class="h-4 w-4 cursor-pointer accent-white/80"
         />
-        <span class="text-label text-[var(--glass-text-primary)]">有効化</span>
+        <span class="text-label text-[var(--glass-text-primary)]">
+          {t("peaking.enable")}
+        </span>
       </label>
 
       {/* 強度スライダー */}
       <div class="space-y-1">
         <div class="flex justify-between text-label">
-          <span class="text-[var(--glass-text-primary)]">強度</span>
+          <span class="text-[var(--glass-text-primary)]">
+            {t("peaking.intensity")}
+          </span>
           <span class="text-[var(--glass-text-secondary)] text-tabular">
             {tempIntensity()}
           </span>
@@ -168,7 +174,9 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
 
       {/* 色選択 */}
       <div class="space-y-1">
-        <span class="text-label text-[var(--glass-text-primary)]">色</span>
+        <span class="text-label text-[var(--glass-text-primary)]">
+          {t("peaking.color")}
+        </span>
         <div class="flex gap-2">
           <For each={COLOR_PRESETS}>
             {(preset) => (
@@ -182,10 +190,10 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
                       ? "rgba(255, 255, 255, 0.9)"
                       : "transparent",
                 }}
-                title={preset.name}
+                title={t(`peaking.${preset.nameKey}`)}
                 onClick={() => handleColorSelect(preset.value)}
                 disabled={!props.peakingEnabled}
-                aria-label={preset.name}
+                aria-label={t(`peaking.${preset.nameKey}`)}
               />
             )}
           </For>
@@ -195,7 +203,9 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
       {/* 不透明度スライダー */}
       <div class="space-y-1">
         <div class="flex justify-between text-label">
-          <span class="text-[var(--glass-text-primary)]">不透明度</span>
+          <span class="text-[var(--glass-text-primary)]">
+            {t("peaking.opacity")}
+          </span>
           <span class="text-[var(--glass-text-secondary)] text-tabular">
             {Math.round(tempOpacity() * 100)}%
           </span>
@@ -222,7 +232,7 @@ const PeakingMenuContent: Component<PeakingMenuContentProps> = (props) => {
           disabled={!props.peakingEnabled}
         />
         <span class="text-label text-[var(--glass-text-primary)]">
-          ピーキング点滅
+          {t("peaking.blink")}
         </span>
       </label>
     </div>

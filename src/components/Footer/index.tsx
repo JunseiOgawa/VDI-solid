@@ -15,6 +15,7 @@ const Footer: Component = () => {
     showFullPath,
     loadNextImage,
     loadPreviousImage,
+    t,
   } = useAppState();
 
   // ファイル名を抽出する関数
@@ -31,7 +32,7 @@ const Footer: Component = () => {
     const path = filePath || imagePath;
 
     if (!path) {
-      return "No image loaded";
+      return t("footer.noImage");
     }
 
     // フルパス表示設定に応じて表示を切り替え
@@ -79,9 +80,7 @@ const Footer: Component = () => {
 
     // 確認ダイアログを表示
     const fileName = getFileName(filePath);
-    const confirmed = window.confirm(
-      `「${fileName}」を削除してもよろしいですか？\nこの操作は取り消せません。`,
-    );
+    const confirmed = window.confirm(t("footer.deleteConfirm", { fileName }));
 
     if (!confirmed) {
       return;
@@ -105,7 +104,7 @@ const Footer: Component = () => {
       console.log("[Footer Delete] Successfully deleted file");
     } catch (error) {
       console.error("[Footer Delete] Failed to delete file:", error);
-      alert(`ファイルの削除に失敗しました: ${error}`);
+      alert(t("footer.deleteFailed", { error: String(error) }));
     }
   };
 
@@ -170,8 +169,8 @@ const Footer: Component = () => {
             <button
               id="footerDeleteBtn"
               class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-red-500/20 hover:text-red-400 hover:backdrop-blur-md hover:scale-105 hover:border-red-500/30 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="削除"
-              title="削除"
+              aria-label={t("footer.delete")}
+              title={t("footer.delete")}
               onClick={handleDeleteFile}
               disabled={!currentImageFilePath()}
             >
@@ -198,8 +197,8 @@ const Footer: Component = () => {
             <button
               id="footerExplorerBtn"
               class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="エクスプローラで開く"
-              title="エクスプローラで開く"
+              aria-label={t("footer.explorer")}
+              title={t("footer.explorer")}
               onClick={handleRevealInExplorer}
               disabled={!currentImageFilePath()}
             >
@@ -221,8 +220,8 @@ const Footer: Component = () => {
             <button
               id="footerInfoBtn"
               class="relative inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
-              aria-label="情報"
-              title="情報"
+              aria-label={t("footer.info")}
+              title={t("footer.info")}
               onMouseEnter={() => setShowInfoTooltip(true)}
               onMouseLeave={() => setShowInfoTooltip(false)}
             >
@@ -253,11 +252,9 @@ const Footer: Component = () => {
               <Show when={showInfoTooltip()}>
                 <div class="absolute bottom-full right-0 mb-2 w-64 rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] p-3 text-xs text-[var(--glass-text-secondary)] shadow-lg pointer-events-none">
                   <p class="font-medium text-[var(--glass-text-primary)] mb-1">
-                    情報表示機能
+                    {t("footer.infoTooltipTitle")}
                   </p>
-                  <p>
-                    今後引数で渡された情報を表示処理できるように今後実装予定
-                  </p>
+                  <p>{t("footer.infoTooltipDescription")}</p>
                 </div>
               </Show>
             </button>

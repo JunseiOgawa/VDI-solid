@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import MultiMenu from "../ImageViewer/MultiMenu";
 import SettingsMenu from "../SettingsMenu";
 import type { GridPattern } from "../../context/AppStateContext";
+import { useAppState } from "../../context/AppStateContext";
 import type { ThemeKey } from "../../lib/theme";
 
 /**
@@ -70,6 +71,7 @@ interface TitlebarProps {
  * そしてFloatingControlPanelの全機能（ズーム、回転、マルチメニュー、設定）を提供
  */
 const Titlebar: Component<TitlebarProps> = (props) => {
+  const { t } = useAppState();
   const [showMultiMenu, setShowMultiMenu] = createSignal(false);
   const [showSettings, setShowSettings] = createSignal(false);
 
@@ -162,7 +164,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             id="galleryBtn"
             class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98"
             onClick={() => props.onToggleGallery(!props.showGallery)}
-            aria-label="ギャラリー表示"
+            aria-label={t("titlebar.gallery")}
           >
             <svg
               width="20"
@@ -216,8 +218,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             <button
               class="no-drag flex h-7 w-7 items-center justify-center rounded-l-md rounded-r-none bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
               onClick={props.onZoomIn}
-              aria-label="ズームイン"
-              title="ズームイン"
+              aria-label={t("titlebar.zoomIn")}
+              title={t("titlebar.zoomIn")}
             >
               <svg
                 width="16"
@@ -241,8 +243,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             <button
               class="no-drag flex h-7 min-w-[3rem] items-center justify-center rounded-none bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
               onClick={props.onZoomReset}
-              aria-label="ズームリセット"
-              title="ズームリセット"
+              aria-label={t("titlebar.zoomReset")}
+              title={t("titlebar.zoomReset")}
             >
               <span class="text-xs font-medium text-tabular">
                 {Math.round(props.zoomScale * 100)}%
@@ -255,8 +257,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             <button
               class="no-drag flex h-7 w-7 items-center justify-center rounded-l-none rounded-r-md bg-transparent border-none transition-all duration-200 cursor-pointer text-[var(--glass-text-primary)] hover:bg-white/[0.15] hover:backdrop-blur-md active:scale-98"
               onClick={props.onZoomOut}
-              aria-label="ズームアウト"
-              title="ズームアウト"
+              aria-label={t("titlebar.zoomOut")}
+              title={t("titlebar.zoomOut")}
             >
               <svg
                 width="16"
@@ -279,13 +281,13 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           <button
             class={controlButtonClasses}
             onClick={props.onScreenFit}
-            aria-label="画面にフィット"
-            title="画面にフィット"
+            aria-label={t("titlebar.screenFit")}
+            title={t("titlebar.screenFit")}
           >
             <img
               class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/全画面表示ボタン5.svg"
-              alt="画面フィット"
+              alt={t("titlebar.screenFit")}
             />
           </button>
 
@@ -293,13 +295,13 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           <button
             class={controlButtonClasses}
             onClick={props.onRotate}
-            aria-label="回転"
-            title="回転"
+            aria-label={t("titlebar.rotate")}
+            title={t("titlebar.rotate")}
           >
             <img
               class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/reload_hoso.svg"
-              alt="回転"
+              alt={t("titlebar.rotate")}
             />
           </button>
         </div>
@@ -310,8 +312,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           <button
             class={controlButtonClasses}
             onClick={toggleMultiMenu}
-            aria-label="表示機能メニュー"
-            title="表示機能メニュー"
+            aria-label={t("titlebar.multiMenu")}
+            title={t("titlebar.multiMenu")}
           >
             <svg
               width="16"
@@ -338,13 +340,13 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           <button
             class={controlButtonClasses}
             onClick={toggleSettings}
-            aria-label="設定"
-            title="設定"
+            aria-label={t("titlebar.settings")}
+            title={t("titlebar.settings")}
           >
             <img
               class="h-4 w-4 opacity-90 dark:brightness-0 dark:invert"
               src="/setting_ge_h.svg"
-              alt="設定"
+              alt={t("titlebar.settings")}
             />
           </button>
 
@@ -355,7 +357,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             id="minimizeBtn"
             class={windowButtonClasses}
             onClick={handleMinimize}
-            aria-label="最小化"
+            aria-label={t("titlebar.minimize")}
           >
             <svg
               width="20"
@@ -371,7 +373,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             id="maximizeBtn"
             class={windowButtonClasses}
             onClick={handleMaximize}
-            aria-label="最大化"
+            aria-label={t("titlebar.maximize")}
           >
             <svg
               width="20"
@@ -387,7 +389,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
             id="closeBtn"
             class="no-drag flex h-full w-12 items-center justify-center text-[var(--glass-text-secondary)] transition-colors duration-200 hover:bg-red-600 hover:text-white"
             onClick={handleClose}
-            aria-label="閉じる"
+            aria-label={t("titlebar.close")}
           >
             <svg
               width="12"

@@ -1,5 +1,6 @@
 import type { Component } from "solid-js";
 import { CONFIG } from "../../config/config";
+import { useAppState } from "../../context/AppStateContext";
 
 interface HistogramMenuContentProps {
   /** ヒストグラム表示のON/OFF状態 */
@@ -40,6 +41,8 @@ interface HistogramMenuContentProps {
  * - 不透明度調整
  */
 const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
+  const { t } = useAppState();
+
   const handleEnabledChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     props.onHistogramEnabledChange(target.checked);
@@ -77,7 +80,9 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           onChange={handleEnabledChange}
           class="h-4 w-4 cursor-pointer accent-white/80"
         />
-        <span class="text-label text-[var(--glass-text-primary)]">有効化</span>
+        <span class="text-label text-[var(--glass-text-primary)]">
+          {t("histogram.enable")}
+        </span>
       </label>
 
       {/* ヒストグラム詳細設定（有効時のみ表示） */}
@@ -87,15 +92,17 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
               <span class="text-label font-medium text-[var(--glass-text-primary)]">
-                表示タイプ
+                {t("histogram.displayType")}
               </span>
               <select
                 value={props.histogramDisplayType}
                 onChange={handleDisplayTypeChange}
                 class="cursor-pointer rounded border border-[var(--glass-border-emphasis)] bg-white/[0.1] px-2 py-1 text-label text-[var(--glass-text-primary)] transition-colors hover:bg-white/[0.15]"
               >
-                <option value="rgb">RGB別</option>
-                <option value="luminance">輝度のみ</option>
+                <option value="rgb">{t("histogram.displayTypeRgb")}</option>
+                <option value="luminance">
+                  {t("histogram.displayTypeLuminance")}
+                </option>
               </select>
             </label>
           </div>
@@ -104,17 +111,25 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
               <span class="text-label font-medium text-[var(--glass-text-primary)]">
-                表示位置
+                {t("histogram.position")}
               </span>
               <select
                 value={props.histogramPosition}
                 onChange={handlePositionChange}
                 class="cursor-pointer rounded border border-[var(--glass-border-emphasis)] bg-white/[0.1] px-2 py-1 text-label text-[var(--glass-text-primary)] transition-colors hover:bg-white/[0.15]"
               >
-                <option value="top-right">右上</option>
-                <option value="top-left">左上</option>
-                <option value="bottom-right">右下</option>
-                <option value="bottom-left">左下</option>
+                <option value="top-right">
+                  {t("histogram.positionTopRight")}
+                </option>
+                <option value="top-left">
+                  {t("histogram.positionTopLeft")}
+                </option>
+                <option value="bottom-right">
+                  {t("histogram.positionBottomRight")}
+                </option>
+                <option value="bottom-left">
+                  {t("histogram.positionBottomLeft")}
+                </option>
               </select>
             </label>
           </div>
@@ -123,7 +138,7 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
               <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
-                サイズ: {props.histogramSize.toFixed(1)}x
+                {t("histogram.size")}: {props.histogramSize.toFixed(1)}x
               </span>
               <input
                 type="range"
@@ -141,7 +156,8 @@ const HistogramMenuContent: Component<HistogramMenuContentProps> = (props) => {
           <div class="space-y-1">
             <label class="flex flex-col gap-2">
               <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
-                不透明度: {(props.histogramOpacity * 100).toFixed(0)}%
+                {t("histogram.opacity")}:{" "}
+                {(props.histogramOpacity * 100).toFixed(0)}%
               </span>
               <input
                 type="range"

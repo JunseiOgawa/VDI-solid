@@ -9,6 +9,7 @@ import {
 } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useAppState } from "../../context/AppStateContext";
 
 /**
  * ImageGalleryコンポーネントのProps
@@ -44,6 +45,7 @@ const getParentFolder = (path: string): string | null => {
  * フォルダ内の画像一覧をサムネイル付きで縦に表示するサイドバーコンポーネント
  */
 const ImageGallery: Component<ImageGalleryProps> = (props) => {
+  const { t } = useAppState();
   const [folderImages, setFolderImages] = createSignal<string[]>([]);
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
   const [error, setError] = createSignal<string | null>(null);
@@ -72,13 +74,13 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
           setError(null);
         } else {
           setFolderImages([]);
-          setError("画像が見つかりませんでした");
+          setError(t("gallery.noImages"));
         }
       })
       .catch((err) => {
         console.error("画像一覧の取得に失敗しました:", err);
         setFolderImages([]);
-        setError("画像一覧の取得に失敗しました");
+        setError(t("gallery.loadFailed"));
       })
       .finally(() => {
         setIsLoading(false);
@@ -122,17 +124,17 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
       <div class="bg-[var(--glass-bg-secondary)] backdrop-blur-lg border-b border-[var(--glass-border-emphasis)] flex items-center justify-between p-2">
         <div class="flex flex-col min-w-0 flex-1">
           <span class="text-[var(--glass-text-primary)] text-sm font-medium">
-            画像一覧
+            {t("gallery.title")}
           </span>
           <span class="text-[var(--glass-text-muted)] text-caption truncate">
             {getParentFolder(props.currentImagePath || "") ||
-              "フォルダが選択されていません"}
+              t("gallery.noFolder")}
           </span>
         </div>
         <button
           onClick={props.onClose}
           class="text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] transition-all duration-200 p-1 rounded ml-2 flex-shrink-0 hover:bg-white/[0.12] hover:backdrop-blur-md hover:border hover:border-white/[0.2] hover:scale-105 active:scale-98"
-          aria-label="閉じる"
+          aria-label={t("gallery.close")}
         >
           <svg
             width="16"
@@ -155,7 +157,7 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
       <div class="overflow-y-auto h-full p-2 space-y-2 pb-4">
         <Show when={isLoading()}>
           <div class="text-white/60 text-sm text-center py-4">
-            読み込み中...
+            {t("gallery.loading")}
           </div>
         </Show>
 
@@ -165,7 +167,7 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
 
         <Show when={!isLoading() && !error() && folderImages().length === 0}>
           <div class="text-white/60 text-sm text-center py-4">
-            画像が見つかりませんでした
+            {t("gallery.noImages")}
           </div>
         </Show>
 

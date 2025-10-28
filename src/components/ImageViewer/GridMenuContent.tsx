@@ -1,6 +1,7 @@
 import type { Component } from "solid-js";
 import { For } from "solid-js";
 import type { GridPattern } from "../../context/AppStateContext";
+import { useAppState } from "../../context/AppStateContext";
 
 interface GridMenuContentProps {
   /** 現在選択されているグリッドパターン */
@@ -13,22 +14,6 @@ interface GridMenuContentProps {
   onOpacityChange: (opacity: number) => void;
 }
 
-/** グリッドパターンの選択肢リスト */
-const GRID_OPTIONS: Array<{
-  value: GridPattern;
-  label: string;
-  description: string;
-}> = [
-  { value: "off", label: "グリッドなし", description: "グリッド線を非表示" },
-  {
-    value: "3x3",
-    label: "3×3グリッド",
-    description: "三分割法（写真構図の基本）",
-  },
-  { value: "5x3", label: "5×3グリッド", description: "黄金比グリッド" },
-  { value: "4x4", label: "4×4グリッド", description: "四分割グリッド" },
-];
-
 /**
  * GridMenuContent コンポーネント
  *
@@ -36,6 +21,18 @@ const GRID_OPTIONS: Array<{
  * MultiMenuコンポーネント内で使用されます。
  */
 const GridMenuContent: Component<GridMenuContentProps> = (props) => {
+  const { t } = useAppState();
+
+  /** グリッドパターンの選択肢リスト */
+  const GRID_OPTIONS: Array<{
+    value: GridPattern;
+  }> = [
+    { value: "off" },
+    { value: "3x3" },
+    { value: "5x3" },
+    { value: "4x4" },
+  ];
+
   const handleSelect = (pattern: GridPattern) => {
     props.onPatternChange(pattern);
   };
@@ -59,11 +56,13 @@ const GridMenuContent: Component<GridMenuContentProps> = (props) => {
                   props.currentPattern !== option.value,
               }}
               onClick={() => handleSelect(option.value)}
-              aria-label={option.label}
+              aria-label={t(`grid.${option.value}`)}
             >
-              <span class="font-medium text-label">{option.label}</span>
+              <span class="font-medium text-label">
+                {t(`grid.${option.value}`)}
+              </span>
               <span class="text-caption text-[var(--glass-text-muted)]">
-                {option.description}
+                {t(`grid.${option.value}Description`)}
               </span>
             </button>
           )}
@@ -72,7 +71,7 @@ const GridMenuContent: Component<GridMenuContentProps> = (props) => {
       <div class="border-t border-[var(--glass-border-emphasis)] px-4 py-3">
         <label class="flex flex-col gap-2">
           <span class="text-label font-medium text-[var(--glass-text-primary)] text-tabular">
-            不透明度: {Math.round(props.currentOpacity * 100)}%
+            {t("grid.opacity")}: {Math.round(props.currentOpacity * 100)}%
           </span>
           <input
             type="range"

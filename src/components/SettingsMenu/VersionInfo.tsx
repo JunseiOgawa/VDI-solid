@@ -1,22 +1,24 @@
 import { Component, createSignal } from "solid-js";
 import { updateManager } from "../../services/UpdateManager";
+import { useAppState } from "../../context/AppStateContext";
 
 const VersionInfo: Component = () => {
+  const { t } = useAppState();
   const [isChecking, setIsChecking] = createSignal(false);
   const [message, setMessage] = createSignal("");
 
   const handleCheckUpdate = async () => {
     setIsChecking(true);
-    setMessage("アップデートをチェック中...");
+    setMessage(t("version.checking"));
 
     const result = await updateManager.checkForUpdatesManual();
 
     if (result.error) {
       setMessage(result.error);
     } else if (result.available && result.update) {
-      setMessage(`新しいバージョン ${result.update.version} が利用可能です`);
+      setMessage(t("version.updateAvailable", { version: result.update.version }));
     } else {
-      setMessage("最新版を使用しています");
+      setMessage(t("version.upToDate"));
     }
 
     setIsChecking(false);
@@ -26,7 +28,7 @@ const VersionInfo: Component = () => {
     <div class="px-3 py-2">
       <div class="flex flex-col gap-2">
         <span class="text-label font-medium text-[var(--glass-text-primary)]">
-          バージョン情報
+          {t("version.title")}
         </span>
 
         <div class="flex flex-col gap-1.5">
@@ -39,7 +41,7 @@ const VersionInfo: Component = () => {
             disabled={isChecking()}
             class="px-3 py-1.5 bg-blue-500/90 hover:bg-blue-400/90 disabled:bg-gray-500/50 disabled:cursor-not-allowed rounded text-white transition-all duration-200 text-small"
           >
-            {isChecking() ? "チェック中..." : "最新版をチェック"}
+            {isChecking() ? t("version.checking") : t("version.checkUpdate")}
           </button>
 
           {message() && (
