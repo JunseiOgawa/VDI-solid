@@ -1,9 +1,11 @@
 import type { Component } from "solid-js";
-import { createSignal, onMount, onCleanup, Show } from "solid-js";
+import { createSignal, onMount, onCleanup, Show, lazy, Suspense } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import MultiMenu from "../ImageViewer/MultiMenu";
-import SettingsMenu from "../SettingsMenu";
 import type { GridPattern } from "../../context/AppStateContext";
+
+// SettingsMenuを遅延ロード
+const SettingsMenu = lazy(() => import("../SettingsMenu"));
 import { useAppState } from "../../context/AppStateContext";
 import type { ThemeKey } from "../../lib/theme";
 
@@ -446,26 +448,28 @@ const Titlebar: Component<TitlebarProps> = (props) => {
         </div>
       </Show>
 
-      {/* SettingsMenu - Titlebarの下に表示 */}
+      {/* SettingsMenu - Titlebarの下に表示(遅延ロード) */}
       <Show when={showSettings()}>
         <div
           class="fixed top-10 left-0 right-0 z-50 mt-2 flex justify-center pointer-events-none"
           data-menu="settings"
         >
           <div class="pointer-events-auto">
-            <SettingsMenu
-              theme={props.theme}
-              onThemeChange={(newTheme) => {
-                props.onThemeChange(newTheme);
-                setShowSettings(false);
-              }}
-              wheelSensitivity={props.wheelSensitivity}
-              onWheelSensitivityChange={props.onWheelSensitivityChange}
-              showFullPath={props.showFullPath}
-              onShowFullPathChange={props.onShowFullPathChange}
-              controlPanelPosition={props.controlPanelPosition}
-              onControlPanelPositionChange={props.onControlPanelPositionChange}
-            />
+            <Suspense fallback={<div class="w-[300px] h-[200px] bg-[var(--bg-secondary)] rounded-lg animate-pulse" />}>
+              <SettingsMenu
+                theme={props.theme}
+                onThemeChange={(newTheme) => {
+                  props.onThemeChange(newTheme);
+                  setShowSettings(false);
+                }}
+                wheelSensitivity={props.wheelSensitivity}
+                onWheelSensitivityChange={props.onWheelSensitivityChange}
+                showFullPath={props.showFullPath}
+                onShowFullPathChange={props.onShowFullPathChange}
+                controlPanelPosition={props.controlPanelPosition}
+                onControlPanelPositionChange={props.onControlPanelPositionChange}
+              />
+            </Suspense>
           </div>
         </div>
       </Show>

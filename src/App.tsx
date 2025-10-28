@@ -1,13 +1,15 @@
 import type { Component } from "solid-js";
-import { onMount, onCleanup } from "solid-js";
+import { onMount, onCleanup, lazy, Suspense } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Titlebar from "./components/Titlebar";
 import ImageViewer from "./components/ImageViewer";
-import ImageGallery from "./components/ImageGallery";
 import Footer from "./components/Footer";
 import { AppProvider, useAppState } from "./context/AppStateContext";
+
+// ImageGalleryを遅延ロード
+const ImageGallery = lazy(() => import("./components/ImageGallery"));
 import { handleScreenFit } from "./lib/screenfit";
 import { callResetImagePosition, callZoomToCenter } from "./lib/imageViewerApi";
 import { convertFileToAssetUrlWithCacheBust } from "./lib/fileUtils";
@@ -48,17 +50,19 @@ const AppContent: Component = () => {
   return (
     <>
       <main class="flex flex-1 flex-row overflow-hidden min-h-0">
-        {/* ギャラリーサイドバー */}
-        <ImageGallery
-          isOpen={showGallery()}
-          onClose={async () => {
-            setShowGallery(false);
-            await new Promise((resolve) => setTimeout(resolve, 300));
-            await contractWindowForGallery();
-          }}
-          currentImagePath={currentImageFilePath()}
-          onImageSelect={handleImageSelect}
-        />
+        {/* ギャラリーサイドバー(遅延ロード) */}
+        <Suspense fallback={<div />}>
+          <ImageGallery
+            isOpen={showGallery()}
+            onClose={async () => {
+              setShowGallery(false);
+              await new Promise((resolve) => setTimeout(resolve, 300));
+              await contractWindowForGallery();
+            }}
+            currentImagePath={currentImageFilePath()}
+            onImageSelect={handleImageSelect}
+          />
+        </Suspense>
         <ImageViewer />
       </main>
       <Footer />
