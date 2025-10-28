@@ -1,4 +1,4 @@
-markdown---
+---
 mode: agent
 ---
 # 命令書
