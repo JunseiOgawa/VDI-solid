@@ -105,6 +105,8 @@
     "checkUpdate": "Check for Updates",
     "checking": "Checking...",
     "upToDate": "You are using the latest version",
-    "updateAvailable": "New version {{version}} is available"
+    "updateAvailable": "New version {{version}} is available",
+    "installUpdate": "Install Update",
+    "installing": "Installing..."
   }
 }

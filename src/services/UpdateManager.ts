@@ -56,7 +56,11 @@ export class UpdateManager {
       }
     } catch (error) {
       const message = this.describeUpdaterError(error);
-      console.error("[UpdateManager] バックグラウンドチェック失敗:", message, error);
+      console.error(
+        "[UpdateManager] バックグラウンドチェック失敗:",
+        message,
+        error,
+      );
     }
   }
 
@@ -163,6 +167,42 @@ export class UpdateManager {
   }
 
   /**
+   * 手動でアップデートをインストール
+   */
+  async installUpdate(update: Update): Promise<void> {
+    try {
+      console.log(
+        "[UpdateManager] アップデートをダウンロード・インストール中...",
+      );
+
+      await update.downloadAndInstall((progress) => {
+        if (progress.event === "Started") {
+          console.log(
+            `[UpdateManager] ダウンロード開始: ${progress.data.contentLength} bytes`,
+          );
+        } else if (progress.event === "Progress") {
+          console.log(
+            `[UpdateManager] ダウンロード中: ${progress.data.chunkLength} bytes`,
+          );
+        } else if (progress.event === "Finished") {
+          console.log("[UpdateManager] ダウンロード完了");
+        }
+      });
+
+      console.log("[UpdateManager] アップデート完了、再起動中...");
+      await update.close();
+      await relaunch();
+    } catch (error) {
+      console.error("[UpdateManager] アップデート失敗:", error);
+      await ask(`アップデートに失敗しました: ${error}`, {
+        title: "エラー",
+        kind: "error",
+      });
+      throw error;
+    }
+  }
+
+  /**
    * 手動チェックのレート制限を確認
    */
   private canPerformManualCheck(): boolean {
@@ -203,11 +243,18 @@ export class UpdateManager {
       return `${raw}\ntauri.conf.json の plugins.updater.endpoints が空になっていないか確認してください。`;
     }
 
-    if (normalized.includes("the configured updater endpoint must use a secure protocol")) {
+    if (
+      normalized.includes(
+        "the configured updater endpoint must use a secure protocol",
+      )
+    ) {
       return `${raw}\n本番ビルドでは HTTPS のみ許可されています。エンドポイントを https:// で公開するか、development のみ dangerousInsecureTransportProtocol を許可してください。`;
     }
 
-    if (normalized.includes("the platform") && normalized.includes("was not found")) {
+    if (
+      normalized.includes("the platform") &&
+      normalized.includes("was not found")
+    ) {
       return `${raw}\nlatest.json に現在のターゲット向けのプラットフォーム情報が含まれているか確認してください。`;
     }
 
@@ -215,7 +262,10 @@ export class UpdateManager {
       return `${raw}\n署名(.sig)と tauri.conf.json の pubkey が一致しているか確認してください。`;
     }
 
-    if (normalized.includes("reqwest error") || normalized.includes("network")) {
+    if (
+      normalized.includes("reqwest error") ||
+      normalized.includes("network")
+    ) {
       return `${raw}\nネットワークに接続できなかった可能性があります。プロキシやファイアウォールの設定を確認してください。`;
     }
 

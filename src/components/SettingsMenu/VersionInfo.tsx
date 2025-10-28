@@ -1,11 +1,16 @@
 import { Component, createSignal } from "solid-js";
+import { Update } from "@tauri-apps/plugin-updater";
 import { updateManager } from "../../services/UpdateManager";
 import { useAppState } from "../../context/AppStateContext";
 
 const VersionInfo: Component = () => {
   const { t } = useAppState();
   const [isChecking, setIsChecking] = createSignal(false);
+  const [isInstalling, setIsInstalling] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  const [availableUpdate, setAvailableUpdate] = createSignal<Update | null>(
+    null,
+  );
 
   const handleCheckUpdate = async () => {
     setIsChecking(true);
@@ -15,13 +20,34 @@ const VersionInfo: Component = () => {
 
     if (result.error) {
       setMessage(result.error);
+      setAvailableUpdate(null);
     } else if (result.available && result.update) {
-      setMessage(t("version.updateAvailable", { version: result.update.version }));
+      setMessage(
+        t("version.updateAvailable", { version: result.update.version }),
+      );
+      setAvailableUpdate(result.update);
     } else {
       setMessage(t("version.upToDate"));
+      setAvailableUpdate(null);
     }
 
     setIsChecking(false);
+  };
+
+  const handleInstallUpdate = async () => {
+    const update = availableUpdate();
+    if (!update) return;
+
+    setIsInstalling(true);
+    setMessage(t("version.installing"));
+
+    try {
+      await updateManager.installUpdate(update);
+    } catch (error) {
+      console.error("[VersionInfo] インストール失敗:", error);
+      setMessage(`インストールに失敗しました: ${error}`);
+      setIsInstalling(false);
+    }
   };
 
   return (
@@ -37,11 +63,19 @@ const VersionInfo: Component = () => {
           </span>
 
           <button
-            onClick={handleCheckUpdate}
-            disabled={isChecking()}
+            onClick={
+              availableUpdate() ? handleInstallUpdate : handleCheckUpdate
+            }
+            disabled={isChecking() || isInstalling()}
             class="px-3 py-1.5 bg-blue-500/90 hover:bg-blue-400/90 disabled:bg-gray-500/50 disabled:cursor-not-allowed rounded text-white transition-all duration-200 text-small"
           >
-            {isChecking() ? t("version.checking") : t("version.checkUpdate")}
+            {isInstalling()
+              ? t("version.installing")
+              : isChecking()
+                ? t("version.checking")
+                : availableUpdate()
+                  ? t("version.installUpdate")
+                  : t("version.checkUpdate")}
           </button>
 
           {message() && (

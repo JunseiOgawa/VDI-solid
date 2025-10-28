@@ -105,6 +105,8 @@
     "checkUpdate": "最新版をチェック",
     "checking": "チェック中...",
     "upToDate": "最新版を使用しています",
-    "updateAvailable": "新しいバージョン {{version}} が利用可能です"
+    "updateAvailable": "新しいバージョン {{version}} が利用可能です",
+    "installUpdate": "今すぐアップデート",
+    "installing": "インストール中..."
   }
 }
