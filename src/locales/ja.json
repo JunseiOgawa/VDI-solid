@@ -1,0 +1,110 @@
+{
+  "titlebar": {
+    "gallery": "ギャラリー表示",
+    "zoomIn": "ズームイン",
+    "zoomOut": "ズームアウト",
+    "zoomReset": "ズームリセット",
+    "screenFit": "画面にフィット",
+    "rotate": "回転",
+    "multiMenu": "表示機能メニュー",
+    "settings": "設定",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "close": "閉じる"
+  },
+  "footer": {
+    "noImage": "画像が読み込まれていません",
+    "delete": "削除",
+    "deleteConfirm": "「{{fileName}}」を削除してもよろしいですか？\nこの操作は取り消せません。",
+    "deleteSuccess": "ファイルを削除しました",
+    "deleteFailed": "ファイルの削除に失敗しました: {{error}}",
+    "explorer": "エクスプローラで開く",
+    "fullscreen": "フルスクリーン",
+    "info": "情報",
+    "infoTooltipTitle": "情報表示機能",
+    "infoTooltipDescription": "今後引数で渡された情報を表示処理できるように今後実装予定"
+  },
+  "settings": {
+    "title": "設定",
+    "theme": "テーマ設定",
+    "language": "言語設定",
+    "wheelSensitivity": "ホイール感度",
+    "wheelSensitivityDescription": "VRコントローラー使用時は低めに設定推奨",
+    "showFullPath": "フルパスで表示",
+    "showFullPathDescription": "オフの場合はファイル名のみ表示",
+    "controlPanelPosition": "コントロールパネル位置",
+    "controlPanelPositionTop": "上(中央)",
+    "controlPanelPositionBottom": "下(中央)"
+  },
+  "theme": {
+    "auto": "自動",
+    "autoDescription": "システム設定に従う",
+    "light": "ライト",
+    "lightDescription": "明るいテーマ",
+    "dark": "ダーク",
+    "darkDescription": "暗いテーマ"
+  },
+  "language": {
+    "ja": "日本語",
+    "en": "English"
+  },
+  "multiMenu": {
+    "grid": "グリッド",
+    "gridSettings": "グリッド設定",
+    "peaking": "ピーキング",
+    "peakingSettings": "フォーカスピーキング設定",
+    "histogram": "ヒストグラム",
+    "histogramSettings": "ヒストグラム設定"
+  },
+  "grid": {
+    "off": "グリッドなし",
+    "offDescription": "グリッド線を非表示",
+    "3x3": "3×3グリッド",
+    "3x3Description": "三分割法(写真構図の基本)",
+    "5x3": "5×3グリッド",
+    "5x3Description": "黄金比グリッド",
+    "4x4": "4×4グリッド",
+    "4x4Description": "四分割グリッド",
+    "opacity": "不透明度"
+  },
+  "peaking": {
+    "enable": "有効化",
+    "intensity": "強度",
+    "color": "色",
+    "opacity": "不透明度",
+    "blink": "ピーキング点滅",
+    "colorLime": "ライム",
+    "colorRed": "レッド",
+    "colorCyan": "シアン",
+    "colorYellow": "イエロー",
+    "colorMagenta": "マゼンタ"
+  },
+  "histogram": {
+    "enable": "有効化",
+    "displayType": "表示タイプ",
+    "displayTypeRgb": "RGB別",
+    "displayTypeLuminance": "輝度のみ",
+    "position": "表示位置",
+    "positionTopRight": "右上",
+    "positionTopLeft": "左上",
+    "positionBottomRight": "右下",
+    "positionBottomLeft": "左下",
+    "size": "サイズ",
+    "opacity": "不透明度"
+  },
+  "gallery": {
+    "title": "画像一覧",
+    "noFolder": "フォルダが選択されていません",
+    "loading": "読み込み中...",
+    "noImages": "画像が見つかりませんでした",
+    "loadFailed": "画像一覧の取得に失敗しました",
+    "close": "閉じる"
+  },
+  "version": {
+    "title": "バージョン情報",
+    "checkUpdate": "最新版をチェック",
+    "checking": "チェック中...",
+    "upToDate": "最新版を使用しています",
+    "updateAvailable": "新しいバージョン {{version}} が利用可能です"
+  }
+}

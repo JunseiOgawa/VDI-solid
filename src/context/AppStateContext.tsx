@@ -5,6 +5,7 @@ import {
   onCleanup,
   onMount,
   useContext,
+  createMemo,
 } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileToAssetUrlWithCacheBust } from "../lib/fileUtils";
@@ -13,6 +14,15 @@ import { clampIntensity, clampOpacity } from "../lib/peakingUtils";
 import { createThemeController, isThemeKey, type ThemeKey } from "../lib/theme";
 import { CONFIG } from "../config/config";
 import { getLaunchConfig } from "../lib/launchConfig";
+import {
+  type Locale,
+  type Translation,
+  translations,
+  getInitialLocale,
+  saveLocaleToStorage,
+  getValue,
+  interpolate,
+} from "../locales";
 
 // 画像回転のためのrust関数の呼び出しに使用するオプション
 interface SetImagePathOptions {
@@ -148,6 +158,14 @@ export interface AppState {
   showGallery: () => boolean;
   /** ギャラリーサイドバーの表示/非表示を設定 */
   setShowGallery: (show: boolean) => void;
+
+  // 国際化(i18n)関連
+  /** 現在のロケール(言語設定) */
+  locale: () => Locale;
+  /** ロケール(言語設定)を設定 */
+  setLocale: (locale: Locale) => void;
+  /** 翻訳関数(キーから翻訳テキストを取得) */
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const AppContext = createContext<AppState>();
@@ -258,6 +276,20 @@ export const AppProvider: ParentComponent = (props) => {
 
   // ギャラリー表示関連Signal
   const [showGallery, setShowGallerySignal] = createSignal<boolean>(false);
+
+  // 国際化(i18n)関連Signal
+  const [locale, setLocaleSignal] = createSignal<Locale>(getInitialLocale());
+
+  // 現在のロケールに応じた翻訳リソースを取得
+  const currentTranslation = createMemo<Translation>(
+    () => translations[locale()],
+  );
+
+  // 翻訳関数
+  const t = (key: string, vars?: Record<string, string | number>): string => {
+    const template = getValue(currentTranslation(), key, key);
+    return interpolate(template, vars);
+  };
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -759,6 +791,11 @@ export const AppProvider: ParentComponent = (props) => {
     setShowGallerySignal(show);
   };
 
+  const handleLocaleChange = (newLocale: Locale) => {
+    setLocaleSignal(newLocale);
+    saveLocaleToStorage(newLocale);
+  };
+
   const appState: AppState = {
     currentImagePath,
     currentImageFilePath,
@@ -813,6 +850,9 @@ export const AppProvider: ParentComponent = (props) => {
     setControlPanelPosition: handleControlPanelPositionChange,
     showGallery,
     setShowGallery: handleShowGalleryChange,
+    locale,
+    setLocale: handleLocaleChange,
+    t,
   };
 
   return (
