@@ -40,14 +40,19 @@ fn get_launch_config() -> cli_args::LaunchConfig {
 /// # Returns
 ///
 /// * `String` - "light" または "dark" を返します。取得に失敗した場合はフォールバックで "light" を返します。
+///
+/// # Note
+///
+/// 非同期で実行され、起動時のブロッキングを防ぎます。
 #[tauri::command]
-fn get_system_theme() -> String {
+async fn get_system_theme() -> String {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
+        use tokio::process::Command;
 
         // Windowsレジストリから現在のテーマ設定を読み取り
         // AppsUseLightTheme: 0x1 = ライト, 0x0 = ダーク
+        // 非同期で実行し、起動時のブロッキングを防ぐ
         let output = Command::new("reg")
             .args(&[
                 "query",
@@ -55,7 +60,8 @@ fn get_system_theme() -> String {
                 "/v",
                 "AppsUseLightTheme",
             ])
-            .output();
+            .output()
+            .await;
 
         if let Ok(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -72,13 +78,15 @@ fn get_system_theme() -> String {
 
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
+        use tokio::process::Command;
 
         // macOSのグローバル設定からAppleInterfaceStyleを取得
         // "Dark"が返されればダークモード、それ以外はライトモード
+        // 非同期で実行し、起動時のブロッキングを防ぐ
         let output = Command::new("defaults")
             .args(&["read", "-g", "AppleInterfaceStyle"])
-            .output();
+            .output()
+            .await;
 
         if let Ok(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -92,13 +100,15 @@ fn get_system_theme() -> String {
 
     #[cfg(target_os = "linux")]
     {
-        use std::process::Command;
+        use tokio::process::Command;
 
         // GNOME環境のgsettingsからGTKテーマ名を取得
         // テーマ名に"dark"が含まれていればダークモードと判定
+        // 非同期で実行し、起動時のブロッキングを防ぐ
         let output = Command::new("gsettings")
             .args(&["get", "org.gnome.desktop.interface", "gtk-theme"])
-            .output();
+            .output()
+            .await;
 
         if let Ok(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);

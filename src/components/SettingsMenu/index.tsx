@@ -46,7 +46,7 @@ const SettingsMenu: Component<SettingsMenuProps> = (props) => {
   };
 
   return (
-    <div class="min-w-[160px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] p-1 text-sm text-[var(--glass-text-secondary)] transition-colors duration-150">
+    <div class="min-w-[320px] rounded-lg bg-[var(--glass-bg-primary)] backdrop-blur-xl border border-[var(--glass-border-subtle)] p-1 text-sm text-[var(--glass-text-secondary)] transition-colors duration-150">
       <div class="py-1">
         {/* テーマ設定 */}
         <button

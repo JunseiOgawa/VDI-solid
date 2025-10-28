@@ -249,7 +249,7 @@ const App: Component = () => {
             .finally(() => {
               clearTimeout(updateCheckTimeout);
             });
-        }, 1000); // ウィンドウ表示から1秒後に実行
+        }, 3000); // ウィンドウ表示から3秒後に実行(起動速度優先)
       } catch (err) {
         console.error("Failed to show window:", err);
       }

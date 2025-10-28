@@ -213,7 +213,7 @@ git push origin v0.1.8
 
 ```bash
 # 1. バージョンを自動更新
-npm run version:update 0.1.7
+npm run version:update 0.2.4
 
 # 2. コミット
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml

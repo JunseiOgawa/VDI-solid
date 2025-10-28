@@ -1,5 +1,12 @@
 import type { Component } from "solid-js";
-import { createSignal, onMount, onCleanup, Show, lazy, Suspense } from "solid-js";
+import {
+  createSignal,
+  onMount,
+  onCleanup,
+  Show,
+  lazy,
+  Suspense,
+} from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import MultiMenu from "../ImageViewer/MultiMenu";
 import type { GridPattern } from "../../context/AppStateContext";
@@ -161,10 +168,10 @@ const Titlebar: Component<TitlebarProps> = (props) => {
         data-tauri-drag-region
       >
         {/* 左側: ギャラリー、ズーム、画像操作 */}
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
           <button
             id="galleryBtn"
-            class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98"
+            class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98 mr-2"
             onClick={() => props.onToggleGallery(!props.showGallery)}
             aria-label={t("titlebar.gallery")}
           >
@@ -455,19 +462,22 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           data-menu="settings"
         >
           <div class="pointer-events-auto">
-            <Suspense fallback={<div class="w-[300px] h-[200px] bg-[var(--bg-secondary)] rounded-lg animate-pulse" />}>
+            <Suspense
+              fallback={
+                <div class="w-[300px] h-[200px] bg-[var(--bg-secondary)] rounded-lg animate-pulse" />
+              }
+            >
               <SettingsMenu
                 theme={props.theme}
-                onThemeChange={(newTheme) => {
-                  props.onThemeChange(newTheme);
-                  setShowSettings(false);
-                }}
+                onThemeChange={props.onThemeChange}
                 wheelSensitivity={props.wheelSensitivity}
                 onWheelSensitivityChange={props.onWheelSensitivityChange}
                 showFullPath={props.showFullPath}
                 onShowFullPathChange={props.onShowFullPathChange}
                 controlPanelPosition={props.controlPanelPosition}
-                onControlPanelPositionChange={props.onControlPanelPositionChange}
+                onControlPanelPositionChange={
+                  props.onControlPanelPositionChange
+                }
               />
             </Suspense>
           </div>

@@ -696,7 +696,7 @@ export const AppProvider: ParentComponent = (props) => {
       );
       setCurrentImagePath(assetUrl, { filePath: launchConfig.imagePath });
     } else {
-      setCurrentImagePath("public/sen38402160.png", { filePath: null });
+      setCurrentImagePath("/sen38402160.png", { filePath: null });
     }
   });
 
