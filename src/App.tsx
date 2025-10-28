@@ -228,18 +228,31 @@ const App: Component = () => {
   // UIがマウントされた後にウィンドウを表示
   onMount(() => {
     // 次のフレームでウィンドウを表示(レンダリング完了を確実に待つ)
-    requestAnimationFrame(() => {
-      invoke("show_window").catch((err: unknown) =>
-        console.error("Failed to show window:", err),
-      );
-    });
+    requestAnimationFrame(async () => {
+      try {
+        await invoke("show_window");
 
-    // アップデートチェックの初期化
-    updateManager.loadLastCheckTime();
+        // ウィンドウ表示後にアップデートチェックを実行
+        // 起動速度に影響しないよう、さらに遅延させる
+        setTimeout(() => {
+          updateManager.loadLastCheckTime();
 
-    // バックグラウンドでアップデートチェック
-    updateManager.checkForUpdatesBackground().catch((error) => {
-      console.error("[App] アップデートチェック失敗:", error);
+          // タイムアウト付きでバックグラウンドチェック
+          const updateCheckTimeout = setTimeout(() => {
+            console.warn("[App] アップデートチェックがタイムアウトしました");
+          }, 10000); // 10秒タイムアウト
+
+          updateManager.checkForUpdatesBackground()
+            .catch((error) => {
+              console.error("[App] アップデートチェック失敗:", error);
+            })
+            .finally(() => {
+              clearTimeout(updateCheckTimeout);
+            });
+        }, 1000); // ウィンドウ表示から1秒後に実行
+      } catch (err) {
+        console.error("Failed to show window:", err);
+      }
     });
 
     // F11キーでフルスクリーン切り替え
