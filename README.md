@@ -51,6 +51,7 @@ VDI-solidは、VRゴーグルのパススルー機能を活用して画像チェ
 - **ホイール感度調整**: マウスホイール操作の感度をカスタマイズ
 - **画像バックアップ**: 回転等の変更を一時保存、復元機能
 - **自動更新機能**: 起動時の自動更新チェック、手動更新確認、署名検証によるセキュアな更新
+- **多言語対応**: 日本語・英語のUI切り替えに対応、システムロケール自動検出
 
 ---
 
@@ -82,49 +83,32 @@ VDI-solidは、VRゴーグルのパススルー機能を活用して画像チェ
 
 ## 技術スタック
 
-````bash
-
-| **フロントエンド** | SolidJS 1.9、TypeScript 5.6、Vite 6.0 |npm run build-all
-
-| **スタイリング** | TailwindCSS 4.1 |```
-
+| カテゴリ | 技術 |
+| --- | --- |
+| **フロントエンド** | SolidJS 1.9、TypeScript 5.6、Vite 6.0 |
+| **スタイリング** | TailwindCSS 4.1 |
 | **デスクトップフレームワーク** | Tauri 2.0 |
-
 | **バックエンド** | Rust |
+| **パッケージ管理** | npm |
+| **UI/UX** | Glassmorphism デザイン、Solid signals |
+| **国際化(i18n)** | @solid-primitives/i18n |
 
-| **パッケージ管理** | npm |# 使い方（基本起動）
+### 主要な依存パッケージ
 
-| **UI/UX** | Glassmorphism デザイン、Solid signals |VDI.exe [画像ファイルパス] [ウィンドウモード]
+- `@tauri-apps/api`: Tauriランタイム通信
+- `@tauri-apps/plugin-fs`: ファイルシステムアクセス
+- `@tauri-apps/plugin-dialog`: ファイルダイアログ
+- `@tauri-apps/plugin-opener`: 外部アプリケーション起動
+- `vite-plugin-solid`: Solid.jsのViteプラグイン
+- `@solid-primitives/i18n`: 国際化対応
 
+---
 
+## 🚀 インストール・ビルド
 
-### 主要な依存パッケージ起動オプション:
+### 前提条件
 
-- `@tauri-apps/api`: Tauriランタイム通信- 1番目の引数: 画像ファイルパス（PNG、JPEG、BMP、GIF など）
-
-- `@tauri-apps/plugin-fs`: ファイルシステムアクセス- 2番目の引数（省略可）: ウィンドウモード
-
-- `@tauri-apps/plugin-dialog`: ファイルダイアログ    - FullScreen — フルスクリーンで起動
-
-- `@tauri-apps/plugin-opener`: 外部アプリケーション起動    - [幅]x[高さ] — 指定解像度で起動（例: 1920x1080）
-
-- `vite-plugin-solid`: Solid.jsのViteプラグイン    - 省略時 — デフォルトサイズ（800x600）で起動
-
-
-
----起動例:
-
-- デフォルトサイズで起動
-
-## 🚀 インストール・ビルド    VDI.exe image.png
-
-- フルスクリーンで起動
-
-### 前提条件    VDI.exe image.png FullScreen
-
-- 1280x720 で起動
-
-**Node.js**（v18以上推奨）    VDI.exe image.png 1280x720
+**Node.js**（v18以上推奨）
 
 ```bash
 
@@ -235,6 +219,15 @@ npm run serve            # ビルド済みアプリケーションのプレビ�
 - **フローティングコントロールパネル**: 各種設定とプリセット
 - **フッター**: 現在の画像情報、ステータス表示
 
+### 言語設定
+
+設定メニュー（歯車アイコン）から言語を切り替えることができます:
+
+- **日本語**: デフォルト言語（システムロケールが日本語の場合）
+- **English**: 英語表示に切り替え
+
+言語設定はlocalStorageに保存され、次回起動時にも維持されます。
+
 ---
 
 ## 📁 プロジェクト構成
@@ -257,6 +250,10 @@ VDI-solid/
 │   │   └── tauri.ts                  # Tauri連携
 │   ├── context/                      # SolidJS コンテキスト
 │   │   └── AppStateContext.tsx       # グローバル状態管理
+│   ├── locales/                      # 国際化リソース
+│   │   ├── ja.json                   # 日本語翻訳
+│   │   ├── en.json                   # 英語翻訳
+│   │   └── index.ts                  # i18nユーティリティ
 │   ├── config/                       # アプリケーション設定
 │   └── assets/                       # SVGアイコン等
 │

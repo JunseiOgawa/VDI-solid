@@ -4543,3 +4543,229 @@ export default defineConfig({
 
 - `.github/workflows/release.yml` - 既存のタグベースリリースワークフロー（置き換え）
 
+
+---
+
+# 国際化(i18n)対応
+
+## 概要
+
+VDI-solidに多言語対応機能を実装し、日本語と英語の2言語をサポートする。ユーザーは設定メニューから言語を選択でき、システムロケールに基づく自動検出も行う。
+
+## 目的
+
+- グローバルユーザーへの対応
+- UIテキストの一元管理
+- 将来的な言語追加の容易性
+
+## 技術スタック
+
+- **i18nライブラリ**: `@solid-primitives/i18n`
+  - Solid.jsのリアクティビティと相性が良い
+  - 軽量でパフォーマンスが高い
+  - TypeScriptサポート
+
+## 対応言語
+
+1. **日本語** (ja) - デフォルト
+2. **英語** (en)
+
+## 実装方針
+
+### 1. ディレクトリ構成
+
+```
+src/
+├── locales/
+│   ├── ja.json    # 日本語翻訳
+│   ├── en.json    # 英語翻訳
+│   └── index.ts   # ロケール管理ユーティリティ
+```
+
+### 2. 翻訳ファイル構造
+
+```json
+{
+  "titlebar": {
+    "gallery": "ギャラリー表示",
+    "zoomIn": "ズームイン",
+    "zoomOut": "ズームアウト",
+    "zoomReset": "ズームリセット",
+    ...
+  },
+  "footer": {
+    "noImage": "No image loaded",
+    "delete": "削除",
+    ...
+  },
+  "settings": {
+    "theme": "テーマ設定",
+    "language": "言語設定",
+    ...
+  }
+}
+```
+
+### 3. AppStateContextの拡張
+
+- `locale` signal を追加
+- `setLocale` 関数を追加
+- localStorageへの永続化
+
+### 4. コンポーネントの更新
+
+以下のコンポーネントを順次更新:
+
+1. Titlebar
+2. Footer
+3. SettingsMenu
+4. MultiMenu
+5. ImageGallery
+6. GridMenu
+7. PeakingMenu
+8. HistogramMenu
+9. VersionInfo
+
+### 5. システムロケールの自動検出
+
+```typescript
+const getSystemLocale = (): string => {
+  const lang = navigator.language.split('-')[0];
+  return ['ja', 'en'].includes(lang) ? lang : 'ja';
+};
+```
+
+## 実装の詳細
+
+### i18nライブラリのセットアップ
+
+```typescript
+import { createI18nContext } from "@solid-primitives/i18n";
+
+const i18n = createI18nContext(translations, locale);
+const t = i18n[0];
+
+// 使用例
+<button>{t('titlebar.zoomIn')}</button>
+```
+
+### 言語切り替えUI
+
+SettingsMenuに以下を追加:
+
+```
+言語設定
+├─ 日本語 ✓
+└─ English
+```
+
+### ローカルストレージキー
+
+- `vdi-locale`: 選択された言語コード
+
+## 翻訳対象テキスト
+
+### Titlebar
+- ボタンのaria-label、title
+- ズーム表示ラベル
+
+### Footer
+- "No image loaded"
+- 削除確認ダイアログ
+- エラーメッセージ
+- ツールチップテキスト
+
+### SettingsMenu
+- メニュー項目名
+- 説明テキスト
+- テーマ名と説明
+
+### MultiMenu (Grid/Peaking/Histogram)
+- タブ名
+- 設定項目ラベル
+- プリセット名
+
+### ImageGallery
+- ヘッダータイトル
+- 並び替えオプション
+
+### VersionInfo
+- バージョン情報テキスト
+- アップデート関連メッセージ
+
+## テスト計画
+
+### 機能テスト
+
+- [ ] 言語切り替えが正常に動作する
+- [ ] システムロケールの自動検出が動作する
+- [ ] localStorageに設定が保存される
+- [ ] すべてのUIテキストが翻訳される
+- [ ] 未翻訳テキストがない
+
+### UIテスト
+
+- [ ] 日本語表示で文字が切れない
+- [ ] 英語表示で文字が切れない
+- [ ] レイアウトが崩れない
+- [ ] ボタンサイズが適切
+
+### エッジケース
+
+- [ ] サポートされていない言語の処理
+- [ ] 翻訳ファイルのロードエラー処理
+- [ ] 長い翻訳テキストの処理
+
+## 将来の拡張性
+
+### 追加言語の対応方法
+
+1. `src/locales/{言語コード}.json` を作成
+2. すべてのキーを翻訳
+3. `AVAILABLE_LOCALES` に言語を追加
+4. システムロケール検出に追加
+
+### 翻訳管理
+
+- 翻訳キーの命名規則を統一
+- ネストを活用して構造化
+- コメントで文脈を説明
+
+## 注意事項
+
+### パフォーマンス
+
+- 翻訳ファイルは静的にインポート
+- リアクティビティの無駄な発火を避ける
+
+### ユーザー体験
+
+- 言語切り替え時は即座に反映
+- システムロケールをデフォルトとして尊重
+- 設定は永続化
+
+### メンテナンス
+
+- 新規テキスト追加時は両言語分を用意
+- 翻訳の品質を保つ
+- 専門用語は統一
+
+## 成果物
+
+### 新規作成
+
+- `src/locales/ja.json` - 日本語翻訳ファイル
+- `src/locales/en.json` - 英語翻訳ファイル
+- `src/locales/index.ts` - i18nユーティリティ
+
+### 修正
+
+- `package.json` - `@solid-primitives/i18n` 依存関係追加
+- `src/context/AppStateContext.tsx` - ロケール管理機能追加
+- すべてのコンポーネント - i18n対応
+
+### 型定義
+
+- 翻訳キーの型安全性を確保
+- ロケールコードの型定義
+
