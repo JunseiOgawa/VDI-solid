@@ -1,7 +1,7 @@
 ---
 mode: agent
 ---
-あなたはこの指示をされた場合以下のことを行ってバージョンアップを自動化し、githubactionsで実行されるようにします。
+あなたはこの指示をされた場合以下のことを行ってバージョンアップを自動化し、githubactionsで実行されるようにします。 勝手なファイル生成や変更は行わないでください。
 
 scripts/update-version.js
 これは、`src-tauri/tauri.conf.json`・`package.json`のバージョンを更新するスクリプトです。
