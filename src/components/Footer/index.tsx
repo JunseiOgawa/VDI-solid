@@ -1,10 +1,12 @@
 import type { Component } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppState } from "../../context/AppStateContext";
 
 const Footer: Component = () => {
+  const [showInfoTooltip, setShowInfoTooltip] = createSignal(false);
   const {
     currentImagePath,
     currentImageFilePath,
@@ -210,28 +212,6 @@ const Footer: Component = () => {
               >
                 <path
                   d="M2 3v10h12V6h-4V3H2zm1 1h5v3h5v6H3V4z"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
-
-            {/* フルスクリーンボタン */}
-            <button
-              id="footerFullscreenBtn"
-              class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-xs text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 hover:border-[var(--glass-border-emphasis)] active:scale-98"
-              aria-label="フルスクリーン"
-              title="フルスクリーン"
-              onClick={handleToggleFullscreen}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 2v4h1V3h3V2H2zm8 0v1h3v3h1V2h-4zM2 10v4h4v-1H3v-3H2zm11 0v3h-3v1h4v-4h-1z"
                   fill="currentColor"
                 />
               </svg>

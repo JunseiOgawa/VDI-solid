@@ -156,8 +156,8 @@ const Titlebar: Component<TitlebarProps> = (props) => {
         class="drag-region relative flex h-10 items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md pl-2 pr-0 text-sm text-[var(--glass-text-primary)] transition-colors duration-300"
         data-tauri-drag-region
       >
-        {/* 左側: ギャラリー展開ボタンとズームコントロール */}
-        <div class="flex items-center gap-2">
+        {/* 左側: ギャラリー、ズーム、画像操作 */}
+        <div class="flex items-center gap-4">
           <button
             id="galleryBtn"
             class="no-drag flex h-6 w-6 items-center justify-center rounded-md text-[var(--glass-text-secondary)] transition-all duration-200 hover:bg-white/[0.15] hover:backdrop-blur-md hover:scale-105 active:scale-98"
@@ -274,10 +274,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               </svg>
             </button>
           </div>
-        </div>
 
-        {/* 中央右寄り: ビュー操作ボタン */}
-        <div class="flex items-center gap-1 mr-2">
           {/* 画面フィットボタン */}
           <button
             class={controlButtonClasses}
@@ -305,7 +302,10 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               alt="回転"
             />
           </button>
+        </div>
 
+        {/* 右側: メニューとウィンドウコントロール */}
+        <div class="flex items-center h-full gap-1">
           {/* マルチメニューボタン */}
           <button
             class={controlButtonClasses}
@@ -333,10 +333,7 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               />
             </svg>
           </button>
-        </div>
 
-        {/* 右側: グローバル操作とウィンドウコントロール */}
-        <div class="flex items-center h-full gap-1">
           {/* 設定ボタン */}
           <button
             class={controlButtonClasses}
