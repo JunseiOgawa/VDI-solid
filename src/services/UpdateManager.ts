@@ -55,7 +55,8 @@ export class UpdateManager {
         await this.showUpdateDialog(result.update);
       }
     } catch (error) {
-      console.error("[UpdateManager] バックグラウンドチェック失敗:", error);
+      const message = this.describeUpdaterError(error);
+      console.error("[UpdateManager] バックグラウンドチェック失敗:", message, error);
     }
   }
 
@@ -77,12 +78,11 @@ export class UpdateManager {
     try {
       return await this.performUpdateCheck();
     } catch (error) {
+      const message = this.describeUpdaterError(error);
+      console.error("[UpdateManager] 手動チェック失敗:", message, error);
       return {
         available: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "アップデートチェックに失敗しました",
+        error: message,
       };
     }
   }
@@ -189,6 +189,61 @@ export class UpdateManager {
   getCurrentVersion(): string {
     // package.jsonから取得（ビルド時に埋め込まれる）
     return import.meta.env.PACKAGE_VERSION || "0.1.0";
+  }
+
+  private describeUpdaterError(error: unknown): string {
+    const raw = this.stringifyError(error);
+    const normalized = raw.toLowerCase();
+
+    if (normalized.includes("could not fetch a valid release json")) {
+      return `${raw}\nGitHub Release に署名付き latest.json と .sig が存在するか、エンドポイントURLが正しいか確認してください。`;
+    }
+
+    if (normalized.includes("updater does not have any endpoints set")) {
+      return `${raw}\ntauri.conf.json の plugins.updater.endpoints が空になっていないか確認してください。`;
+    }
+
+    if (normalized.includes("the configured updater endpoint must use a secure protocol")) {
+      return `${raw}\n本番ビルドでは HTTPS のみ許可されています。エンドポイントを https:// で公開するか、development のみ dangerousInsecureTransportProtocol を許可してください。`;
+    }
+
+    if (normalized.includes("the platform") && normalized.includes("was not found")) {
+      return `${raw}\nlatest.json に現在のターゲット向けのプラットフォーム情報が含まれているか確認してください。`;
+    }
+
+    if (normalized.includes("signature")) {
+      return `${raw}\n署名(.sig)と tauri.conf.json の pubkey が一致しているか確認してください。`;
+    }
+
+    if (normalized.includes("reqwest error") || normalized.includes("network")) {
+      return `${raw}\nネットワークに接続できなかった可能性があります。プロキシやファイアウォールの設定を確認してください。`;
+    }
+
+    if (normalized.includes("minisign")) {
+      return `${raw}\n署名ファイルの整合性に問題があります。最新のビルドで生成された .sig をアップロードし直してください。`;
+    }
+
+    if (normalized.includes("invalid updater binary format")) {
+      return `${raw}\n配信されているインストーラの形式が対応外です。ターゲットとバンドル種類を確認してください。`;
+    }
+
+    return raw || "アップデートチェックに失敗しました。";
+  }
+
+  private stringifyError(error: unknown): string {
+    if (typeof error === "string") {
+      return error;
+    }
+
+    if (error instanceof Error) {
+      return error.message || error.toString();
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "";
+    }
   }
 }
 
