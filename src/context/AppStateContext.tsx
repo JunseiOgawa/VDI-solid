@@ -504,16 +504,17 @@ export const AppProvider: ParentComponent = (props) => {
     );
   };
 
+  // テーマ設定をできるだけ早く読み込む(ウィンドウ表示前に実行)
+  const savedTheme = typeof localStorage !== "undefined" ? localStorage.getItem("vdi-theme") : null;
+  if (isThemeKey(savedTheme)) {
+    setTheme(savedTheme);
+  }
+
   createThemeController(theme);
 
   onMount(async () => {
     // コマンドライン引数から起動設定を取得
     const launchConfig = await getLaunchConfig();
-
-    const savedTheme = localStorage.getItem("vdi-theme");
-    if (isThemeKey(savedTheme)) {
-      setTheme(savedTheme);
-    }
 
     // グリッド永続化設定を復元
     const savedGridPersist = localStorage.getItem("vdi-grid-persist");
