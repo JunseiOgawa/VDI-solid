@@ -113,7 +113,8 @@ export function setupQuad(
   gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 
   // テクスチャ座標（0.0 ~ 1.0）
-  const texCoords = new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]);
+  // Y座標を反転させて画像が正しい向きで表示されるようにする
+  const texCoords = new Float32Array([0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0]);
 
   gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
   gl.enableVertexAttribArray(texCoordLocation);

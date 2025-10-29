@@ -88,19 +88,13 @@ const LutMenuContent: Component<LutMenuContentProps> = (props) => {
 
   const handleFileSelect = () => {
     console.log("[LutMenuContent] File select button clicked");
-    props.onLutFileSelect();
+    void props.onLutFileSelect();
   };
 
   return (
     <div class="flex flex-col gap-4 p-4">
       {/* LUT適用トグル */}
       <div class="flex items-center justify-between">
-        <label
-          class="text-label font-medium text-[var(--glass-text-primary)]"
-          for="lut-enabled"
-        >
-          LUT適用
-        </label>
         <input
           id="lut-enabled"
           type="checkbox"
@@ -108,6 +102,12 @@ const LutMenuContent: Component<LutMenuContentProps> = (props) => {
           onChange={handleToggleLut}
           class="h-4 w-4 cursor-pointer accent-blue-500"
         />
+        <label
+          for="lut-enabled"
+          class="text-label font-medium text-[var(--glass-text-primary)] cursor-pointer"
+        >
+          LUT適用
+        </label>
       </div>
 
       {/* LUTファイル選択 */}
@@ -150,10 +150,7 @@ const LutMenuContent: Component<LutMenuContentProps> = (props) => {
       {/* 説明テキスト */}
       <div class="text-caption text-[var(--glass-text-tertiary)] bg-[var(--glass-bg-secondary)] rounded-md p-2 border border-[var(--glass-border)]">
         <p class="mb-1">対応形式: .cube</p>
-        <p>
-          .cube形式の3D
-          LUTファイルを使用して、画像の色調を変換できます。
-        </p>
+        <p>.cube形式の3D LUTファイルを使用して、画像の色調を変換できます。</p>
       </div>
     </div>
   );

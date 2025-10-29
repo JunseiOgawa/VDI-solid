@@ -1,8 +1,10 @@
 import type { Component } from "solid-js";
 import { Show } from "solid-js";
 import type { GridPattern } from "../../context/AppStateContext";
+import type { LutData } from "../../lib/lutUtils";
 import GridOverlay from "./GridOverlay";
 import PeakingLayer from "./PeakingLayer";
+import LutLayer from "./LutLayer";
 
 interface ImageManagerProps {
   /** 画像ソースURL */
@@ -35,19 +37,27 @@ interface ImageManagerProps {
   peakingBlink: boolean;
   /** 画像ソースURL（null可、キャッシュバスト付き） */
   imageSrc: string | null;
+  /** LUT有効フラグ */
+  lutEnabled: boolean;
+  /** LUTデータ */
+  lutData: LutData | null;
+  /** LUT不透明度 */
+  lutOpacity: number;
+  /** LutLayerのCanvas ref */
+  lutCanvasRef?: (el: HTMLCanvasElement) => void;
 }
 
 /**
  * ImageManager コンポーネント
  *
- * 画像とすべてのレイヤー（ピーキング、グリッド）を統合管理します。
+ * 画像とすべてのレイヤー（LUT、ピーキング、グリッド）を統合管理します。
  * transformは親要素で管理されるため、このコンポーネントは純粋にレイヤーの描画を担当します。
  *
  * レイヤー構成:
  * 1. 基礎画像（img要素）
- * 2. フォーカスピーキング（SVG）
- * 3. グリッドオーバーレイ（Canvas）
- * (将来: レイヤー4, 5が来ても問題なく冗長化)
+ * 2. LUT適用レイヤー（Canvas / WebGL）
+ * 3. フォーカスピーキング（SVG）
+ * 4. グリッドオーバーレイ（Canvas）
  */
 const ImageManager: Component<ImageManagerProps> = (props) => {
   let wrapperRef: HTMLDivElement | undefined;
@@ -139,7 +149,17 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
         }}
       />
 
-      {/* Layer 2: フォーカスピーキング */}
+      {/* Layer 2: LUT適用レイヤー */}
+      <Show when={props.lutEnabled && props.lutData}>
+        <LutLayer
+          imageSrc={props.src}
+          lutData={props.lutData}
+          opacity={props.lutOpacity}
+          canvasRef={props.lutCanvasRef}
+        />
+      </Show>
+
+      {/* Layer 3: フォーカスピーキング */}
       <Show when={props.peakingEnabled && props.imagePath && props.imageSrc}>
         <PeakingLayer
           imagePath={props.imagePath!}
@@ -151,14 +171,11 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
         />
       </Show>
 
-      {/* Layer 3: グリッドオーバーレイ */}
+      {/* Layer 4: グリッドオーバーレイ */}
       <GridOverlay
         gridPattern={props.gridPattern}
         gridOpacity={props.gridOpacity}
       />
-
-      {/* 将来のレイヤー追加位置 */}
-      {/* Layer 4: ... */}
     </div>
   );
 };

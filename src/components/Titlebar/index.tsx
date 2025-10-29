@@ -9,7 +9,10 @@ import {
 } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import MultiMenu from "../ImageViewer/MultiMenu";
-import type { GridPattern } from "../../context/AppStateContext";
+import type {
+  GridPattern,
+  LutHistoryEntry,
+} from "../../context/AppStateContext";
 
 // SettingsMenuを遅延ロード
 const SettingsMenu = lazy(() => import("../SettingsMenu"));
@@ -62,6 +65,18 @@ interface TitlebarProps {
   onHistogramSizeChange: (size: number) => void;
   histogramOpacity: number;
   onHistogramOpacityChange: (opacity: number) => void;
+
+  // LUT関連
+  lutEnabled: boolean;
+  onLutEnabledChange: (enabled: boolean) => void;
+  lutOpacity: number;
+  onLutOpacityChange: (opacity: number) => void;
+  lutFileName: string | null;
+  currentLutPath: string | null;
+  lutHistory: LutHistoryEntry[];
+  onLutFileSelect: () => void;
+  onLutLoadFromHistory: (filePath: string) => void;
+  onLutRemoveFromHistory: (filePath: string) => void;
 
   // 設定関連
   theme: ThemeKey;
@@ -440,6 +455,16 @@ const Titlebar: Component<TitlebarProps> = (props) => {
               onPeakingOpacityChange={props.onPeakingOpacityChange}
               peakingBlink={props.peakingBlink}
               onPeakingBlinkChange={props.onPeakingBlinkChange}
+              lutEnabled={props.lutEnabled}
+              onLutEnabledChange={props.onLutEnabledChange}
+              lutOpacity={props.lutOpacity}
+              onLutOpacityChange={props.onLutOpacityChange}
+              lutFileName={props.lutFileName}
+              currentLutPath={props.currentLutPath}
+              lutHistory={props.lutHistory}
+              onLutFileSelect={props.onLutFileSelect}
+              onLutLoadFromHistory={props.onLutLoadFromHistory}
+              onLutRemoveFromHistory={props.onLutRemoveFromHistory}
               histogramEnabled={props.histogramEnabled}
               onHistogramEnabledChange={props.onHistogramEnabledChange}
               histogramDisplayType={props.histogramDisplayType}

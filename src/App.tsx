@@ -106,6 +106,16 @@ const AppMain: Component = () => {
     setHistogramSize,
     histogramOpacity,
     setHistogramOpacity,
+    lutEnabled,
+    setLutEnabled,
+    lutOpacity,
+    setLutOpacity,
+    lutFileName,
+    currentLutPath,
+    lutHistory,
+    loadLutFromHistory,
+    removeLutFromHistory,
+    handleLutFileSelect,
     showFullPath,
     setShowFullPath,
     controlPanelPosition,
@@ -201,6 +211,16 @@ const AppMain: Component = () => {
         onPeakingOpacityChange={setPeakingOpacity}
         peakingBlink={peakingBlink()}
         onPeakingBlinkChange={setPeakingBlink}
+        lutEnabled={lutEnabled()}
+        onLutEnabledChange={setLutEnabled}
+        lutOpacity={lutOpacity()}
+        onLutOpacityChange={setLutOpacity}
+        lutFileName={lutFileName()}
+        currentLutPath={currentLutPath()}
+        lutHistory={lutHistory()}
+        onLutFileSelect={handleLutFileSelect}
+        onLutLoadFromHistory={(filePath) => void loadLutFromHistory(filePath)}
+        onLutRemoveFromHistory={removeLutFromHistory}
         histogramEnabled={histogramEnabled()}
         onHistogramEnabledChange={setHistogramEnabled}
         histogramDisplayType={histogramDisplayType()}
@@ -243,7 +263,8 @@ const App: Component = () => {
             console.warn("[App] アップデートチェックがタイムアウトしました");
           }, 10000); // 10秒タイムアウト
 
-          updateManager.checkForUpdatesBackground()
+          updateManager
+            .checkForUpdatesBackground()
             .catch((error) => {
               console.error("[App] アップデートチェック失敗:", error);
             })

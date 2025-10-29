@@ -26,12 +26,7 @@ const GridMenuContent: Component<GridMenuContentProps> = (props) => {
   /** グリッドパターンの選択肢リスト */
   const GRID_OPTIONS: Array<{
     value: GridPattern;
-  }> = [
-    { value: "off" },
-    { value: "3x3" },
-    { value: "5x3" },
-    { value: "4x4" },
-  ];
+  }> = [{ value: "off" }, { value: "3x3" }, { value: "5x3" }, { value: "4x4" }];
 
   const handleSelect = (pattern: GridPattern) => {
     props.onPatternChange(pattern);

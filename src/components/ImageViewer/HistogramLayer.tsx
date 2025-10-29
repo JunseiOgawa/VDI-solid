@@ -15,6 +15,10 @@ interface HistogramLayerProps {
   position: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   size: number;
   opacity: number;
+  /** LUT有効フラグ */
+  lutEnabled?: boolean;
+  /** LutLayerのCanvasへの参照 */
+  lutCanvasGetter?: () => HTMLCanvasElement | null;
 }
 
 interface HistogramDataRGB {
@@ -64,6 +68,60 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       requestId: `${imagePath}:${displayType}`,
     });
     return result;
+  };
+
+  /**
+   * CanvasからImageDataを取得してヒストグラムを計算
+   * LUT適用後の画像データからヒストグラムを計算する際に使用
+   */
+  const calculateHistogramFromCanvas = (
+    canvas: HTMLCanvasElement,
+    displayType: "rgb" | "luminance",
+  ): HistogramResult => {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+      throw new Error("Failed to get 2d context from canvas");
+    }
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    if (displayType === "rgb") {
+      // RGB別ヒストグラム
+      const r = new Array(256).fill(0);
+      const g = new Array(256).fill(0);
+      const b = new Array(256).fill(0);
+
+      for (let i = 0; i < data.length; i += 4) {
+        r[data[i]]++;
+        g[data[i + 1]]++;
+        b[data[i + 2]]++;
+      }
+
+      return {
+        width: canvas.width,
+        height: canvas.height,
+        histogram_type: "RGB",
+        data: { type: "RGB", r, g, b },
+      };
+    } else {
+      // 輝度ヒストグラム（Rec.709の係数を使用）
+      const y = new Array(256).fill(0);
+
+      for (let i = 0; i < data.length; i += 4) {
+        const luminance = Math.round(
+          0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2],
+        );
+        y[Math.min(255, Math.max(0, luminance))]++;
+      }
+
+      return {
+        width: canvas.width,
+        height: canvas.height,
+        histogram_type: "Luminance",
+        data: { type: "Luminance", y },
+      };
+    }
   };
 
   // ヒストグラムを描画する関数
@@ -134,6 +192,8 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     const imageSrc = props.imageSrc;
     const enabled = props.enabled;
     const displayType = props.displayType;
+    const lutEnabled = props.lutEnabled || false;
+    const lutCanvasGetter = props.lutCanvasGetter;
 
     // 有効でない、または画像パスがない場合はクリア
     if (!enabled || !imagePath || !imageSrc) {
@@ -146,8 +206,10 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
       return;
     }
 
-    // キャッシュキー（画像srcを含めることで回転時に自動的にキャッシュミス）
-    const cacheKey = `${imageSrc}:${displayType}`;
+    // LUT有効時はキャッシュキーにlut情報を含める
+    const cacheKey = lutEnabled
+      ? `${imageSrc}:${displayType}:lut`
+      : `${imageSrc}:${displayType}`;
 
     // キャッシュチェック
     const cached = histogramCache.get(cacheKey);
@@ -172,7 +234,74 @@ const HistogramLayer: Component<HistogramLayerProps> = (props) => {
     abortController = new AbortController();
     const currentController = abortController;
 
-    // ヒストグラムデータを取得
+    // LUT有効時はCanvasから直接計算
+    if (lutEnabled && lutCanvasGetter) {
+      // 少し遅延させてLutLayerの描画完了を待つ
+      setTimeout(() => {
+        if (currentController.signal.aborted) {
+          console.log("[HistogramLayer] リクエストがキャンセルされました");
+          return;
+        }
+
+        const lutCanvas = lutCanvasGetter();
+        if (!lutCanvas) {
+          console.warn(
+            "[HistogramLayer] LutCanvas not available, falling back to original image",
+          );
+          // LutCanvasが取得できない場合は元の画像から計算
+          invokeCalculateHistogram(imagePath, displayType)
+            .then((result) => {
+              if (currentController.signal.aborted) return;
+              setHistogramData(result);
+              setIsLoading(false);
+              histogramCache.set(cacheKey, result);
+              console.log(
+                `[HistogramLayer] ヒストグラム取得完了（フォールバック）: ${cacheKey}`,
+              );
+            })
+            .catch((error) => {
+              if (currentController.signal.aborted) return;
+              console.error("[HistogramLayer] ヒストグラム取得エラー:", error);
+              setHistogramData(null);
+              setIsLoading(false);
+            });
+          return;
+        }
+
+        try {
+          const result = calculateHistogramFromCanvas(lutCanvas, displayType);
+          setHistogramData(result);
+          setIsLoading(false);
+
+          // キャッシュに保存
+          histogramCache.set(cacheKey, result);
+
+          // キャッシュサイズ制限（LRU方式）
+          if (histogramCache.size > CONFIG.histogram.cacheSize) {
+            const firstKey = histogramCache.keys().next().value;
+            if (firstKey) {
+              histogramCache.delete(firstKey);
+              console.log(`[HistogramLayer] キャッシュから削除: ${firstKey}`);
+            }
+          }
+
+          console.log(
+            `[HistogramLayer] LUT適用後のヒストグラム計算完了: ${cacheKey}`,
+          );
+        } catch (error) {
+          console.error(
+            "[HistogramLayer] Canvas からヒストグラム計算エラー:",
+            error,
+          );
+          setHistogramData(null);
+          setIsLoading(false);
+        }
+      }, 100);
+
+      return;
+    }
+
+    // 通常のヒストグラム取得（Rust側）
     invokeCalculateHistogram(imagePath, displayType)
       .then((result) => {
         // キャンセルされていないか確認

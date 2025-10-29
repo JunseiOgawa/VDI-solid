@@ -72,7 +72,9 @@ export async function parseCubeFile(filePath: string): Promise<LutData> {
 
     const fileName = filePath.split(/[/\\]/).pop() || "unknown.cube";
 
-    console.log(`[LUT] Parsed ${fileName}: size=${size}, data length=${data.length}`);
+    console.log(
+      `[LUT] Parsed ${fileName}: size=${size}, data length=${data.length}`,
+    );
 
     return {
       size,

@@ -23,6 +23,19 @@ import {
   getValue,
   interpolate,
 } from "../locales";
+import { parseCubeFile, type LutData } from "../lib/lutUtils";
+
+/**
+ * LUTファイル履歴のエントリ
+ */
+export interface LutHistoryEntry {
+  /** ファイルの絶対パス */
+  path: string;
+  /** ファイル名 */
+  fileName: string;
+  /** 追加日時（タイムスタンプ） */
+  timestamp: number;
+}
 
 // 画像回転のためのrust関数の呼び出しに使用するオプション
 interface SetImagePathOptions {
@@ -166,6 +179,34 @@ export interface AppState {
   setLocale: (locale: Locale) => void;
   /** 翻訳関数(キーから翻訳テキストを取得) */
   t: (key: string, vars?: Record<string, string | number>) => string;
+
+  // LUT関連
+  /** LUT機能の有効/無効 */
+  lutEnabled: () => boolean;
+  /** LUT機能の有効/無効を設定 */
+  setLutEnabled: (enabled: boolean) => void;
+  /** LUTデータ */
+  lutData: () => LutData | null;
+  /** LUTデータを設定 */
+  setLutData: (data: LutData | null) => void;
+  /** LUT不透明度 (0.0-1.0) */
+  lutOpacity: () => number;
+  /** LUT不透明度を設定 */
+  setLutOpacity: (opacity: number) => void;
+  /** LUTファイル名 */
+  lutFileName: () => string | null;
+  /** 現在のLUTファイルパス */
+  currentLutPath: () => string | null;
+  /** LUTファイル履歴 */
+  lutHistory: () => LutHistoryEntry[];
+  /** ファイルパスからLUTをロード */
+  loadLutFromPath: (filePath: string) => Promise<void>;
+  /** LUT履歴からロード */
+  loadLutFromHistory: (filePath: string) => Promise<void>;
+  /** LUT履歴から削除 */
+  removeLutFromHistory: (filePath: string) => void;
+  /** LUTファイル選択ハンドラー */
+  handleLutFileSelect: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState>();
@@ -291,6 +332,18 @@ export const AppProvider: ParentComponent = (props) => {
     return interpolate(template, vars);
   };
 
+  // LUT関連Signal
+  const [lutEnabled, setLutEnabledSignal] = createSignal<boolean>(false);
+  const [lutData, setLutDataSignal] = createSignal<LutData | null>(null);
+  const [lutOpacity, setLutOpacitySignal] = createSignal<number>(1.0);
+  const [lutFileName, setLutFileNameSignal] = createSignal<string | null>(null);
+  const [currentLutPath, setCurrentLutPathSignal] = createSignal<string | null>(
+    null,
+  );
+  const [lutHistory, setLutHistorySignal] = createSignal<LutHistoryEntry[]>([]);
+
+  const MAX_LUT_HISTORY = 10;
+
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
     setPeakingEnabledSignal(enabled);
@@ -317,6 +370,154 @@ export const AppProvider: ParentComponent = (props) => {
   const setPeakingBlink = (enabled: boolean) => {
     setPeakingBlinkSignal(enabled);
     localStorage.setItem("vdi-peaking-blink", enabled ? "true" : "false");
+  };
+
+  // LUT設定の永続化付きセッター
+  const setLutEnabled = (enabled: boolean) => {
+    setLutEnabledSignal(enabled);
+    localStorage.setItem("vdi-lut-enabled", enabled ? "true" : "false");
+  };
+
+  const setLutData = (data: LutData | null) => {
+    setLutDataSignal(data);
+    if (data) {
+      setLutFileNameSignal(data.fileName);
+    }
+  };
+
+  const setLutOpacity = (opacity: number) => {
+    const clampedOpacity = Math.max(0, Math.min(1, opacity));
+    setLutOpacitySignal(clampedOpacity);
+    localStorage.setItem("vdi-lut-opacity", clampedOpacity.toString());
+  };
+
+  // LUT履歴をlocalStorageに保存
+  const saveLutHistory = (history: LutHistoryEntry[]) => {
+    try {
+      localStorage.setItem("vdi-lut-history", JSON.stringify(history));
+    } catch (error) {
+      console.error("[AppStateContext] Failed to save LUT history:", error);
+    }
+  };
+
+  // LUT履歴をlocalStorageから読み込み
+  const loadLutHistoryFromStorage = (): LutHistoryEntry[] => {
+    try {
+      const saved = localStorage.getItem("vdi-lut-history");
+      if (saved) {
+        const parsed = JSON.parse(saved) as LutHistoryEntry[];
+        return parsed.sort((a, b) => b.timestamp - a.timestamp);
+      }
+    } catch (error) {
+      console.error("[AppStateContext] Failed to load LUT history:", error);
+    }
+    return [];
+  };
+
+  // LUT履歴に追加
+  const addLutToHistory = (path: string, fileName: string) => {
+    const history = lutHistory();
+    // 既存のエントリを削除
+    const filtered = history.filter((entry) => entry.path !== path);
+    // 新しいエントリを先頭に追加
+    const newHistory = [
+      { path, fileName, timestamp: Date.now() },
+      ...filtered,
+    ].slice(0, MAX_LUT_HISTORY);
+
+    setLutHistorySignal(newHistory);
+    saveLutHistory(newHistory);
+  };
+
+  // LUT履歴から削除
+  const removeLutFromHistory = (filePath: string) => {
+    const history = lutHistory();
+    const newHistory = history.filter((entry) => entry.path !== filePath);
+    setLutHistorySignal(newHistory);
+    saveLutHistory(newHistory);
+  };
+
+  // LUTファイルをパスから読み込む
+  const loadLutFromPath = async (filePath: string) => {
+    try {
+      console.log(`[AppStateContext] Loading LUT from path: ${filePath}`);
+      const result = await parseCubeFile(filePath);
+
+      console.log(`[AppStateContext] LUT file loaded: ${result.fileName}`);
+      setLutData(result);
+      setLutEnabled(true);
+      setCurrentLutPathSignal(filePath);
+
+      // 履歴に追加
+      addLutToHistory(filePath, result.fileName);
+    } catch (error) {
+      console.error("[AppStateContext] Failed to load LUT file:", error);
+      throw error;
+    }
+  };
+
+  // LUT履歴からロード（ファイル存在チェック付き）
+  const loadLutFromHistory = async (filePath: string) => {
+    try {
+      // ファイルの存在チェック
+      const { exists } = await import("@tauri-apps/plugin-fs");
+      const fileExists = await exists(filePath);
+
+      if (!fileExists) {
+        console.error(`[AppStateContext] LUT file not found: ${filePath}`);
+        // エラーダイアログを表示
+        const { message } = await import("@tauri-apps/plugin-dialog");
+        await message(
+          "選択したLUTファイルが見つかりませんでした。\nファイルが移動または削除された可能性があります。",
+          {
+            title: "ファイルが見つかりません",
+            kind: "error",
+          },
+        );
+        // 履歴から削除
+        removeLutFromHistory(filePath);
+        return;
+      }
+
+      // ファイルが存在する場合はロード
+      await loadLutFromPath(filePath);
+    } catch (error) {
+      console.error(
+        "[AppStateContext] Failed to load LUT from history:",
+        error,
+      );
+      throw error;
+    }
+  };
+
+  // LUTファイル選択ハンドラー
+  const handleLutFileSelect = async () => {
+    try {
+      console.log("[AppStateContext] Opening LUT file dialog...");
+
+      // ファイル選択ダイアログを表示
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const selected = await open({
+        filters: [
+          {
+            name: "LUT Files",
+            extensions: ["cube"],
+          },
+        ],
+        multiple: false,
+        directory: false,
+      });
+
+      if (typeof selected === "string") {
+        console.log(`[AppStateContext] Selected file: ${selected}`);
+        // ファイルパスからロード（履歴にも追加される）
+        await loadLutFromPath(selected);
+      } else {
+        console.log("[AppStateContext] LUT file selection cancelled");
+      }
+    } catch (error) {
+      console.error("[AppStateContext] Failed to load LUT file:", error);
+    }
   };
 
   let rotationTimer: number | undefined;
@@ -505,7 +706,10 @@ export const AppProvider: ParentComponent = (props) => {
   };
 
   // テーマ設定をできるだけ早く読み込む(ウィンドウ表示前に実行)
-  const savedTheme = typeof localStorage !== "undefined" ? localStorage.getItem("vdi-theme") : null;
+  const savedTheme =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("vdi-theme")
+      : null;
   if (isThemeKey(savedTheme)) {
     setTheme(savedTheme);
   }
@@ -671,6 +875,27 @@ export const AppProvider: ParentComponent = (props) => {
         );
       }
     }
+
+    // LUT設定を復元
+    const savedLutEnabled = localStorage.getItem("vdi-lut-enabled");
+    if (savedLutEnabled !== null) {
+      setLutEnabledSignal(savedLutEnabled === "true");
+    }
+
+    const savedLutOpacity = localStorage.getItem("vdi-lut-opacity");
+    if (savedLutOpacity) {
+      const opacity = parseFloat(savedLutOpacity);
+      if (!isNaN(opacity)) {
+        setLutOpacity(opacity);
+      }
+    }
+
+    // LUT履歴を読み込み
+    const history = loadLutHistoryFromStorage();
+    setLutHistorySignal(history);
+    console.log(
+      `[AppStateContext] Loaded ${history.length} LUT history entries`,
+    );
 
     // ファイルパス表示形式設定を復元
     const savedShowFullPath = localStorage.getItem("vdi-show-full-path");
@@ -854,6 +1079,19 @@ export const AppProvider: ParentComponent = (props) => {
     locale,
     setLocale: handleLocaleChange,
     t,
+    lutEnabled,
+    setLutEnabled,
+    lutData,
+    setLutData,
+    lutOpacity,
+    setLutOpacity,
+    lutFileName,
+    currentLutPath,
+    lutHistory,
+    loadLutFromPath,
+    loadLutFromHistory,
+    removeLutFromHistory,
+    handleLutFileSelect,
   };
 
   return (

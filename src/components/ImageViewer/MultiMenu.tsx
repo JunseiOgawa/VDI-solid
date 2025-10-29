@@ -1,6 +1,9 @@
 import type { Component } from "solid-js";
 import { createSignal } from "solid-js";
-import type { GridPattern } from "../../context/AppStateContext";
+import type {
+  GridPattern,
+  LutHistoryEntry,
+} from "../../context/AppStateContext";
 import { useAppState } from "../../context/AppStateContext";
 import GridMenuContent from "./GridMenuContent";
 import PeakingMenuContent from "./PeakingMenuContent";
@@ -34,7 +37,11 @@ interface MultiMenuProps {
   lutOpacity: number;
   onLutOpacityChange: (opacity: number) => void;
   lutFileName: string | null;
+  currentLutPath: string | null;
+  lutHistory: LutHistoryEntry[];
   onLutFileSelect: () => void;
+  onLutLoadFromHistory: (filePath: string) => void;
+  onLutRemoveFromHistory: (filePath: string) => void;
 
   /** ヒストグラム設定 */
   histogramEnabled: boolean;
@@ -215,7 +222,11 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
               lutOpacity={props.lutOpacity}
               onLutOpacityChange={props.onLutOpacityChange}
               lutFileName={props.lutFileName}
+              currentLutPath={props.currentLutPath}
+              lutHistory={props.lutHistory}
               onLutFileSelect={props.onLutFileSelect}
+              onLutLoadFromHistory={props.onLutLoadFromHistory}
+              onLutRemoveFromHistory={props.onLutRemoveFromHistory}
             />
           </div>
 

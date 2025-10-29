@@ -102,11 +102,7 @@ export const getLanguageName = (locale: Locale): string => {
  * 翻訳キーのパスを辿って値を取得するヘルパー関数
  * 例: getValue(ja, "titlebar.gallery") => "ギャラリー表示"
  */
-export const getValue = (
-  obj: any,
-  path: string,
-  fallback?: string,
-): string => {
+export const getValue = (obj: any, path: string, fallback?: string): string => {
   const keys = path.split(".");
   let current = obj;
 

@@ -1,5 +1,13 @@
 import type { Component } from "solid-js";
-import { createEffect, createSignal, onCleanup, onMount, Show, lazy, Suspense } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  lazy,
+  Suspense,
+} from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { TauriEvent } from "@tauri-apps/api/event";
 import { useAppState } from "../../context/AppStateContext";
@@ -47,6 +55,10 @@ const ImageViewer: Component = () => {
     histogramPosition,
     histogramSize,
     histogramOpacity,
+    lutEnabled,
+    lutData,
+    lutOpacity,
+    loadLutFromPath,
     setImageResolution,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
@@ -71,6 +83,7 @@ const ImageViewer: Component = () => {
   let containerEl: HTMLDivElement | undefined;
   let imgEl: HTMLImageElement | undefined;
   let resizeObserver: ResizeObserver | undefined;
+  let lutCanvasEl: HTMLCanvasElement | null = null;
 
   // 境界計算キャッシュ用変数
   let cachedBoundary: ReturnType<typeof useBoundaryConstraint> | null = null;
@@ -432,6 +445,20 @@ const ImageViewer: Component = () => {
 
       // 拡張子チェック
       const extension = filePath.split(".").pop()?.toLowerCase();
+
+      // LUTファイル(.cube)の場合
+      if (extension === "cube") {
+        try {
+          console.log("[D&D] Loading LUT file:", filePath);
+          await loadLutFromPath(filePath);
+          console.info("[D&D] LUT file loaded successfully");
+        } catch (error) {
+          console.error("[D&D] Failed to load LUT file:", error);
+        }
+        return;
+      }
+
+      // 画像ファイルの場合
       if (!extension || !isSupportedImageFile(filePath)) {
         console.error("[D&D] Unsupported file extension detected.", {
           filePath,
@@ -625,11 +652,12 @@ const ImageViewer: Component = () => {
       {isDragActive() && (
         <div class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color:rgba(0,0,0,0.35)] text-[var(--glass-text-primary)]">
           <span class="text-lg font-semibold">
-            ドラッグアンドドロップで画像を開きます
+            ドラッグアンドドロップでファイルを開きます
           </span>
           <span class="text-label opacity-80">
-            対応ファイル:JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
+            画像: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
           </span>
+          <span class="text-label opacity-80">LUT: .cube</span>
         </div>
       )}
       <button
@@ -775,6 +803,10 @@ const ImageViewer: Component = () => {
               peakingColor={peakingColor()}
               peakingOpacity={peakingOpacity()}
               peakingBlink={peakingBlink()}
+              lutEnabled={lutEnabled()}
+              lutData={lutData()}
+              lutOpacity={lutOpacity()}
+              lutCanvasRef={(el: HTMLCanvasElement) => (lutCanvasEl = el)}
             />
           </div>
 
@@ -789,6 +821,8 @@ const ImageViewer: Component = () => {
                 position={histogramPosition()}
                 size={histogramSize()}
                 opacity={histogramOpacity()}
+                lutEnabled={lutEnabled()}
+                lutCanvasGetter={() => lutCanvasEl}
               />
             </Suspense>
           </Show>

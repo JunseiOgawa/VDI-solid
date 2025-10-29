@@ -17,6 +17,8 @@ interface LutLayerProps {
   lutData: LutData | null;
   /** LUT適用の不透明度 (0.0-1.0) */
   opacity: number;
+  /** Canvas要素のref（ヒストグラム計算用） */
+  canvasRef?: (el: HTMLCanvasElement) => void;
 }
 
 /**
@@ -113,10 +115,7 @@ const LutLayer: Component<LutLayerProps> = (props) => {
     if (!gl || !props.lutData) return;
 
     // 同じLUTデータの場合は再作成しない
-    if (
-      currentLutData &&
-      currentLutData.fileName === props.lutData.fileName
-    ) {
+    if (currentLutData && currentLutData.fileName === props.lutData.fileName) {
       return;
     }
 
@@ -222,9 +221,16 @@ const LutLayer: Component<LutLayerProps> = (props) => {
     }
   });
 
+  const handleCanvasRef = (el: HTMLCanvasElement) => {
+    canvasRef = el;
+    if (props.canvasRef) {
+      props.canvasRef(el);
+    }
+  };
+
   return (
     <canvas
-      ref={canvasRef}
+      ref={handleCanvasRef}
       style={{
         position: "absolute",
         top: 0,
