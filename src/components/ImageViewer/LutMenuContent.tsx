@@ -1,5 +1,6 @@
 import type { Component } from "solid-js";
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, onCleanup, Show, For } from "solid-js";
+import type { LutHistoryEntry } from "../../context/AppStateContext";
 
 interface LutMenuContentProps {
   /** LUT有効フラグ */
@@ -12,8 +13,16 @@ interface LutMenuContentProps {
   onLutOpacityChange: (opacity: number) => void;
   /** 現在のLUTファイル名 */
   lutFileName: string | null;
+  /** 現在のLUTファイルパス */
+  currentLutPath: string | null;
+  /** LUTファイル履歴 */
+  lutHistory: LutHistoryEntry[];
   /** LUTファイル選択ハンドラー */
   onLutFileSelect: () => void;
+  /** LUT履歴からロード */
+  onLutLoadFromHistory: (filePath: string) => void;
+  /** LUT履歴から削除 */
+  onLutRemoveFromHistory: (filePath: string) => void;
 }
 
 /**
@@ -91,10 +100,34 @@ const LutMenuContent: Component<LutMenuContentProps> = (props) => {
     void props.onLutFileSelect();
   };
 
+  const handleHistorySelect = (filePath: string) => {
+    console.log(`[LutMenuContent] History LUT selected: ${filePath}`);
+    void props.onLutLoadFromHistory(filePath);
+  };
+
+  const handleHistoryRemove = (filePath: string, e: Event) => {
+    e.stopPropagation();
+    console.log(`[LutMenuContent] Removing LUT from history: ${filePath}`);
+    props.onLutRemoveFromHistory(filePath);
+  };
+
+  // 履歴を名前順でソート
+  const sortedHistory = () => {
+    return [...props.lutHistory].sort((a, b) =>
+      a.fileName.localeCompare(b.fileName),
+    );
+  };
+
   return (
     <div class="flex flex-col gap-4 p-4">
       {/* LUT適用トグル */}
       <div class="flex items-center justify-between">
+        <label
+          for="lut-enabled"
+          class="text-label font-medium text-[var(--glass-text-primary)] cursor-pointer"
+        >
+          LUT適用
+        </label>
         <input
           id="lut-enabled"
           type="checkbox"
@@ -102,27 +135,65 @@ const LutMenuContent: Component<LutMenuContentProps> = (props) => {
           onChange={handleToggleLut}
           class="h-4 w-4 cursor-pointer accent-blue-500"
         />
-        <label
-          for="lut-enabled"
-          class="text-label font-medium text-[var(--glass-text-primary)] cursor-pointer"
-        >
-          LUT適用
-        </label>
       </div>
 
       {/* LUTファイル選択 */}
       <div class="flex flex-col gap-2">
         <label class="text-label font-medium text-[var(--glass-text-primary)]">
-          LUTファイル
+          新規LUTファイル
         </label>
         <button
           type="button"
           onClick={handleFileSelect}
           class="rounded-md bg-[var(--glass-bg-secondary)] px-3 py-2 text-label text-[var(--glass-text-primary)] hover:bg-[var(--glass-bg-tertiary)] transition-colors duration-200 border border-[var(--glass-border)] truncate text-left"
         >
-          {props.lutFileName || "LUTファイルを選択"}
+          LUTファイルを選択...
         </button>
       </div>
+
+      {/* LUT履歴リスト */}
+      <Show when={props.lutHistory.length > 0}>
+        <div class="flex flex-col gap-2">
+          <label class="text-label font-medium text-[var(--glass-text-primary)]">
+            LUT履歴（名前順）
+          </label>
+          <div class="flex items-center gap-2">
+            <select
+              class="flex-1 rounded-md bg-[var(--glass-bg-secondary)] px-3 py-2 text-label text-[var(--glass-text-primary)] border border-[var(--glass-border)] hover:bg-[var(--glass-bg-tertiary)] transition-colors duration-200 cursor-pointer"
+              value={props.currentLutPath || ""}
+              onChange={(e) => {
+                const selectedPath = e.target.value;
+                if (selectedPath) {
+                  handleHistorySelect(selectedPath);
+                }
+              }}
+            >
+              <option value="" disabled>
+                LUTを選択...
+              </option>
+              <For each={sortedHistory()}>
+                {(entry) => (
+                  <option value={entry.path} title={entry.fileName}>
+                    {entry.fileName}
+                  </option>
+                )}
+              </For>
+            </select>
+            <Show when={props.currentLutPath}>
+              <button
+                type="button"
+                onClick={() =>
+                  props.onLutRemoveFromHistory(props.currentLutPath!)
+                }
+                class="rounded-md bg-[var(--glass-bg-secondary)] px-3 py-2 text-label text-[var(--glass-text-tertiary)] hover:text-red-500 hover:bg-[var(--glass-bg-tertiary)] transition-colors duration-200 border border-[var(--glass-border)]"
+                title="現在のLUTを履歴から削除"
+              >
+                ✕
+              </button>
+            </Show>
+          </div>
+        </div>
+      </Show>
 
       {/* LUT不透明度スライダー */}
       <Show when={props.lutEnabled}>

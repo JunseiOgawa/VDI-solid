@@ -60,6 +60,7 @@ const ImageViewer: Component = () => {
     lutOpacity,
     loadLutFromPath,
     setImageResolution,
+    handleImageFileSelect,
   } = useAppState();
   const [imageSrc, setImageSrc] = createSignal<string | null>(null);
   const [isDragActive, setDragActive] = createSignal(false);
@@ -706,7 +707,7 @@ const ImageViewer: Component = () => {
           <span aria-hidden="true">▶</span>
         </span>
       </button>
-      {imageSrc() ? (
+      {imageSrc() && currentImagePath() ? (
         <>
           {/* 画像、ピーキング、グリッドを統合管理するImageManager */}
           <div
@@ -828,8 +829,24 @@ const ImageViewer: Component = () => {
           </Show>
         </>
       ) : (
-        <div class="rounded-md border border-dashed border-[var(--glass-border-emphasis)] bg-[var(--glass-bg-secondary)] backdrop-blur-xl px-4 py-3 text-label text-[var(--glass-text-secondary)]">
-          No image selected
+        <div class="flex flex-col items-center gap-4 p-8 text-center">
+          <div class="text-body text-[var(--glass-text-primary)] font-medium">
+            画像が選択されていません
+          </div>
+          <div class="flex flex-col gap-2 text-label text-[var(--glass-text-secondary)]">
+            <p>ドラッグ&ドロップで画像を開く</p>
+            <p class="text-caption">または</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleImageFileSelect()}
+            class="rounded-md bg-[var(--glass-bg-secondary)] px-4 py-2 text-label text-[var(--glass-text-primary)] hover:bg-[var(--glass-bg-tertiary)] transition-colors duration-200 border border-[var(--glass-border)]"
+          >
+            ファイルを選択
+          </button>
+          <div class="text-caption text-[var(--glass-text-tertiary)] mt-2">
+            対応形式: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
+          </div>
         </div>
       )}
     </div>

@@ -90,9 +90,12 @@ export async function parseCubeFile(filePath: string): Promise<LutData> {
 /**
  * LUTファイル選択ダイアログを表示
  *
+ * @param defaultPath - デフォルトで開くディレクトリパス
  * @returns 選択されたファイルパス、キャンセルされた場合はnull
  */
-export async function selectLutFile(): Promise<string | null> {
+export async function selectLutFile(
+  defaultPath?: string,
+): Promise<string | null> {
   try {
     const selected = await open({
       filters: [
@@ -103,6 +106,7 @@ export async function selectLutFile(): Promise<string | null> {
       ],
       multiple: false,
       directory: false,
+      defaultPath,
     });
 
     // selectedはstring | string[] | nullの可能性がある

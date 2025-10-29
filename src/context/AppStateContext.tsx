@@ -199,6 +199,8 @@ export interface AppState {
   currentLutPath: () => string | null;
   /** LUTファイル履歴 */
   lutHistory: () => LutHistoryEntry[];
+  /** 最後に開いたLUTフォルダパス */
+  lastLutFolderPath: () => string | null;
   /** ファイルパスからLUTをロード */
   loadLutFromPath: (filePath: string) => Promise<void>;
   /** LUT履歴からロード */
@@ -207,6 +209,8 @@ export interface AppState {
   removeLutFromHistory: (filePath: string) => void;
   /** LUTファイル選択ハンドラー */
   handleLutFileSelect: () => Promise<void>;
+  /** 画像ファイル選択ハンドラー */
+  handleImageFileSelect: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState>();
@@ -341,8 +345,11 @@ export const AppProvider: ParentComponent = (props) => {
     null,
   );
   const [lutHistory, setLutHistorySignal] = createSignal<LutHistoryEntry[]>([]);
+  const [lastLutFolderPath, setLastLutFolderPathSignal] = createSignal<
+    string | null
+  >(null);
 
-  const MAX_LUT_HISTORY = 10;
+  const MAX_LUT_HISTORY = 30;
 
   // ピーキング設定の永続化付きセッター
   const setPeakingEnabled = (enabled: boolean) => {
@@ -450,6 +457,12 @@ export const AppProvider: ParentComponent = (props) => {
 
       // 履歴に追加
       addLutToHistory(filePath, result.fileName);
+
+      // フォルダパスを記憶
+      const folderPath = filePath.split(/[/\\]/).slice(0, -1).join("/");
+      setLastLutFolderPathSignal(folderPath);
+      localStorage.setItem("vdi-lut-last-folder", folderPath);
+      console.log(`[AppStateContext] Saved last folder path: ${folderPath}`);
     } catch (error) {
       console.error("[AppStateContext] Failed to load LUT file:", error);
       throw error;
@@ -497,6 +510,7 @@ export const AppProvider: ParentComponent = (props) => {
 
       // ファイル選択ダイアログを表示
       const { open } = await import("@tauri-apps/plugin-dialog");
+      const defaultPath = lastLutFolderPath();
       const selected = await open({
         filters: [
           {
@@ -506,6 +520,7 @@ export const AppProvider: ParentComponent = (props) => {
         ],
         multiple: false,
         directory: false,
+        defaultPath: defaultPath || undefined,
       });
 
       if (typeof selected === "string") {
@@ -517,6 +532,46 @@ export const AppProvider: ParentComponent = (props) => {
       }
     } catch (error) {
       console.error("[AppStateContext] Failed to load LUT file:", error);
+    }
+  };
+
+  // 画像ファイル選択ハンドラー
+  const handleImageFileSelect = async () => {
+    try {
+      console.log("[AppStateContext] Opening image file dialog...");
+
+      // ファイル選択ダイアログを表示
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const selected = await open({
+        filters: [
+          {
+            name: "Image Files",
+            extensions: [
+              "jpg",
+              "jpeg",
+              "png",
+              "gif",
+              "bmp",
+              "webp",
+              "tiff",
+              "tif",
+              "avif",
+            ],
+          },
+        ],
+        multiple: false,
+        directory: false,
+      });
+
+      if (typeof selected === "string") {
+        console.log(`[AppStateContext] Selected image file: ${selected}`);
+        const assetUrl = convertFileToAssetUrlWithCacheBust(selected);
+        setCurrentImagePath(assetUrl, { filePath: selected });
+      } else {
+        console.log("[AppStateContext] Image file selection cancelled");
+      }
+    } catch (error) {
+      console.error("[AppStateContext] Failed to select image file:", error);
     }
   };
 
@@ -897,6 +952,15 @@ export const AppProvider: ParentComponent = (props) => {
       `[AppStateContext] Loaded ${history.length} LUT history entries`,
     );
 
+    // 最後に開いたLUTフォルダパスを読み込み
+    const savedLastLutFolder = localStorage.getItem("vdi-lut-last-folder");
+    if (savedLastLutFolder) {
+      setLastLutFolderPathSignal(savedLastLutFolder);
+      console.log(
+        `[AppStateContext] Loaded last LUT folder: ${savedLastLutFolder}`,
+      );
+    }
+
     // ファイルパス表示形式設定を復元
     const savedShowFullPath = localStorage.getItem("vdi-show-full-path");
     if (savedShowFullPath !== null) {
@@ -914,15 +978,14 @@ export const AppProvider: ParentComponent = (props) => {
       setControlPanelPositionSignal(savedControlPanelPosition);
     }
 
-    // 画像パスの適用（コマンドライン引数 > デフォルト画像）
+    // 画像パスの適用（コマンドライン引数のみ）
     if (launchConfig.imagePath) {
       const assetUrl = convertFileToAssetUrlWithCacheBust(
         launchConfig.imagePath,
       );
       setCurrentImagePath(assetUrl, { filePath: launchConfig.imagePath });
-    } else {
-      setCurrentImagePath("/sen38402160.png", { filePath: null });
     }
+    // デフォルト画像は設定しない（プレースホルダーを表示するため）
   });
 
   onCleanup(() => {
@@ -1088,10 +1151,12 @@ export const AppProvider: ParentComponent = (props) => {
     lutFileName,
     currentLutPath,
     lutHistory,
+    lastLutFolderPath,
     loadLutFromPath,
     loadLutFromHistory,
     removeLutFromHistory,
     handleLutFileSelect,
+    handleImageFileSelect,
   };
 
   return (
