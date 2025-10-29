@@ -4911,3 +4911,568 @@ async installUpdate(update: Update): Promise<void>
 3. 自動インストール機能の動作確認
 4. エラーハンドリングの確認
 5. 既存のバックグラウンドチェック機能との互換性確認
+
+---
+
+# LUT（Look-Up Table）適用機能 設計書
+
+## 概要
+
+画像に対してLUT（Look-Up Table）を適用し、色補正や色変換を行う機能を実装します。
+現在のレイヤー構造を活用し、画像とピーキングの間にLUTレイヤーを挿入することで、
+「画像 → LUT → ピーキング → グリッド」の順序でレイヤーを配置します。
+
+## 背景
+
+### 現在の実装状況
+
+現在、ImageManagerコンポーネントで以下のレイヤー構造が実装されています：
+
+1. **Layer 1**: 基礎画像（img要素）
+2. **Layer 2**: フォーカスピーキング（PeakingLayer / SVG）
+3. **Layer 3**: グリッドオーバーレイ（GridOverlay / Canvas）
+
+### 要件
+
+1. **レイヤー順序の変更**
+   - 画像 → LUT → ピーキング → グリッドの順序に再配置
+   - LUTレイヤーを画像とピーキングの間に挿入
+
+2. **LUT適用機能**
+   - .cube形式のLUTファイルをサポート
+   - LUTの有効/無効の切り替え
+   - LUT適用の不透明度調整（0.0-1.0）
+   - リアルタイムでの色変換
+
+3. **対応LUTファイル形式**
+   - **.cube形式のみ** - 3D LUT（テキストベース）
+     - Adobe、DaVinci Resolve、Final Cut Proなどで広く使用
+     - LUT_3D_SIZEで定義されたサイズ（通常17, 33, 64）
+     - RGB値をテキストで記述（0.0-1.0の範囲）
+     - 業界標準の形式で、幅広いソフトウェアで作成・編集可能
+
+4. **UI/UX**
+   - LUTファイル選択機能（.cube形式）
+   - MultiMenu内にLUT設定タブを追加
+   - LUT適用のプレビュー表示
+
+5. **パフォーマンス**
+   - WebGLを使用した高速な色変換
+   - リアルタイムでの適用が可能
+   - LUTデータのキャッシング
+
+## 設計
+
+### レイヤー構造の変更
+
+ImageManagerコンポーネント内のレイヤー構成を以下のように変更します：
+
+```tsx
+<div ref={(el) => (wrapperRef = el)} style={{ position: "relative", display: "inline-block" }}>
+  {/* Layer 1: 基礎画像 */}
+  <img ref={handleImgRef} src={props.src} ... />
+
+  {/* Layer 2: LUT適用レイヤー（新規追加） */}
+  <Show when={props.lutEnabled && props.lutData}>
+    <LutLayer
+      imageSrc={props.src}
+      lutData={props.lutData}
+      opacity={props.lutOpacity}
+    />
+  </Show>
+
+  {/* Layer 3: フォーカスピーキング */}
+  <Show when={props.peakingEnabled && props.imagePath && props.imageSrc}>
+    <PeakingLayer ... />
+  </Show>
+
+  {/* Layer 4: グリッドオーバーレイ */}
+  <GridOverlay ... />
+</div>
+```
+
+### コンポーネント構成
+
+#### 1. LutLayer コンポーネント（新規作成）
+
+**ファイルパス**: `src/components/ImageViewer/LutLayer.tsx`
+
+**役割**: WebGLを使用してLUTを画像に適用し、Canvas要素として描画
+
+**Props**:
+```typescript
+interface LutLayerProps {
+  /** 画像ソースURL */
+  imageSrc: string;
+  /** LUTデータ（3D LUT配列） */
+  lutData: LutData | null;
+  /** LUT適用の不透明度 (0.0-1.0) */
+  opacity: number;
+}
+
+interface LutData {
+  /** LUTのサイズ（通常は17, 33, 64） */
+  size: number;
+  /** LUTデータ配列（RGB値、0.0-1.0の範囲） */
+  data: Float32Array;
+  /** LUTファイル名 */
+  fileName: string;
+}
+```
+
+**実装詳細**:
+- WebGLを使用して3D LUTテクスチャを作成
+- フラグメントシェーダーで色変換を実行
+- Canvas要素として描画し、position: absolute で画像の上に重ねる
+- 不透明度の調整にはCanvas全体のopacityスタイルを使用
+
+**WebGLシェーダー**:
+```glsl
+// フラグメントシェーダー
+precision mediump float;
+
+uniform sampler2D u_image;
+uniform sampler2D u_lut;
+uniform float u_lutSize;
+varying vec2 v_texCoord;
+
+void main() {
+  vec4 color = texture2D(u_image, v_texCoord);
+
+  // LUTサイズに基づいてインデックスを計算
+  float lutScale = (u_lutSize - 1.0) / u_lutSize;
+  float lutOffset = 0.5 / u_lutSize;
+
+  vec3 lutCoord = color.rgb * lutScale + lutOffset;
+
+  // 3D LUTルックアップ
+  gl_FragColor = vec4(texture2D(u_lut, lutCoord.rg).rgb, color.a);
+}
+```
+
+#### 2. LutMenuContent コンポーネント（新規作成）
+
+**ファイルパス**: `src/components/ImageViewer/LutMenuContent.tsx`
+
+**役割**: MultiMenu内でLUT設定を行うUI
+
+**Props**:
+```typescript
+interface LutMenuContentProps {
+  /** LUT有効フラグ */
+  lutEnabled: boolean;
+  /** LUT有効状態変更ハンドラー */
+  onLutEnabledChange: (enabled: boolean) => void;
+  /** LUT不透明度 */
+  lutOpacity: number;
+  /** LUT不透明度変更ハンドラー */
+  onLutOpacityChange: (opacity: number) => void;
+  /** 現在のLUTファイル名 */
+  lutFileName: string | null;
+  /** LUTファイル選択ハンドラー */
+  onLutFileSelect: () => void;
+}
+```
+
+**UIレイアウト**:
+```tsx
+<div class="flex flex-col gap-4 p-4">
+  {/* LUT有効化トグル */}
+  <div class="flex items-center justify-between">
+    <label>LUT適用</label>
+    <input type="checkbox" checked={props.lutEnabled} onChange={...} />
+  </div>
+
+  {/* LUTファイル選択ボタン */}
+  <div class="flex flex-col gap-2">
+    <label>LUTファイル</label>
+    <button onClick={props.onLutFileSelect}>
+      {props.lutFileName || "LUTファイルを選択"}
+    </button>
+  </div>
+
+  {/* LUT不透明度スライダー */}
+  <Show when={props.lutEnabled}>
+    <div class="flex flex-col gap-2">
+      <label>不透明度: {Math.round(props.lutOpacity * 100)}%</label>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={props.lutOpacity * 100}
+        onChange={(e) => props.onLutOpacityChange(Number(e.target.value) / 100)}
+      />
+    </div>
+  </Show>
+</div>
+```
+
+#### 3. MultiMenu コンポーネント（既存を修正）
+
+**ファイルパス**: `src/components/ImageViewer/MultiMenu.tsx`
+
+**変更内容**:
+- タブリストに「LUT」タブを追加
+- LutMenuContentコンポーネントをインポートして表示
+
+```tsx
+const tabs = [
+  { id: "peaking", label: "ピーキング" },
+  { id: "lut", label: "LUT" },  // 新規追加
+  { id: "grid", label: "グリッド" },
+  { id: "histogram", label: "ヒストグラム" },
+];
+```
+
+#### 4. ImageManager コンポーネント（既存を修正）
+
+**ファイルパス**: `src/components/ImageViewer/ImageManager.tsx`
+
+**変更内容**:
+- LutLayerコンポーネントをインポート
+- props にLUT関連の設定を追加
+- レイヤー順序をコメントで明示
+
+```typescript
+interface ImageManagerProps {
+  // ... 既存のprops
+
+  // LUT関連props（新規追加）
+  lutEnabled: boolean;
+  lutData: LutData | null;
+  lutOpacity: number;
+}
+```
+
+### AppStateContextの拡張
+
+**ファイルパス**: `src/context/AppStateContext.tsx`
+
+**追加する状態**:
+```typescript
+// LUT関連の状態
+const [lutEnabled, setLutEnabled] = createSignal<boolean>(false);
+const [lutData, setLutData] = createSignal<LutData | null>(null);
+const [lutOpacity, setLutOpacity] = createSignal<number>(1.0);
+const [lutFileName, setLutFileName] = createSignal<string | null>(null);
+```
+
+**永続化**:
+- localStorage にLUT設定を保存
+- キー: `vdi_lut_enabled`, `vdi_lut_opacity`, `vdi_lut_file_name`
+- LUTデータ自体はファイルパスのみ保存し、起動時に再読み込み
+
+### LUTファイル読み込み機能
+
+#### ファイル選択
+
+Tauriのダイアログ機能を使用してLUTファイルを選択：
+
+```typescript
+import { open } from '@tauri-apps/plugin-dialog';
+
+async function selectLutFile(): Promise<string | null> {
+  const selected = await open({
+    filters: [{
+      name: 'LUT Files',
+      extensions: ['cube']
+    }]
+  });
+
+  return selected;
+}
+```
+
+#### .cubeファイルのパース
+
+**ファイルパス**: `src/lib/lutUtils.ts`
+
+```typescript
+import { readTextFile } from '@tauri-apps/plugin-fs';
+
+/**
+ * .cubeファイルをパースする
+ * .cube形式は業界標準の3D LUTフォーマット
+ */
+export async function parseCubeFile(filePath: string): Promise<LutData> {
+  // Tauriのファイル読み込み機能を使用
+  const content = await readTextFile(filePath);
+
+  // .cubeファイルをパース
+  const lines = content.split('\n');
+  let size = 0;
+  const data: number[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // コメント行と空行をスキップ
+    if (trimmed.startsWith('#') || trimmed === '') {
+      continue;
+    }
+
+    // LUT_3D_SIZE を読み取り
+    if (trimmed.startsWith('LUT_3D_SIZE')) {
+      size = parseInt(trimmed.split(/\s+/)[1], 10);
+      continue;
+    }
+
+    // TITLE、DOMAIN_MIN、DOMAIN_MAXなどのメタデータをスキップ
+    if (trimmed.match(/^[A-Z_]+/)) {
+      continue;
+    }
+
+    // RGB値を読み取り（0.0-1.0の範囲）
+    const values = trimmed.split(/\s+/).map(Number);
+    if (values.length === 3 && !values.some(isNaN)) {
+      data.push(...values);
+    }
+  }
+
+  // データの妥当性チェック
+  const expectedDataLength = size * size * size * 3;
+  if (data.length !== expectedDataLength) {
+    throw new Error(
+      `Invalid LUT data: expected ${expectedDataLength} values, got ${data.length}`
+    );
+  }
+
+  return {
+    size,
+    data: new Float32Array(data),
+    fileName: filePath.split(/[/\\]/).pop() || 'unknown.cube'
+  };
+}
+```
+
+#### .cube形式の仕様
+
+.cube形式は以下の構造を持ちます：
+
+```
+# コメント行
+TITLE "LUT Name"
+
+LUT_3D_SIZE 33
+
+# RGB値（0.0-1.0の範囲）
+0.000000 0.000000 0.000000
+0.031250 0.000000 0.000000
+0.062500 0.000000 0.000000
+...
+（size × size × size 行のRGB値）
+```
+
+**主要な要素：**
+- `LUT_3D_SIZE`: LUTのサイズ（17, 33, 64が一般的）
+- RGB値: 各行に3つの浮動小数点数（R G B）
+- データ順序: R → G → B の順で最も内側のループから外側へ
+
+### WebGL実装詳細
+
+#### LutLayerコンポーネントの実装
+
+```typescript
+import { Component, createEffect, onCleanup, onMount } from "solid-js";
+
+const LutLayer: Component<LutLayerProps> = (props) => {
+  let canvasRef: HTMLCanvasElement | undefined;
+  let gl: WebGLRenderingContext | null = null;
+  let program: WebGLProgram | null = null;
+  let imageTexture: WebGLTexture | null = null;
+  let lutTexture: WebGLTexture | null = null;
+
+  // WebGLの初期化
+  onMount(() => {
+    if (!canvasRef) return;
+
+    gl = canvasRef.getContext('webgl');
+    if (!gl) {
+      console.error('WebGL not supported');
+      return;
+    }
+
+    // シェーダープログラムのコンパイルとリンク
+    program = createShaderProgram(gl, vertexShaderSource, fragmentShaderSource);
+
+    // テクスチャの作成
+    imageTexture = createImageTexture(gl, props.imageSrc);
+    lutTexture = createLutTexture(gl, props.lutData);
+
+    // 描画
+    render();
+  });
+
+  // propsが変更されたら再描画
+  createEffect(() => {
+    props.imageSrc;
+    props.lutData;
+    props.opacity;
+
+    if (gl && program) {
+      render();
+    }
+  });
+
+  const render = () => {
+    if (!gl || !program || !imageTexture || !lutTexture) return;
+
+    // 画像をCanvasに描画
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // ユニフォーム変数の設定
+    const imageLocation = gl.getUniformLocation(program, 'u_image');
+    const lutLocation = gl.getUniformLocation(program, 'u_lut');
+    const lutSizeLocation = gl.getUniformLocation(program, 'u_lutSize');
+
+    gl.uniform1i(imageLocation, 0);
+    gl.uniform1i(lutLocation, 1);
+    gl.uniform1f(lutSizeLocation, props.lutData?.size || 33);
+
+    // テクスチャのバインド
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, lutTexture);
+
+    // 描画
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  };
+
+  onCleanup(() => {
+    // WebGLリソースのクリーンアップ
+    if (gl) {
+      if (imageTexture) gl.deleteTexture(imageTexture);
+      if (lutTexture) gl.deleteTexture(lutTexture);
+      if (program) gl.deleteProgram(program);
+    }
+  });
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        "pointer-events": "none",
+        opacity: props.opacity,
+      }}
+    />
+  );
+};
+```
+
+### パフォーマンス最適化
+
+1. **LUTキャッシュ**
+   - 同じLUTファイルを再度読み込まないようにキャッシュ
+   - LutDataをMap型でキャッシュ: `Map<string, LutData>`
+
+2. **WebGLテクスチャの再利用**
+   - 同じ画像やLUTの場合はテクスチャを再作成しない
+   - createEffectで変更を監視して必要な場合のみ更新
+
+3. **遅延ロード**
+   - LutLayerコンポーネントをlazy()で遅延ロード
+   - 初回起動時のパフォーマンス向上
+
+## 実装フェーズ
+
+### フェーズ1: LUTファイル読み込み機能
+
+1. `src/lib/lutUtils.ts`を作成
+   - parseCubeFile関数の実装
+   - LutDataインターフェースの定義
+
+2. ファイル選択機能の実装
+   - Tauriダイアログの統合
+   - selectLutFile関数の実装
+
+### フェーズ2: LutLayerコンポーネント
+
+1. `src/components/ImageViewer/LutLayer.tsx`を作成
+   - WebGL初期化
+   - シェーダープログラムの実装
+   - テクスチャ作成と描画
+
+2. 単体テスト
+   - サンプルLUTファイルでの動作確認
+   - 不透明度調整の確認
+
+### フェーズ3: LUT設定UI
+
+1. `src/components/ImageViewer/LutMenuContent.tsx`を作成
+   - LUT有効化トグル
+   - ファイル選択ボタン
+   - 不透明度スライダー
+
+2. MultiMenuコンポーネントの修正
+   - LUTタブの追加
+   - LutMenuContentの統合
+
+### フェーズ4: 状態管理の統合
+
+1. AppStateContextの拡張
+   - LUT関連の状態追加
+   - localStorage永続化
+
+2. ImageManagerコンポーネントの修正
+   - LutLayerの統合
+   - レイヤー順序の変更
+
+3. ImageViewerコンポーネントの修正
+   - LUT設定のprops渡し
+
+### フェーズ5: テストと最適化
+
+1. 動作確認
+   - 各種LUTファイルでの動作テスト
+   - レイヤー順序の確認
+   - パフォーマンステスト
+
+2. バグ修正と最適化
+   - パフォーマンス改善
+   - エラーハンドリング強化
+
+## 成果物
+
+### 新規作成ファイル
+
+- `src/lib/lutUtils.ts` - LUTファイル読み込みユーティリティ
+- `src/components/ImageViewer/LutLayer.tsx` - LUT適用レイヤーコンポーネント
+- `src/components/ImageViewer/LutMenuContent.tsx` - LUT設定UIコンポーネント
+
+### 修正ファイル
+
+- `src/context/AppStateContext.tsx` - LUT状態管理追加
+- `src/components/ImageViewer/ImageManager.tsx` - LutLayer統合、レイヤー順序変更
+- `src/components/ImageViewer/MultiMenu.tsx` - LUTタブ追加
+- `src/components/ImageViewer/index.tsx` - LUT props渡し
+
+## テスト項目
+
+1. LUTファイル読み込み機能の動作確認
+   - .cubeファイルの正しいパース
+   - エラーハンドリング（不正なファイル形式）
+
+2. LUT適用機能の動作確認
+   - WebGLでの正しい色変換
+   - 不透明度調整の動作
+
+3. レイヤー順序の確認
+   - 画像 → LUT → ピーキング → グリッドの順序
+   - 各レイヤーの正しい重なり
+
+4. UI/UX確認
+   - LUTファイル選択の動作
+   - MultiMenu内のLUTタブの表示
+   - 設定の永続化
+
+5. パフォーマンステスト
+   - リアルタイムでのLUT適用
+   - ズーム・回転時のパフォーマンス
+   - メモリ使用量の確認
