@@ -1,0 +1,19 @@
+{
+  "startTime": 1761696966122,
+  "endTime": 1761696967907,
+  "duration": 1785,
+  "phases": [
+    {
+      "name": "依存関係の解決",
+      "startTime": 1761696966122,
+      "endTime": 1761696966346,
+      "duration": 224
+    },
+    {
+      "name": "バンドリング",
+      "startTime": 1761696966122,
+      "endTime": 1761696967682,
+      "duration": 1560
+    }
+  ]
+}

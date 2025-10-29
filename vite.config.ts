@@ -1,37 +1,63 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 import solid from "vite-plugin-solid";
-import { readFileSync } from 'fs';
+import { readFileSync } from "fs";
+import Inspect from "vite-plugin-inspect";
+import { visualizer } from "rollup-plugin-visualizer";
+import { buildTimer } from "./vite-plugin-build-timer";
 
 const host = process.env.TAURI_DEV_HOST;
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+const packageJson = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [solid()],
+  plugins: [
+    solid(),
+    // ビルド時間測定プラグイン(ANALYZE=trueまたはTIME=trueの時に有効化)
+    ...(process.env.ANALYZE === "true" || process.env.TIME === "true"
+      ? [buildTimer()]
+      : []),
+    // プラグイン分析(ANALYZE=trueの時に有効化)
+    ...(process.env.ANALYZE === "true" ? [Inspect()] : []),
+    // バンドル可視化(ANALYZE=trueの時に有効化)
+    ...(process.env.ANALYZE === "true"
+      ? [
+          visualizer({
+            open: false,
+            filename: "docs/20251029_build_optimization/bundle-stats.html",
+            gzipSize: true,
+            brotliSize: true,
+          }) as any,
+        ]
+      : []),
+  ],
   define: {
-    'import.meta.env.PACKAGE_VERSION': JSON.stringify(packageJson.version),
+    "import.meta.env.PACKAGE_VERSION": JSON.stringify(packageJson.version),
   },
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
     transformMode: { web: [/\.[jt]sx?$/] },
   },
 
+  // 依存関係の最適化
+  optimizeDeps: {
+    include: [
+      "solid-js",
+      "@tauri-apps/api",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-fs",
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-process",
+      "@tauri-apps/plugin-updater",
+      "@solid-primitives/i18n",
+    ],
+  },
+
   // ビルド最適化設定
   build: {
-    // Terserを使用した最適化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,      // console.logを削除
-        drop_debugger: true,     // debugger文を削除
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-      },
-      format: {
-        comments: false,         // コメントを削除
-      },
-    },
+    // esbuildを使用した高速minify(Terserより約3倍高速)
+    minify: "esbuild",
     // チャンクサイズ警告の閾値を調整
     chunkSizeWarningLimit: 1000,
     // Rollup設定
@@ -40,9 +66,14 @@ export default defineConfig(async () => ({
         // 戦略的なコード分割
         manualChunks: {
           // Tauri APIを別チャンクに
-          'tauri-api': ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-fs', '@tauri-apps/plugin-opener'],
+          "tauri-api": [
+            "@tauri-apps/api",
+            "@tauri-apps/plugin-dialog",
+            "@tauri-apps/plugin-fs",
+            "@tauri-apps/plugin-opener",
+          ],
           // SolidJS関連を別チャンクに
-          'vendor-solid': ['solid-js'],
+          "vendor-solid": ["solid-js"],
         },
       },
     },
