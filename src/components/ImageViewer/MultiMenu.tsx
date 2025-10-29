@@ -5,8 +5,9 @@ import { useAppState } from "../../context/AppStateContext";
 import GridMenuContent from "./GridMenuContent";
 import PeakingMenuContent from "./PeakingMenuContent";
 import HistogramMenuContent from "./HistogramMenuContent";
+import LutMenuContent from "./LutMenuContent";
 
-type SegmentType = "grid" | "peaking" | "histogram";
+type SegmentType = "grid" | "lut" | "peaking" | "histogram";
 
 interface MultiMenuProps {
   /** グリッド設定 */
@@ -26,6 +27,14 @@ interface MultiMenuProps {
   onPeakingOpacityChange: (opacity: number) => void;
   peakingBlink: boolean;
   onPeakingBlinkChange: (enabled: boolean) => void;
+
+  /** LUT設定 */
+  lutEnabled: boolean;
+  onLutEnabledChange: (enabled: boolean) => void;
+  lutOpacity: number;
+  onLutOpacityChange: (opacity: number) => void;
+  lutFileName: string | null;
+  onLutFileSelect: () => void;
 
   /** ヒストグラム設定 */
   histogramEnabled: boolean;
@@ -48,7 +57,7 @@ interface MultiMenuProps {
 /**
  * MultiMenu コンポーネント
  *
- * グリッド、フォーカスピーキング、ヒストグラムの3つの機能を
+ * グリッド、LUT、フォーカスピーキング、ヒストグラムの4つの機能を
  * セグメントコントロール（タブ風UI）で切り替えて表示する統合メニュー。
  *
  * 特徴：
@@ -114,6 +123,20 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
         {/* セグメント区切り線 */}
         <div class="w-px bg-[var(--glass-border-subtle)]" />
 
+        {/* LUTセグメント */}
+        <button
+          type="button"
+          class={segmentButtonClass("lut")}
+          onClick={() => handleSegmentClick("lut")}
+          aria-label="LUT設定"
+          aria-selected={activeSegment() === "lut"}
+        >
+          <span>LUT</span>
+        </button>
+
+        {/* セグメント区切り線 */}
+        <div class="w-px bg-[var(--glass-border-subtle)]" />
+
         {/* ヒストグラムセグメント */}
         <button
           type="button"
@@ -129,13 +152,15 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
         <div
           class="absolute bottom-0 h-0.5 bg-blue-500 transition-all duration-200"
           style={{
-            width: "33.333%",
+            width: "25%",
             left:
               activeSegment() === "grid"
                 ? "0%"
                 : activeSegment() === "peaking"
-                  ? "33.333%"
-                  : "66.666%",
+                  ? "25%"
+                  : activeSegment() === "lut"
+                    ? "50%"
+                    : "75%",
           }}
         />
       </div>
@@ -149,13 +174,15 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
               activeSegment() === "grid"
                 ? "translateX(0%)"
                 : activeSegment() === "peaking"
-                  ? "translateX(-33.333%)"
-                  : "translateX(-66.666%)",
-            width: "300%",
+                  ? "translateX(-25%)"
+                  : activeSegment() === "lut"
+                    ? "translateX(-50%)"
+                    : "translateX(-75%)",
+            width: "400%",
           }}
         >
           {/* グリッドコンテンツ */}
-          <div class="w-full" style={{ width: "33.333%" }}>
+          <div class="w-full" style={{ width: "25%" }}>
             <GridMenuContent
               currentPattern={props.gridPattern}
               onPatternChange={props.onGridPatternChange}
@@ -165,7 +192,7 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
           </div>
 
           {/* ピーキングコンテンツ */}
-          <div class="w-full" style={{ width: "33.333%" }}>
+          <div class="w-full" style={{ width: "25%" }}>
             <PeakingMenuContent
               peakingEnabled={props.peakingEnabled}
               onPeakingEnabledChange={props.onPeakingEnabledChange}
@@ -180,8 +207,20 @@ const MultiMenu: Component<MultiMenuProps> = (props) => {
             />
           </div>
 
+          {/* LUTコンテンツ */}
+          <div class="w-full" style={{ width: "25%" }}>
+            <LutMenuContent
+              lutEnabled={props.lutEnabled}
+              onLutEnabledChange={props.onLutEnabledChange}
+              lutOpacity={props.lutOpacity}
+              onLutOpacityChange={props.onLutOpacityChange}
+              lutFileName={props.lutFileName}
+              onLutFileSelect={props.onLutFileSelect}
+            />
+          </div>
+
           {/* ヒストグラムコンテンツ */}
-          <div class="w-full" style={{ width: "33.333%" }}>
+          <div class="w-full" style={{ width: "25%" }}>
             <HistogramMenuContent
               histogramEnabled={props.histogramEnabled}
               onHistogramEnabledChange={props.onHistogramEnabledChange}

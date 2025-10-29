@@ -1,0 +1,162 @@
+import type { Component } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
+
+interface LutMenuContentProps {
+  /** LUT有効フラグ */
+  lutEnabled: boolean;
+  /** LUT有効状態変更ハンドラー */
+  onLutEnabledChange: (enabled: boolean) => void;
+  /** LUT不透明度 */
+  lutOpacity: number;
+  /** LUT不透明度変更ハンドラー */
+  onLutOpacityChange: (opacity: number) => void;
+  /** 現在のLUTファイル名 */
+  lutFileName: string | null;
+  /** LUTファイル選択ハンドラー */
+  onLutFileSelect: () => void;
+}
+
+/**
+ * LutMenuContent コンポーネント
+ *
+ * LUT設定を行うためのコンテンツ部分。
+ * MultiMenuコンポーネント内で使用されます。
+ *
+ * 設定項目：
+ * - ON/OFF切り替え
+ * - LUTファイル選択
+ * - 不透明度調整 (0-1)
+ */
+const LutMenuContent: Component<LutMenuContentProps> = (props) => {
+  // 一時表示用のSignal（リアルタイム表示用）
+  const [tempOpacity, setTempOpacity] = createSignal(props.lutOpacity);
+
+  // デバウンスユーティリティ関数
+  function createDebounce<T extends (...args: any[]) => void>(
+    fn: T,
+    delay: number,
+  ): [(...args: Parameters<T>) => void, () => void] {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const debouncedFn = (...args: Parameters<T>) => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        fn(...args);
+        timeoutId = undefined;
+      }, delay);
+    };
+
+    const cleanup = () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+    };
+
+    return [debouncedFn, cleanup];
+  }
+
+  // デバウンス処理の作成
+  const [debouncedOpacityChange, cleanupOpacity] = createDebounce(
+    (value: number) => {
+      console.log(`[LutMenuContent Debounce] Opacity changed to ${value}`);
+      props.onLutOpacityChange(value);
+    },
+    300,
+  );
+
+  // クリーンアップ
+  onCleanup(() => {
+    cleanupOpacity();
+  });
+
+  // ハンドラー関数
+  const handleToggleLut = () => {
+    const newValue = !props.lutEnabled;
+    console.log(`[LutMenuContent] LUT enabled: ${newValue}`);
+    props.onLutEnabledChange(newValue);
+  };
+
+  const handleOpacityChange = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const value = parseFloat(target.value);
+    setTempOpacity(value);
+    debouncedOpacityChange(value);
+  };
+
+  const handleFileSelect = () => {
+    console.log("[LutMenuContent] File select button clicked");
+    props.onLutFileSelect();
+  };
+
+  return (
+    <div class="flex flex-col gap-4 p-4">
+      {/* LUT適用トグル */}
+      <div class="flex items-center justify-between">
+        <label
+          class="text-label font-medium text-[var(--glass-text-primary)]"
+          for="lut-enabled"
+        >
+          LUT適用
+        </label>
+        <input
+          id="lut-enabled"
+          type="checkbox"
+          checked={props.lutEnabled}
+          onChange={handleToggleLut}
+          class="h-4 w-4 cursor-pointer accent-blue-500"
+        />
+      </div>
+
+      {/* LUTファイル選択 */}
+      <div class="flex flex-col gap-2">
+        <label class="text-label font-medium text-[var(--glass-text-primary)]">
+          LUTファイル
+        </label>
+        <button
+          type="button"
+          onClick={handleFileSelect}
+          class="rounded-md bg-[var(--glass-bg-secondary)] px-3 py-2 text-label text-[var(--glass-text-primary)] hover:bg-[var(--glass-bg-tertiary)] transition-colors duration-200 border border-[var(--glass-border)] truncate text-left"
+        >
+          {props.lutFileName || "LUTファイルを選択"}
+        </button>
+      </div>
+
+      {/* LUT不透明度スライダー */}
+      <Show when={props.lutEnabled}>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <label class="text-label font-medium text-[var(--glass-text-primary)]">
+              不透明度
+            </label>
+            <span class="text-label text-[var(--glass-text-secondary)]">
+              {Math.round(tempOpacity() * 100)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={tempOpacity()}
+            onInput={handleOpacityChange}
+            class="w-full accent-blue-500"
+          />
+        </div>
+      </Show>
+
+      {/* 説明テキスト */}
+      <div class="text-caption text-[var(--glass-text-tertiary)] bg-[var(--glass-bg-secondary)] rounded-md p-2 border border-[var(--glass-border)]">
+        <p class="mb-1">対応形式: .cube</p>
+        <p>
+          .cube形式の3D
+          LUTファイルを使用して、画像の色調を変換できます。
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default LutMenuContent;
