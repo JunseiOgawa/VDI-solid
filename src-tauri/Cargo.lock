@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "vdi"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "image",
  "lazy_static",
