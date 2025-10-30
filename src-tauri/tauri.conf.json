@@ -55,6 +55,23 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "license": "../licenses/EULA_JA.txt"
+      }
+    },
+    "macos": {
+      "license": "../licenses/EULA_EN.txt"
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/doc/vdi-solid/": [
+            "../licenses/EULA_EN.txt=EULA.txt"
+          ]
+        }
+      }
+    }
   }
 }
