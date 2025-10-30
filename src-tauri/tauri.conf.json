@@ -57,19 +57,12 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "nsis": {
-        "license": "../licenses/EULA_JA.txt"
-      }
-    },
-    "macos": {
-      "license": "../licenses/EULA_EN.txt"
+      "nsis": {}
     },
     "linux": {
       "deb": {
         "files": {
-          "/usr/share/doc/vdi-solid/": [
-            "../licenses/EULA_EN.txt=EULA.txt"
-          ]
+          "/usr/share/doc/vdi-solid/": "../licenses/EULA_EN.txt"
         }
       }
     }
