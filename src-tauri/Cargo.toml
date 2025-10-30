@@ -28,6 +28,7 @@ image = { version = "0.24", default-features = false, features = ["png", "jpeg",
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "fs", "process"] }
 rayon = "1.8"
 lazy_static = "1.4"
+sysinfo = "0.30"
 
 # Desktop専用の依存関係
 

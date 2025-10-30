@@ -7,6 +7,7 @@ mod histogram;
 mod img;
 mod navigation;
 mod peaking;
+mod process_manager;
 
 /// ウィンドウを表示するコマンド
 ///
@@ -146,11 +147,15 @@ pub fn run() {
     let launch_config = cli_args::LaunchConfig::from_args();
     let window_mode = launch_config.window_mode.clone();
 
+    if launch_config.close_existing_windows.unwrap_or(false) {
+        process_manager::close_other_vdi_instances();
+    }
+
     tauri::Builder::default()
         // 軽量プラグインから順に初期化して起動速度を最適化
-        .plugin(tauri_plugin_opener::init())  // 最軽量
-        .plugin(fs_init())                     // ファイルシステム(必須)
-        .plugin(tauri_plugin_dialog::init())   // ダイアログ(比較的軽量)
+        .plugin(tauri_plugin_opener::init()) // 最軽量
+        .plugin(fs_init()) // ファイルシステム(必須)
+        .plugin(tauri_plugin_dialog::init()) // ダイアログ(比較的軽量)
         .invoke_handler(tauri::generate_handler![
             img::get_launch_image_path,
             img::get_launch_window_mode,
@@ -182,14 +187,16 @@ pub fn run() {
             // メインウィンドウを取得して右クリックメニューとテキスト選択を無効化
             if let Some((_, window)) = app.webview_windows().iter().next() {
                 // JavaScriptで右クリックメニューを無効化
-                window.eval(
-                    "document.addEventListener('contextmenu', (e) => e.preventDefault())",
-                ).ok();
+                window
+                    .eval("document.addEventListener('contextmenu', (e) => e.preventDefault())")
+                    .ok();
                 // JavaScriptでテキスト選択を無効化
-                window.eval(
-                    "document.body.style.userSelect = 'none'; \
+                window
+                    .eval(
+                        "document.body.style.userSelect = 'none'; \
                      document.body.style.webkitUserSelect = 'none';",
-                ).ok();
+                    )
+                    .ok();
             }
 
             // ウィンドウサイズに応じて設定を変更

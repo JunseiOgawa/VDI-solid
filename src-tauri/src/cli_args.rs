@@ -13,6 +13,8 @@ pub struct LaunchConfig {
     /// - "FullScreen": フルスクリーン表示
     /// - "WIDTHxHEIGHT": 指定解像度（例: "1920x1080"）
     pub window_mode: Option<String>,
+    /// 既存のVDIウィンドウを終了するかどうか（引数3）
+    pub close_existing_windows: Option<bool>,
 
     // ピーキング設定
     pub peaking_enabled: Option<bool>,
@@ -63,8 +65,16 @@ impl LaunchConfig {
         // 引数2: ウィンドウモード
         if let Some(mode) = args.get(2) {
             // '--'で始まらない場合のみウィンドウモードとして扱う
-            if !mode.starts_with("--") {
+            if !mode.starts_with("--") && !mode.trim().is_empty() {
                 config.window_mode = Some(mode.clone());
+            }
+        }
+
+        // 引数3: 既存ウィンドウのクローズ指定
+        if let Some(close_mode) = args.get(3) {
+            if !close_mode.starts_with("--") {
+                let next_arg = args.get(4).map(|s| s.as_str());
+                config.close_existing_windows = Self::parse_close_window_flag(close_mode, next_arg);
             }
         }
 
@@ -150,6 +160,34 @@ impl LaunchConfig {
         println!("[CLI Args] Parsed config: {:?}", config);
 
         config
+    }
+}
+
+impl LaunchConfig {
+    fn parse_close_window_flag(flag: &str, next: Option<&str>) -> Option<bool> {
+        let trimmed = flag.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let normalized: String = trimmed
+            .chars()
+            .filter(|c| !c.is_ascii_whitespace())
+            .collect();
+        match normalized.to_ascii_uppercase().as_str() {
+            "TRUE" | "1" | "CLOSEWINDOW" | "CLOSEWINDOWMAX" | "MAX" => Some(true),
+            "FALSE" | "0" => Some(false),
+            _ => {
+                if trimmed.eq_ignore_ascii_case("CLOSEWINDOW") {
+                    if let Some(next_arg) = next {
+                        if next_arg.trim().eq_ignore_ascii_case("MAX") {
+                            return Some(true);
+                        }
+                    }
+                }
+                None
+            }
+        }
     }
 }
 
