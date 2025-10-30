@@ -179,6 +179,19 @@ pub fn run() {
                 app.handle().plugin(tauri_plugin_process::init())?;
             }
 
+            // メインウィンドウを取得して右クリックメニューとテキスト選択を無効化
+            if let Some((_, window)) = app.webview_windows().iter().next() {
+                // JavaScriptで右クリックメニューを無効化
+                window.eval(
+                    "document.addEventListener('contextmenu', (e) => e.preventDefault())",
+                ).ok();
+                // JavaScriptでテキスト選択を無効化
+                window.eval(
+                    "document.body.style.userSelect = 'none'; \
+                     document.body.style.webkitUserSelect = 'none';",
+                ).ok();
+            }
+
             // ウィンドウサイズに応じて設定を変更
             if let Some(mode) = &window_mode {
                 match mode.as_str() {
