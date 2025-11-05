@@ -145,7 +145,7 @@ async fn get_system_theme() -> String {
 pub fn run() {
     // コマンドライン引数から起動設定を取得
     let launch_config = cli_args::LaunchConfig::from_args();
-    let window_mode = launch_config.window_mode.clone();
+    let window_mode = launch_config.window_mode;
 
     if launch_config.close_existing_windows.unwrap_or(false) {
         process_manager::close_other_vdi_instances();

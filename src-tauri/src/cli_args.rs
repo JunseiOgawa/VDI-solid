@@ -100,7 +100,7 @@ impl LaunchConfig {
                 }
                 "--peaking-color" => {
                     if i + 1 < args.len() {
-                        config.peaking_color = Some(args[i + 1].clone());
+                        config.peaking_color = Some(args[i + 1].to_string());
                         i += 2;
                     } else {
                         i += 1;

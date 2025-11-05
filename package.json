@@ -19,7 +19,6 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@solid-primitives/i18n": "^2.2.1",
     "@tailwindcss/postcss": "^4.1.13",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.4.0",
