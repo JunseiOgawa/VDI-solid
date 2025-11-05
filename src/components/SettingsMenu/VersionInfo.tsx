@@ -1,5 +1,6 @@
 import { Component, createSignal } from "solid-js";
 import { Update } from "@tauri-apps/plugin-updater";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { updateManager } from "../../services/UpdateManager";
 import { useAppState } from "../../context/AppStateContext";
 
@@ -22,10 +23,39 @@ const VersionInfo: Component = () => {
       setMessage(result.error);
       setAvailableUpdate(null);
     } else if (result.available && result.update) {
+      // 更新が見つかった場合、確認ダイアログを即座に表示
       setMessage(
         t("version.updateAvailable", { version: result.update.version }),
       );
       setAvailableUpdate(result.update);
+
+      // 確認ダイアログを表示
+      const releaseNotes = result.update.body
+        ? `\n\n${result.update.body}`
+        : "";
+      const shouldUpdate = await ask(
+        `新しいバージョン ${result.update.version} が利用可能です。${releaseNotes}\n\n今すぐアップデートしますか?`,
+        {
+          title: "アップデート利用可能",
+          kind: "info",
+          okLabel: "今すぐアップデート",
+          cancelLabel: "後で",
+        },
+      );
+
+      if (shouldUpdate) {
+        // ユーザーが承認した場合、即座にインストールを開始
+        setIsInstalling(true);
+        setMessage(t("version.installing"));
+
+        try {
+          await updateManager.installUpdate(result.update);
+        } catch (error) {
+          console.error("[VersionInfo] インストール失敗:", error);
+          setMessage(`インストールに失敗しました: ${error}`);
+          setIsInstalling(false);
+        }
+      }
     } else {
       setMessage(t("version.upToDate"));
       setAvailableUpdate(null);
