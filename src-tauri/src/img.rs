@@ -126,6 +126,13 @@ pub async fn rotate_image(image_path: String, rotation_angle: f32) -> Result<Str
         return Err("指定されたファイルが存在しません".to_string());
     }
 
+    // JPEG XL形式のチェック
+    if let Some(ext) = path.extension() {
+        if ext.to_string_lossy().to_lowercase() == "jxl" {
+            return Err("JPEG XL形式の画像編集は現在サポートされていません".to_string());
+        }
+    }
+
     let normalized_angle = ((rotation_angle.round() as i32 % 360) + 360) % 360;
 
     if normalized_angle == 0 {

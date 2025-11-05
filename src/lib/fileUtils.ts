@@ -10,6 +10,7 @@ export const SUPPORTED_EXTENSIONS = new Set([
   "tiff",
   "tif",
   "avif",
+  "jxl",
 ]);
 
 export const convertFileToAssetUrl = (filePath: string): string => {

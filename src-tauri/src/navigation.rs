@@ -14,7 +14,7 @@ use std::path::Path;
 ///
 /// # Notes
 ///
-/// サポートされる画像形式: jpg, jpeg, png, gif, bmp, webp, tiff, tif
+/// サポートされる画像形式: jpg, jpeg, png, gif, bmp, webp, tiff, tif, jxl
 #[tauri::command]
 pub fn get_folder_images(folder_path: String) -> Option<Vec<String>> {
     let folder = Path::new(&folder_path);
@@ -25,7 +25,9 @@ pub fn get_folder_images(folder_path: String) -> Option<Vec<String>> {
     let mut images: Vec<(String, std::time::SystemTime)> = Vec::new();
 
     // 画像拡張子フィルター
-    let image_extensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"];
+    let image_extensions = [
+        "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif", "jxl",
+    ];
 
     if let Ok(entries) = fs::read_dir(folder) {
         for entry in entries.flatten() {
