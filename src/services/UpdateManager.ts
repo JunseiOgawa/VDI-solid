@@ -97,16 +97,29 @@ export class UpdateManager {
   private async performUpdateCheck(): Promise<UpdateCheckResult> {
     console.log("[UpdateManager] アップデートをチェック中...");
 
-    const update = await check();
+    // タイムアウト付きでチェックを実行(30秒)
+    const timeoutMs = 30000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("アップデートチェックがタイムアウトしました(30秒)"));
+      }, timeoutMs);
+    });
 
-    this.saveLastCheckTime();
+    try {
+      const update = await Promise.race([check(), timeoutPromise]);
 
-    if (update) {
-      console.log(`[UpdateManager] アップデート利用可能: ${update.version}`);
-      return { available: true, update };
-    } else {
-      console.log("[UpdateManager] 最新版です");
-      return { available: false };
+      this.saveLastCheckTime();
+
+      if (update) {
+        console.log(`[UpdateManager] アップデート利用可能: ${update.version}`);
+        return { available: true, update };
+      } else {
+        console.log("[UpdateManager] 最新版です");
+        return { available: false };
+      }
+    } catch (error) {
+      console.error("[UpdateManager] チェック中にエラー:", error);
+      throw error;
     }
   }
 
