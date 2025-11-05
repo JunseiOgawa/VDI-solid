@@ -1,7 +1,9 @@
 import type { Component } from "solid-js";
-import { Show } from "solid-js";
+import { Show, createSignal, createEffect } from "solid-js";
 import type { GridPattern } from "../../context/AppStateContext";
 import type { LutData } from "../../lib/lutUtils";
+import { isJxlFile } from "../../lib/fileUtils";
+import { decodeJxlToBlob } from "../../lib/jxlDecoder";
 import GridOverlay from "./GridOverlay";
 import PeakingLayer from "./PeakingLayer";
 import LutLayer from "./LutLayer";
@@ -62,6 +64,42 @@ interface ImageManagerProps {
 const ImageManager: Component<ImageManagerProps> = (props) => {
   let wrapperRef: HTMLDivElement | undefined;
   let imgRef: HTMLImageElement | undefined;
+
+  // JXL画像のデコード処理用のSignal
+  const [decodedSrc, setDecodedSrc] = createSignal<string | null>(null);
+  const [isDecoding, setIsDecoding] = createSignal<boolean>(false);
+  const [decodeError, setDecodeError] = createSignal<string | null>(null);
+
+  // JXL画像の場合はデコード処理を実行
+  createEffect(() => {
+    const imagePath = props.imagePath;
+    const src = props.src;
+
+    // 状態をリセット
+    setDecodedSrc(null);
+    setIsDecoding(false);
+    setDecodeError(null);
+
+    if (!imagePath || !src) return;
+
+    // JXL画像かどうかをチェック
+    if (isJxlFile(imagePath)) {
+      console.log("[ImageManager] JXL画像を検出しました:", imagePath);
+      setIsDecoding(true);
+
+      decodeJxlToBlob(imagePath)
+        .then((blobUrl) => {
+          setDecodedSrc(blobUrl);
+          setIsDecoding(false);
+          console.log("[ImageManager] JXL画像のデコードが完了しました");
+        })
+        .catch((error) => {
+          console.error("[ImageManager] JXL画像のデコードに失敗しました:", error);
+          setDecodeError("JXL画像の読み込みに失敗しました");
+          setIsDecoding(false);
+        });
+    }
+  });
 
   const handleImgRef = (el: HTMLImageElement) => {
     imgRef = el;
@@ -125,6 +163,14 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
     }
   };
 
+  // JXL画像の場合はデコード済みsrcを使用、それ以外は元のsrcを使用
+  const imageSrc = () => {
+    if (props.imagePath && isJxlFile(props.imagePath)) {
+      return decodedSrc() || props.src;
+    }
+    return props.src;
+  };
+
   return (
     <div
       ref={(el) => (wrapperRef = el)}
@@ -133,10 +179,50 @@ const ImageManager: Component<ImageManagerProps> = (props) => {
         display: "inline-block",
       }}
     >
+      {/* デコード中のローディング表示 */}
+      <Show when={isDecoding()}>
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            "z-index": "10",
+            padding: "12px 24px",
+            background: "rgba(0, 0, 0, 0.7)",
+            color: "white",
+            "border-radius": "8px",
+            "font-size": "14px",
+          }}
+        >
+          JXL画像を読み込み中...
+        </div>
+      </Show>
+
+      {/* デコードエラー表示 */}
+      <Show when={decodeError()}>
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            "z-index": "10",
+            padding: "12px 24px",
+            background: "rgba(220, 38, 38, 0.9)",
+            color: "white",
+            "border-radius": "8px",
+            "font-size": "14px",
+          }}
+        >
+          {decodeError()}
+        </div>
+      </Show>
+
       {/* Layer 1: 基礎画像 */}
       <img
         ref={handleImgRef}
-        src={props.src}
+        src={imageSrc()}
         alt="Displayed Image"
         onLoad={handleLoad}
         onDragStart={(e) => e.preventDefault()}

@@ -23,6 +23,14 @@ export const isSupportedImageFile = (filePath: string): boolean => {
 };
 
 /**
+ * ファイルがJXL形式かどうかを判定する
+ */
+export const isJxlFile = (filePath: string): boolean => {
+  const extension = filePath.split(".").pop()?.toLowerCase();
+  return extension === "jxl";
+};
+
+/**
  * ファイルパスをアセットURLに変換し、キャッシュバスティング用のクエリパラメータを追加する関数。
  *
  * この関数は、指定されたファイルパスを基に、TauriのconvertFileSrc関数を使用してベースURLを生成します。

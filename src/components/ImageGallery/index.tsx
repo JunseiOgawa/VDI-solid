@@ -10,6 +10,8 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppState } from "../../context/AppStateContext";
+import { isJxlFile } from "../../lib/fileUtils";
+import { decodeJxlToBlob } from "../../lib/jxlDecoder";
 
 /**
  * ImageGalleryコンポーネントのProps
@@ -39,6 +41,46 @@ const getParentFolder = (path: string): string | null => {
   const parts = path.split(/[\\/]/);
   parts.pop(); // ファイル名を削除
   return parts.length > 0 ? parts.join("\\") : null;
+};
+
+/**
+ * サムネイル画像コンポーネント
+ * JXL画像の場合は自動的にデコードして表示
+ */
+const ThumbnailImage: Component<{
+  imagePath: string;
+  fileName: string;
+}> = (props) => {
+  const [thumbnailSrc, setThumbnailSrc] = createSignal<string>("");
+
+  createEffect(() => {
+    const imagePath = props.imagePath;
+
+    if (isJxlFile(imagePath)) {
+      // JXL画像の場合はデコード
+      decodeJxlToBlob(imagePath)
+        .then((blobUrl) => {
+          setThumbnailSrc(blobUrl);
+        })
+        .catch((error) => {
+          console.error("[Gallery] JXLサムネイルのデコードに失敗:", error);
+          // エラー時は元のsrcを使用（表示されないが、エラーハンドリングのため）
+          setThumbnailSrc(convertFileSrc(imagePath));
+        });
+    } else {
+      // 通常の画像の場合はそのまま使用
+      setThumbnailSrc(convertFileSrc(imagePath));
+    }
+  });
+
+  return (
+    <img
+      src={thumbnailSrc()}
+      class="w-full aspect-video object-cover bg-black/30 backdrop-blur-sm"
+      alt={props.fileName}
+      loading="lazy"
+    />
+  );
 };
 
 /**
@@ -183,12 +225,10 @@ const ImageGallery: Component<ImageGalleryProps> = (props) => {
                 props.onImageSelect(imagePath);
               }}
             >
-              {/* サムネイル */}
-              <img
-                src={convertFileSrc(imagePath)}
-                class="w-full aspect-video object-cover bg-black/30 backdrop-blur-sm"
-                alt={getFileName(imagePath)}
-                loading="lazy"
+              {/* サムネイル（JXL対応） */}
+              <ThumbnailImage
+                imagePath={imagePath}
+                fileName={getFileName(imagePath)}
               />
               {/* ファイル名 */}
               <div class="bg-black/40 backdrop-blur-md border-t border-white/[0.08] p-1.5 text-white/80 text-xs truncate">

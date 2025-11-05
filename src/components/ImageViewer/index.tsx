@@ -656,7 +656,7 @@ const ImageViewer: Component = () => {
             ドラッグアンドドロップでファイルを開きます
           </span>
           <span class="text-label opacity-80">
-            画像: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
+            画像: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF, JXL
           </span>
           <span class="text-label opacity-80">LUT: .cube</span>
         </div>
@@ -845,7 +845,7 @@ const ImageViewer: Component = () => {
             ファイルを選択
           </button>
           <div class="text-caption text-[var(--glass-text-tertiary)] mt-2">
-            対応形式: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF
+            対応形式: JPG, PNG, GIF, BMP, WEBP, TIFF, AVIF, JXL
           </div>
         </div>
       )}
