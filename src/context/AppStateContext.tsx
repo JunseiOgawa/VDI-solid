@@ -24,6 +24,7 @@ import {
   interpolate,
 } from "../locales";
 import { parseCubeFile, type LutData } from "../lib/lutUtils";
+import { profiler } from "../lib/performanceProfiler";
 
 /**
  * LUTファイル履歴のエントリ
@@ -252,6 +253,9 @@ const normalizeRotation = (value: number) => {
  * - 実際のファイル回転はデバウンスとキュー管理を通じてまとめて行われ、失敗時のロールバックや残差処理（applyResidualRotation）を行う。
  */
 export const AppProvider: ParentComponent = (props) => {
+  // AppProvider初期化開始
+  profiler.mark("app-provider-start");
+
   const [currentImagePath, _setCurrentImagePath] = createSignal<string>("");
   const [currentImageFilePath, setCurrentImageFilePath] = createSignal<
     string | null
@@ -772,6 +776,11 @@ export const AppProvider: ParentComponent = (props) => {
   createThemeController(theme);
 
   onMount(async () => {
+    profiler.mark("app-provider-onmount-start");
+
+    // LocalStorageの読み込み開始
+    profiler.mark("localstorage-read-start");
+
     // コマンドライン引数から起動設定を取得
     const launchConfig = await getLaunchConfig();
 
@@ -986,6 +995,24 @@ export const AppProvider: ParentComponent = (props) => {
       setCurrentImagePath(assetUrl, { filePath: launchConfig.imagePath });
     }
     // デフォルト画像は設定しない（プレースホルダーを表示するため）
+
+    // LocalStorageの読み込み終了
+    profiler.mark("localstorage-read-end");
+    profiler.measureFromMark(
+      "localstorage-read-duration",
+      "localstorage-read-start",
+    );
+
+    // AppProvider初期化完了
+    profiler.mark("app-provider-onmount-end");
+    profiler.measureFromMark(
+      "app-provider-onmount-duration",
+      "app-provider-onmount-start",
+    );
+    profiler.measureFromMark(
+      "app-provider-init-duration",
+      "app-provider-start",
+    );
   });
 
   onCleanup(() => {

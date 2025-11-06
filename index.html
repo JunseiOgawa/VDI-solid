@@ -6,6 +6,14 @@
     <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/svg+xml" href="/src/assets/logo.svg" />
     <title>Tauri + Solid + Typescript App</title>
+
+    <!-- パフォーマンスプロファイリング: 最も早い計測ポイント -->
+    <script>
+      if (typeof performance !== 'undefined' && performance.mark) {
+        performance.mark('html-start');
+        window.__PROFILE_START_TIME__ = performance.now();
+      }
+    </script>
   </head>
 
   <body>

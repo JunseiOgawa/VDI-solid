@@ -8,6 +8,7 @@ mod img;
 mod navigation;
 mod peaking;
 mod process_manager;
+mod profiling;
 
 /// ウィンドウを表示するコマンド
 ///
@@ -15,6 +16,20 @@ mod process_manager;
 /// 非表示で起動していたウィンドウを表示します。
 #[tauri::command]
 fn show_window(window: tauri::Window) -> Result<(), String> {
+    #[cfg(feature = "profiling")]
+    {
+        let _span = tracing::info_span!("show_window_command").entered();
+        let start = std::time::Instant::now();
+        let result = window.show().map_err(|e| e.to_string());
+        let elapsed = start.elapsed();
+        tracing::info!(
+            duration_ms = elapsed.as_millis() as u64,
+            success = result.is_ok(),
+            "show_window command completed"
+        );
+        result
+    }
+    #[cfg(not(feature = "profiling"))]
     window.show().map_err(|e| e.to_string())
 }
 
@@ -143,19 +158,104 @@ async fn get_system_theme() -> String {
 /// * `WIDTHxHEIGHT` の形式を渡すと指定解像度にウィンドウサイズを設定します。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(feature = "profiling")]
+    {
+        profiling::init_tracing();
+        tracing::info!("Application run() started");
+    }
+
     // コマンドライン引数から起動設定を取得
+    #[cfg(feature = "profiling")]
+    let launch_config = {
+        let _span = tracing::info_span!("parse_launch_config").entered();
+        let start = std::time::Instant::now();
+        let config = cli_args::LaunchConfig::from_args();
+        let elapsed = start.elapsed();
+        tracing::info!(
+            duration_ms = elapsed.as_millis() as u64,
+            "Launch config parsed"
+        );
+        config
+    };
+    #[cfg(not(feature = "profiling"))]
     let launch_config = cli_args::LaunchConfig::from_args();
+
     let window_mode = launch_config.window_mode;
 
     if launch_config.close_existing_windows.unwrap_or(false) {
+        #[cfg(feature = "profiling")]
+        {
+            let _span = tracing::info_span!("close_other_instances").entered();
+            let start = std::time::Instant::now();
+            process_manager::close_other_vdi_instances();
+            let elapsed = start.elapsed();
+            tracing::info!(
+                duration_ms = elapsed.as_millis() as u64,
+                "Other instances closed"
+            );
+        }
+        #[cfg(not(feature = "profiling"))]
         process_manager::close_other_vdi_instances();
     }
 
-    tauri::Builder::default()
-        // 軽量プラグインから順に初期化して起動速度を最適化
-        .plugin(tauri_plugin_opener::init()) // 最軽量
-        .plugin(fs_init()) // ファイルシステム(必須)
-        .plugin(tauri_plugin_dialog::init()) // ダイアログ(比較的軽量)
+    #[cfg(feature = "profiling")]
+    tracing::info!("Starting Tauri builder initialization");
+
+    #[cfg(feature = "profiling")]
+    let builder = {
+        let _span = tracing::info_span!("tauri_builder_init").entered();
+        tauri::Builder::default()
+    };
+    #[cfg(not(feature = "profiling"))]
+    let builder = tauri::Builder::default();
+
+    // 軽量プラグインから順に初期化して起動速度を最適化
+    #[cfg(feature = "profiling")]
+    let builder = {
+        let _span = tracing::info_span!("plugin_opener_init").entered();
+        let start = std::time::Instant::now();
+        let b = builder.plugin(tauri_plugin_opener::init());
+        let elapsed = start.elapsed();
+        tracing::info!(
+            duration_ms = elapsed.as_millis() as u64,
+            "opener plugin initialized"
+        );
+        b
+    };
+    #[cfg(not(feature = "profiling"))]
+    let builder = builder.plugin(tauri_plugin_opener::init());
+
+    #[cfg(feature = "profiling")]
+    let builder = {
+        let _span = tracing::info_span!("plugin_fs_init").entered();
+        let start = std::time::Instant::now();
+        let b = builder.plugin(fs_init());
+        let elapsed = start.elapsed();
+        tracing::info!(
+            duration_ms = elapsed.as_millis() as u64,
+            "fs plugin initialized"
+        );
+        b
+    };
+    #[cfg(not(feature = "profiling"))]
+    let builder = builder.plugin(fs_init());
+
+    #[cfg(feature = "profiling")]
+    let builder = {
+        let _span = tracing::info_span!("plugin_dialog_init").entered();
+        let start = std::time::Instant::now();
+        let b = builder.plugin(tauri_plugin_dialog::init());
+        let elapsed = start.elapsed();
+        tracing::info!(
+            duration_ms = elapsed.as_millis() as u64,
+            "dialog plugin initialized"
+        );
+        b
+    };
+    #[cfg(not(feature = "profiling"))]
+    let builder = builder.plugin(tauri_plugin_dialog::init());
+
+    builder
         .invoke_handler(tauri::generate_handler![
             img::get_launch_image_path,
             img::get_launch_window_mode,
@@ -176,12 +276,41 @@ pub fn run() {
             file_operations::delete_file
         ])
         .setup(move |app| {
+            #[cfg(feature = "profiling")]
+            let _span = tracing::info_span!("tauri_setup").entered();
+
             // Desktop専用のプラグインを登録
             #[cfg(desktop)]
             {
-                app.handle()
-                    .plugin(tauri_plugin_updater::Builder::new().build())?;
-                app.handle().plugin(tauri_plugin_process::init())?;
+                #[cfg(feature = "profiling")]
+                {
+                    let _span = tracing::info_span!("desktop_plugins_init").entered();
+                    let start = std::time::Instant::now();
+
+                    app.handle()
+                        .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+                    let updater_elapsed = start.elapsed();
+                    tracing::info!(
+                        duration_ms = updater_elapsed.as_millis() as u64,
+                        "updater plugin initialized"
+                    );
+
+                    let start = std::time::Instant::now();
+                    app.handle().plugin(tauri_plugin_process::init())?;
+
+                    let process_elapsed = start.elapsed();
+                    tracing::info!(
+                        duration_ms = process_elapsed.as_millis() as u64,
+                        "process plugin initialized"
+                    );
+                }
+                #[cfg(not(feature = "profiling"))]
+                {
+                    app.handle()
+                        .plugin(tauri_plugin_updater::Builder::new().build())?;
+                    app.handle().plugin(tauri_plugin_process::init())?;
+                }
             }
 
             // メインウィンドウを取得して右クリックメニューとテキスト選択を無効化

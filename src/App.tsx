@@ -7,6 +7,7 @@ import Titlebar from "./components/Titlebar";
 import ImageViewer from "./components/ImageViewer";
 import Footer from "./components/Footer";
 import { AppProvider, useAppState } from "./context/AppStateContext";
+import { profiler } from "./lib/performanceProfiler";
 
 // 遅延ロードコンポーネント
 const ImageGallery = lazy(() => import("./components/ImageGallery"));
@@ -246,12 +247,25 @@ const AppMain: Component = () => {
 };
 
 const App: Component = () => {
+  // App コンポーネント初期化開始
+  profiler.mark("app-component-start");
+
   // UIがマウントされた後にウィンドウを表示
   onMount(() => {
+    profiler.mark("app-onmount-start");
+
     // queueMicrotaskで可能な限り早くウィンドウを表示
     queueMicrotask(async () => {
+      profiler.mark("show-window-prep");
+
       try {
+        profiler.mark("show-window-call-start");
         await invoke("show_window");
+        profiler.mark("show-window-call-end");
+        profiler.measureFromMark(
+          "show-window-ipc-duration",
+          "show-window-call-start",
+        );
 
         // ウィンドウ表示後にアップデートチェックを実行
         // 起動速度に影響しないよう、さらに遅延させる
@@ -309,6 +323,24 @@ const App: Component = () => {
     onCleanup(() => {
       document.removeEventListener("keydown", handleKeyDown);
     });
+
+    profiler.mark("app-onmount-end");
+    profiler.measureFromMark(
+      "app-onmount-duration",
+      "app-onmount-start",
+    );
+
+    // 起動プロセス全体の計測
+    profiler.measureFromMark(
+      "total-startup-time",
+      "html-start",
+    );
+
+    // レポートを出力(2秒後、安定してから)
+    setTimeout(() => {
+      profiler.printReport();
+      console.log("[Profiler] JSON Report:", profiler.exportToJSON());
+    }, 2000);
   });
 
   return (
