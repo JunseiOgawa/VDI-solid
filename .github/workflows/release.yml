@@ -48,6 +48,7 @@ jobs:
       # このステップで以下のファイルが生成されます：
       #   - MSI インストーラ（src-tauri/target/release/bundle/msi/）
       #   - NSIS インストーラ（src-tauri/target/release/bundle/nsis/）
+      #   - 実行ファイル（src-tauri/target/release/vdi-solid.exe）
       - name: Build Tauri app
         run: npm run tauri build # リリースビルド（最適化有効）
         env:
@@ -57,7 +58,14 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      # ステップ7: ビルド成果物をGitHub Releasesにアップロード
+      # ステップ7: ポータブル版実行ファイルを作成
+      # インストール不要で直接実行可能な.exeファイルをコピー
+      - name: Create portable executable
+        run: |
+          $VERSION = "${{ github.ref_name }}" -replace '^v', ''
+          Copy-Item "src-tauri/target/release/vdi-solid.exe" "src-tauri/target/release/vdi-solid_${VERSION}_x64_portable.exe"
+
+      # ステップ8: ビルド成果物をGitHub Releasesにアップロード
       # 注: 存在しないファイルパターンは自動的にスキップされます
       #     (署名鍵がない場合、.sigファイルとlatest.jsonは生成されません)
       - name: Upload Release Assets
@@ -65,7 +73,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }} # タグ名を使用（例: v0.2.16）
           name: Release ${{ github.ref_name }} # リリース名
-          body: Windows installers for VDI-solid # リリース説明文
+          body: Windows installers and portable executable for VDI-solid # リリース説明文
           draft: false # 公開リリース（下書きではない）
           prerelease: false # 正式リリース（プレリリースではない）
           files: |
@@ -73,6 +81,7 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi.sig
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/nsis/*.exe.sig
+            src-tauri/target/release/vdi-solid_*_x64_portable.exe
         env:
           # GitHubの認証トークン（自動で設定）
           # このトークンによってReleasesページへの書き込み権限が有効化される

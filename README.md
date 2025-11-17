@@ -19,6 +19,37 @@ VDI-solidは、VRゴーグルのパススルー機能を活用して画像チェ
 
 ---
 
+## 📥 インストール
+
+### エンドユーザー向け
+
+[GitHub Releases](https://github.com/JunseiOgawa/VDI-solid/releases/latest)から、お使いのプラットフォームに合わせたインストーラーまたは実行ファイルをダウンロードしてください。
+
+#### Windows
+- **インストーラー版**（推奨）:
+  - `vdi-solid_x.x.x_x64_en-US.exe`（NSIS形式）または`vdi-solid_x.x.x_x64_en-US.msi`をダウンロード
+  - インストーラーを実行してセットアップ
+  - 自動更新機能が有効
+- **ポータブル版**:
+  - `vdi-solid_x.x.x_x64_portable.exe`をダウンロード
+  - インストール不要で直接実行可能
+  - 任意のフォルダに配置して使用可能
+  - ⚠️ Windows 10の場合、[WebView2ランタイム](https://developer.microsoft.com/ja-jp/microsoft-edge/webview2/)の別途インストールが必要な場合があります
+
+#### Linux
+- **DEBパッケージ**（Ubuntu/Debian系）:
+  - `vdi-solid_x.x.x_amd64.deb`をダウンロード
+  - `sudo dpkg -i vdi-solid_x.x.x_amd64.deb`でインストール
+- **AppImage**（汎用）:
+  - `vdi-solid_x.x.x_amd64.AppImage`をダウンロード
+  - 実行権限を付与: `chmod +x vdi-solid_x.x.x_amd64.AppImage`
+  - 直接実行可能
+
+#### macOS
+- 準備中
+
+---
+
 ## 🎯 機能
 
 ### ✅ 実装済み機能
