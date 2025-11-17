@@ -8,6 +8,8 @@ Tauri、SolidJS、TypeScriptを用いて開発されたVRゴーグル向け画�
 
 VDI-solidは、VRゴーグルのパススルー機能を活用して画像チェックを効率化する軽量画像ビューアです。高速起動とVRコントローラーでの直感的な操作を重視し、モダンなUIデザイン（Glassmorphism）を採用しています。
 
+**対応プラットフォーム**: Windows、macOS、Linux (Ubuntu 20.04 LTS以降)
+
 ### デザイン思想
 
 - **VR環境最適化**: パススルー表示での快適な画像確認
@@ -124,7 +126,24 @@ cargo install tauri-cli
      npm run tauri build:mac
      ```
    - **Linux**
+
+     Linuxでビルドする前に、システム依存関係をインストールする必要があります:
+
      ```bash
+     # Ubuntu/Debian
+     sudo apt-get update
+     sudo apt-get install -y \
+       libwebkit2gtk-4.1-dev \
+       build-essential \
+       curl \
+       wget \
+       file \
+       libxdo-dev \
+       libssl-dev \
+       libayatana-appindicator3-dev \
+       librsvg2-dev
+
+     # ビルド実行
      npm run tauri build:linux
      ```
 
