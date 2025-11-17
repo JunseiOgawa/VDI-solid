@@ -48,7 +48,7 @@ jobs:
       # このステップで以下のファイルが生成されます：
       #   - MSI インストーラ（src-tauri/target/release/bundle/msi/）
       #   - NSIS インストーラ（src-tauri/target/release/bundle/nsis/）
-      #   - 実行ファイル（src-tauri/target/release/vdi-solid.exe）
+      #   - 実行ファイル（src-tauri/target/release/vdi.exe）
       - name: Build Tauri app
         run: npm run tauri build # リリースビルド（最適化有効）
         env:
@@ -63,7 +63,7 @@ jobs:
       - name: Create portable executable
         run: |
           $VERSION = "${{ github.ref_name }}" -replace '^v', ''
-          Copy-Item "src-tauri/target/release/vdi-solid.exe" "src-tauri/target/release/vdi-solid_${VERSION}_x64_portable.exe"
+          Copy-Item "src-tauri/target/release/vdi.exe" "src-tauri/target/release/vdi-solid_${VERSION}_x64_portable.exe"
 
       # ステップ8: ビルド成果物をGitHub Releasesにアップロード
       # 注: 存在しないファイルパターンは自動的にスキップされます
