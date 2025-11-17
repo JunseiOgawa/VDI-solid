@@ -64,6 +64,9 @@
         "files": {
           "/usr/share/doc/vdi-solid/": "../licenses/EULA_EN.txt"
         }
+      },
+      "appimage": {
+        "bundleMediaFramework": false
       }
     }
   }
