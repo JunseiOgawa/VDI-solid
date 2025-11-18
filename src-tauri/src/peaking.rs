@@ -1,4 +1,5 @@
 use image::{DynamicImage, GenericImageView, ImageBuffer, Luma};
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,10 +8,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-lazy_static::lazy_static! {
-    static ref CANCEL_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
-    static ref REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
-}
+static CANCEL_FLAGS: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// ダウンサンプリング閾値（幅または高さがこの値以上の場合にダウンサンプリング）
 const DOWNSAMPLE_THRESHOLD: u32 = 2000;

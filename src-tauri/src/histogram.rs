@@ -1,4 +1,5 @@
 use image::{DynamicImage, GenericImageView};
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,10 +8,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-lazy_static::lazy_static! {
-    static ref HISTOGRAM_CANCEL_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
-    static ref HISTOGRAM_REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
-}
+static HISTOGRAM_CANCEL_FLAGS: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+static HISTOGRAM_REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// ユニークなリクエストIDを生成
 fn generate_unique_request_id(base_key: &str) -> String {

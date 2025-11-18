@@ -7,10 +7,11 @@
     "beforeDevCommand": "vite",
     "devUrl": "http://localhost:50500",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "removeUnusedCommands": true
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "label": "main",
@@ -20,7 +21,7 @@
         "visible": false,
         "minWidth": 500,
         "minHeight": 300,
-        "transparent": true,
+        "transparent": false,
         "decorations": false
       }
     ],
