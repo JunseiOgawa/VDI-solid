@@ -1,8 +1,10 @@
 import type { Component } from "solid-js";
 import { createSignal, onMount, onCleanup, Show, lazy, Suspense } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import MultiMenu from "../ImageViewer/MultiMenu";
 import type { GridPattern } from "../../context/AppStateContext";
+
+// MultiMenuを遅延ロード(起動速度最適化)
+const MultiMenu = lazy(() => import("../ImageViewer/MultiMenu"));
 
 // SettingsMenuを遅延ロード
 const SettingsMenu = lazy(() => import("../SettingsMenu"));
@@ -418,32 +420,34 @@ const Titlebar: Component<TitlebarProps> = (props) => {
           data-menu="multi"
         >
           <div class="pointer-events-auto">
-            <MultiMenu
-              gridPattern={props.gridPattern}
-              onGridPatternChange={props.onGridPatternChange}
-              gridOpacity={props.gridOpacity}
-              onGridOpacityChange={props.onGridOpacityChange}
-              peakingEnabled={props.peakingEnabled}
-              onPeakingEnabledChange={props.onPeakingEnabledChange}
-              peakingIntensity={props.peakingIntensity}
-              onPeakingIntensityChange={props.onPeakingIntensityChange}
-              peakingColor={props.peakingColor}
-              onPeakingColorChange={props.onPeakingColorChange}
-              peakingOpacity={props.peakingOpacity}
-              onPeakingOpacityChange={props.onPeakingOpacityChange}
-              peakingBlink={props.peakingBlink}
-              onPeakingBlinkChange={props.onPeakingBlinkChange}
-              histogramEnabled={props.histogramEnabled}
-              onHistogramEnabledChange={props.onHistogramEnabledChange}
-              histogramDisplayType={props.histogramDisplayType}
-              onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
-              histogramPosition={props.histogramPosition}
-              onHistogramPositionChange={props.onHistogramPositionChange}
-              histogramSize={props.histogramSize}
-              onHistogramSizeChange={props.onHistogramSizeChange}
-              histogramOpacity={props.histogramOpacity}
-              onHistogramOpacityChange={props.onHistogramOpacityChange}
-            />
+            <Suspense fallback={<div class="w-[280px] h-[200px] bg-[var(--glass-bg-primary)] rounded-lg animate-pulse" />}>
+              <MultiMenu
+                gridPattern={props.gridPattern}
+                onGridPatternChange={props.onGridPatternChange}
+                gridOpacity={props.gridOpacity}
+                onGridOpacityChange={props.onGridOpacityChange}
+                peakingEnabled={props.peakingEnabled}
+                onPeakingEnabledChange={props.onPeakingEnabledChange}
+                peakingIntensity={props.peakingIntensity}
+                onPeakingIntensityChange={props.onPeakingIntensityChange}
+                peakingColor={props.peakingColor}
+                onPeakingColorChange={props.onPeakingColorChange}
+                peakingOpacity={props.peakingOpacity}
+                onPeakingOpacityChange={props.onPeakingOpacityChange}
+                peakingBlink={props.peakingBlink}
+                onPeakingBlinkChange={props.onPeakingBlinkChange}
+                histogramEnabled={props.histogramEnabled}
+                onHistogramEnabledChange={props.onHistogramEnabledChange}
+                histogramDisplayType={props.histogramDisplayType}
+                onHistogramDisplayTypeChange={props.onHistogramDisplayTypeChange}
+                histogramPosition={props.histogramPosition}
+                onHistogramPositionChange={props.onHistogramPositionChange}
+                histogramSize={props.histogramSize}
+                onHistogramSizeChange={props.onHistogramSizeChange}
+                histogramOpacity={props.histogramOpacity}
+                onHistogramOpacityChange={props.onHistogramOpacityChange}
+              />
+            </Suspense>
           </div>
         </div>
       </Show>
