@@ -51,10 +51,20 @@ jobs:
           cd src-tauri/target/${{ matrix.target }}/release
           cp ${{ matrix.bin_name }} ../../../../${{ matrix.asset_name }}
 
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Installer
+        shell: pwsh
+        run: |
+          ./installer/build.ps1 -Version "${{ github.ref_name }}"
+
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset_name }}
+          files: |
+            ${{ matrix.asset_name }}
+            dist/VDI-Setup-${{ github.ref_name }}.exe
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           draft: false
