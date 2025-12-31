@@ -8,8 +8,7 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
-use vdi_lib::{histogram, img, navigation, peaking};
-use image::GenericImageView;
+use vdi_lib::{histogram, peaking};
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -91,12 +90,9 @@ struct VdiApp {
     blink_time: f32,
     fit_requested: bool,
     
-    // Temporary settings for UI
-    temp_peaking_threshold: u8,
-    temp_peaking_intensity: u8,
-    temp_peaking_opacity: f32,
-    temp_histogram_size: f32,
-    temp_histogram_opacity: f32,
+    // Throttling
+    peaking_dirty: bool,
+    last_peaking_trigger: f64,
 }
 
 impl VdiApp {
@@ -104,11 +100,8 @@ impl VdiApp {
         let settings = AppSettings::load();
         
         Self {
-            temp_peaking_threshold: settings.peaking_threshold,
-            temp_peaking_intensity: settings.peaking_intensity,
-            temp_peaking_opacity: settings.peaking_opacity,
-            temp_histogram_size: settings.histogram_size,
-            temp_histogram_opacity: settings.histogram_opacity,
+            peaking_dirty: false,
+            last_peaking_trigger: 0.0,
             settings,
             current_path: None,
             texture: None,
@@ -548,10 +541,8 @@ impl eframe::App for VdiApp {
         });
         
         // Settings Window
-        let mut trigger_peaking_update = false;
-        
         if self.show_settings {
-            if let Some(response) = egui::Window::new("Settings")
+            egui::Window::new("Settings")
                 .open(&mut self.show_settings)
                 .show(ctx, |ui| {
                     ui.heading("Zoom");
@@ -561,27 +552,17 @@ impl eframe::App for VdiApp {
                     ui.separator();
                     ui.heading("Peaking");
                     
-                    // Use local variable to avoid borrow issues
-                    let mut should_trigger = false;
-                    
-                    ui.add(egui::Slider::new(&mut self.temp_peaking_threshold, 0..=255)
-                        .text("Threshold"));
-                    if ui.button("Apply Threshold").clicked() {
-                        self.settings.peaking_threshold = self.temp_peaking_threshold;
-                        should_trigger = self.peaking_enabled;
+                    if ui.add(egui::Slider::new(&mut self.settings.peaking_threshold, 0..=255)
+                        .text("Threshold")).changed() 
+                    {
+                        self.peaking_dirty = true;
                     }
                     
-                    ui.add(egui::Slider::new(&mut self.temp_peaking_intensity, 0..=255)
+                    ui.add(egui::Slider::new(&mut self.settings.peaking_intensity, 0..=255)
                         .text("Intensity"));
-                    if ui.button("Apply Intensity").clicked() {
-                        self.settings.peaking_intensity = self.temp_peaking_intensity;
-                    }
                     
-                    ui.add(egui::Slider::new(&mut self.temp_peaking_opacity, 0.0..=1.0)
+                    ui.add(egui::Slider::new(&mut self.settings.peaking_opacity, 0.0..=1.0)
                         .text("Opacity"));
-                    if ui.button("Apply Opacity").clicked() {
-                        self.settings.peaking_opacity = self.temp_peaking_opacity;
-                    }
                     
                     ui.color_edit_button_srgb(&mut self.settings.peaking_color);
                     ui.checkbox(&mut self.settings.peaking_blink, "Blink");
@@ -603,17 +584,11 @@ impl eframe::App for VdiApp {
                     ui.separator();
                     ui.heading("Histogram");
                     
-                    ui.add(egui::Slider::new(&mut self.temp_histogram_size, 0.5..=2.0)
+                    ui.add(egui::Slider::new(&mut self.settings.histogram_size, 0.5..=2.0)
                         .text("Size"));
-                    if ui.button("Apply Size").clicked() {
-                        self.settings.histogram_size = self.temp_histogram_size;
-                    }
                     
-                    ui.add(egui::Slider::new(&mut self.temp_histogram_opacity, 0.0..=1.0)
+                    ui.add(egui::Slider::new(&mut self.settings.histogram_opacity, 0.0..=1.0)
                         .text("Opacity"));
-                    if ui.button("Apply Opacity").clicked() {
-                        self.settings.histogram_opacity = self.temp_histogram_opacity;
-                    }
                     
                     egui::ComboBox::from_label("Position")
                         .selected_text(format!("{:?}", self.settings.histogram_position))
@@ -629,26 +604,25 @@ impl eframe::App for VdiApp {
                         self.settings.save();
                         self.status_message = "Settings saved".to_string();
                     }
-                    
-                    should_trigger
-                })
-            {
-                if let Some(should_trigger) = response.inner {
-                    trigger_peaking_update = should_trigger;
-                }
-            }
+                });
         }
         
-        // Trigger peaking outside the window closure
-        if trigger_peaking_update {
-            self.trigger_peaking();
+        // Trigger peaking logic with throttling
+        let now = ctx.input(|i| i.time);
+        if self.peaking_dirty && self.peaking_enabled {
+            // Only trigger if enough time passed AND no calculation currently running
+            if now - self.last_peaking_trigger > 0.1 && self.peaking_receiver.is_none() {
+                self.trigger_peaking();
+                self.last_peaking_trigger = now;
+                self.peaking_dirty = false;
+            }
         }
 
         // Central Panel - Image Viewer
         let mut fit_size = None;
         
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().margin(0.0))
+            .frame(egui::Frame::none().inner_margin(0.0))
             .show(ctx, |ui| {
             if let Some(texture) = &self.texture {
                 let available_size = ui.available_size();
