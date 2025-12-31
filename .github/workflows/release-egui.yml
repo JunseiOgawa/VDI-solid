@@ -1,0 +1,66 @@
+name: "Release Egui"
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-release:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_name: vdi-solid_windows_x64.exe
+            bin_name: vdi-egui.exe
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   asset_name: vdi-solid_linux_x64
+          #   bin_name: vdi-egui
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          profile: minimal
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      # Windows specific dependencies? (None usually for pure Rust)
+      # Linux specific dependencies would go here if uncommented
+
+      - name: Build Binary
+        run: |
+          cd src-tauri
+          cargo build --release --bin vdi-egui --target ${{ matrix.target }}
+        
+      - name: Rename and Prepare Asset
+        shell: bash
+        run: |
+          cd src-tauri/target/${{ matrix.target }}/release
+          cp ${{ matrix.bin_name }} ../../../../${{ matrix.asset_name }}
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

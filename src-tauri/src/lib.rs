@@ -1,13 +1,13 @@
 use tauri::Manager;
 use tauri_plugin_fs::init as fs_init;
 
-mod cli_args;
-mod file_operations;
-mod histogram;
-mod img;
-mod navigation;
-mod peaking;
-mod process_manager;
+pub mod cli_args;
+pub mod file_operations;
+pub mod histogram;
+pub mod img;
+pub mod navigation;
+pub mod peaking;
+pub mod process_manager;
 
 /// ウィンドウを表示するコマンド
 ///
