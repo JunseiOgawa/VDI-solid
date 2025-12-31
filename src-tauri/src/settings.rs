@@ -1,23 +1,22 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    // Peaking settings
+    // ピーキング設定
     pub peaking_threshold: u8,
     pub peaking_intensity: u8,
     pub peaking_color: [u8; 3],
     pub peaking_opacity: f32,
     pub peaking_blink: bool,
 
-    // Zoom settings
+    // ズーム設定
     pub wheel_sensitivity: f32,
 
-    // Grid settings
+    // グリッド設定
     pub grid_pattern: GridPattern,
     pub grid_opacity: f32,
 
-    // Histogram settings
+    // ヒストグラム設定
     pub histogram_size: f32,
     pub histogram_opacity: f32,
     pub histogram_position: HistogramPosition,

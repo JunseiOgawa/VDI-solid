@@ -2,7 +2,7 @@ use std::path::Path;
 
 use sysinfo::{get_current_pid, Pid, System};
 
-/// Terminates any other running instances of this application to honor the CLOSEWINDOW mode.
+/// CLOSEWINDOWモードを尊重し、このアプリケーションの他の実行中のインスタンスを終了します。
 pub fn close_other_vdi_instances() {
     let mut system = System::new_all();
     system.refresh_processes();
