@@ -452,13 +452,16 @@ impl eframe::App for VdiApp {
                 println!("[ROTATION_COMPLETE] rotation_in_progress: {}", self.rotation_in_progress);
                 
                 self.rotation_receiver = None;
-                self.rotation_in_progress = false;
                 
-                println!("[ROTATION_COMPLETE] Cleared rotation_in_progress flag");
-                println!("[ROTATION_COMPLETE] Calling load_image to reload rotated file");
+                println!("[ROTATION_COMPLETE] Calling load_image BEFORE clearing flag");
                 
-                // Keep the rotation value but reload the rotated file
+                // IMPORTANT: Call load_image BEFORE clearing rotation_in_progress
+                // so that load_image sees the flag as true and preserves rotation
                 self.load_image(path, ctx);
+                
+                // Now clear the flag after reload
+                self.rotation_in_progress = false;
+                println!("[ROTATION_COMPLETE] Cleared rotation_in_progress flag AFTER reload");
                 
                 self.status_message = "Rotation complete".to_string();
                 println!("[ROTATION_COMPLETE] Rotation complete, final angle: {}°", self.rotation);
