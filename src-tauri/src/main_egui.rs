@@ -674,10 +674,6 @@ impl eframe::App for VdiApp {
                     }
                 }
                 
-                if response.dragged() {
-                    self.pan += response.drag_delta();
-                }
-
                 let image_size = texture.size_vec2();
                 
                 // Swap width/height for 90 and 270 degree rotations
@@ -687,6 +683,17 @@ impl eframe::App for VdiApp {
                     image_size
                 };
                 let scaled_size = display_size * self.zoom;
+                
+                if response.dragged() {
+                    self.pan += response.drag_delta();
+                }
+                
+                // Constrain Pan to keep image somewhat visible
+                let x_limit = (available_size.x + scaled_size.x) / 2.0 - 50.0; // Keep 50px visible
+                let y_limit = (available_size.y + scaled_size.y) / 2.0 - 50.0;
+                
+                self.pan.x = self.pan.x.clamp(-x_limit, x_limit);
+                self.pan.y = self.pan.y.clamp(-y_limit, y_limit);
                 
                 // Center the image + pan
                 let center = response.rect.center() + self.pan;
@@ -707,41 +714,33 @@ impl eframe::App for VdiApp {
                     
                     let mut mesh = Mesh::with_texture(texture.id());
                     
-                    // Calculate rotated corners
-                    let angle_rad = self.rotation.to_radians();
-                    let cos_a = angle_rad.cos();
-                    let sin_a = angle_rad.sin();
-                    
-                    let half_w = scaled_size.x / 2.0;
-                    let half_h = scaled_size.y / 2.0;
-                    
-                    // Corner positions (before rotation)
+                    // Standard Rect corners
                     let corners = [
-                        [-half_w, -half_h], // Top-left
-                        [half_w, -half_h],  // Top-right
-                        [half_w, half_h],   // Bottom-right
-                        [-half_w, half_h],  // Bottom-left
+                        rect.min,                           // Top-left
+                        egui::pos2(rect.max.x, rect.min.y), // Top-right
+                        rect.max,                           // Bottom-right
+                        egui::pos2(rect.min.x, rect.max.y), // Bottom-left
                     ];
                     
                     // UV coordinates based on rotation
                     let uvs = match self.rotation as i32 {
                         90 => [
-                            [0.0, 1.0],  // Top-left -> Bottom-left
-                            [0.0, 0.0],  // Top-right -> Top-left
-                            [1.0, 0.0],  // Bottom-right -> Top-right
-                            [1.0, 1.0],  // Bottom-left -> Bottom-right
+                            [0.0, 1.0],
+                            [0.0, 0.0],
+                            [1.0, 0.0],
+                            [1.0, 1.0],
                         ],
                         180 => [
-                            [1.0, 1.0],  // Top-left -> Bottom-right
-                            [0.0, 1.0],  // Top-right -> Bottom-left
-                            [0.0, 0.0],  // Bottom-right -> Top-left
-                            [1.0, 0.0],  // Bottom-left -> Top-right
+                            [1.0, 1.0],
+                            [0.0, 1.0],
+                            [0.0, 0.0],
+                            [1.0, 0.0],
                         ],
                         270 => [
-                            [1.0, 0.0],  // Top-left -> Top-right
-                            [1.0, 1.0],  // Top-right -> Bottom-right
-                            [0.0, 1.0],  // Bottom-right -> Bottom-left
-                            [0.0, 0.0],  // Bottom-left -> Top-left
+                            [1.0, 0.0],
+                            [1.0, 1.0],
+                            [0.0, 1.0],
+                            [0.0, 0.0],
                         ],
                         _ => [
                             [0.0, 0.0],
@@ -751,19 +750,16 @@ impl eframe::App for VdiApp {
                         ],
                     };
                     
-                    // Add vertices with rotation
+                    // Add vertices
                     for (i, corner) in corners.iter().enumerate() {
-                        let x = corner[0] * cos_a - corner[1] * sin_a + center.x;
-                        let y = corner[0] * sin_a + corner[1] * cos_a + center.y;
-                        
                         mesh.vertices.push(Vertex {
-                            pos: egui::pos2(x, y),
+                            pos: *corner,
                             uv: egui::pos2(uvs[i][0], uvs[i][1]),
                             color: egui::Color32::WHITE,
                         });
                     }
                     
-                    // Add indices for two triangles
+                    // Add indices
                     mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
                     
                     painter.add(egui::Shape::mesh(mesh));
