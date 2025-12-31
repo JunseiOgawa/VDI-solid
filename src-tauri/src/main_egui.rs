@@ -308,12 +308,19 @@ impl VdiApp {
             let image_size = texture.size_vec2();
             
             // Calculate zoom to fit image in available space
-            let zoom_x = available_size.x / image_size.x;
-            let zoom_y = available_size.y / image_size.y;
+            // Account for rotation
+            let (display_width, display_height) = if self.rotation == 90.0 || self.rotation == 270.0 {
+                (image_size.y, image_size.x)
+            } else {
+                (image_size.x, image_size.y)
+            };
+            
+            let zoom_x = available_size.x / display_width;
+            let zoom_y = available_size.y / display_height;
             
             // Use the smaller zoom factor to ensure entire image is visible
-            // Use 0.95 to leave 5% margin for comfort, with minimum 0.01
-            self.zoom = (zoom_x.min(zoom_y) * 0.95).max(0.01);
+            // Removed 5% margin to fill the screen completely
+            self.zoom = zoom_x.min(zoom_y).max(0.01);
             self.pan = egui::Vec2::ZERO;
             
             self.status_message = format!("Fit to screen: {:.0}%", self.zoom * 100.0);
@@ -640,7 +647,9 @@ impl eframe::App for VdiApp {
         // Central Panel - Image Viewer
         let mut fit_size = None;
         
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::none().margin(0.0))
+            .show(ctx, |ui| {
             if let Some(texture) = &self.texture {
                 let available_size = ui.available_size();
                 
