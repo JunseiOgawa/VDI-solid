@@ -18,7 +18,7 @@ pub struct LaunchConfig {
 
     // ピーキング設定
     pub peaking_enabled: Option<bool>,
-    pub peaking_intensity: Option<u8>,
+    pub peaking_line_width: Option<f32>,
     pub peaking_color: Option<String>,
     pub peaking_opacity: Option<f32>,
     pub peaking_blink: Option<bool>,
@@ -35,11 +35,11 @@ impl LaunchConfig {
     /// - 位置引数1: 画像ファイルパス
     /// - 位置引数2: ウィンドウモード（"FullScreen" または "WIDTHxHEIGHT"）
     /// - `--peaking-enabled <true|false>`
-    /// - `--peaking-intensity <0-255>`
+    /// - `--peaking-line-width <1.0-5.0>`
     /// - `--peaking-color <color>`
     /// - `--peaking-opacity <0.0-1.0>`
     /// - `--peaking-blink <true|false>`
-    /// - `--grid-pattern <off|3x3|5x3|4x4>`
+    /// - `--grid-pattern <3x3|gold|4x4|8x8>`
     /// - `--grid-opacity <0.0-1.0>`
     ///
     /// # Returns
@@ -90,9 +90,9 @@ impl LaunchConfig {
                         i += 1;
                     }
                 }
-                "--peaking-intensity" => {
+                "--peaking-line-width" => {
                     if i + 1 < args.len() {
-                        config.peaking_intensity = args[i + 1].parse().ok();
+                        config.peaking_line_width = args[i + 1].parse().ok();
                         i += 2;
                     } else {
                         i += 1;
@@ -131,7 +131,7 @@ impl LaunchConfig {
                     if i + 1 < args.len() {
                         let pattern = args[i + 1].as_str();
                         // 有効なパターンのみ受け入れる
-                        if ["off", "3x3", "5x3", "4x4"].contains(&pattern) {
+                        if ["3x3", "gold", "4x4", "8x8"].contains(&pattern) {
                             config.grid_pattern = Some(pattern.to_string());
                         }
                         i += 2;
@@ -199,7 +199,7 @@ mod tests {
     fn test_default_config() {
         let config = LaunchConfig::default();
         assert!(config.peaking_enabled.is_none());
-        assert!(config.peaking_intensity.is_none());
+        assert!(config.peaking_line_width.is_none());
         assert!(config.peaking_color.is_none());
         assert!(config.peaking_opacity.is_none());
         assert!(config.peaking_blink.is_none());

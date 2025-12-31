@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod settings;
+mod cli_args;
 
 use eframe::egui;
 use settings::*;
@@ -11,15 +12,20 @@ use std::thread;
 use vdi_lib::{histogram, peaking};
 use std::io::Write;
 
-
+/// CLI引数から起動設定を取得
+static LAUNCH_CONFIG: once_cell::sync::Lazy<cli_args::LaunchConfig> = 
+    once_cell::sync::Lazy::new(cli_args::LaunchConfig::from_args);
 
 fn main() -> eframe::Result {
+    // CLI引数をパース
+    let launch_config = &*LAUNCH_CONFIG;
+    println!("[MAIN] Launch config: {:?}", launch_config);
+    
+    // ウィンドウ設定を構築
+    let viewport_builder = build_viewport_from_config(launch_config);
+    
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1200.0, 800.0])
-            .with_title("VDI-solid (Egui版)")
-            .with_decorations(true)
-            .with_resizable(true),
+        viewport: viewport_builder,
         ..Default::default()
     };
 
@@ -36,6 +42,50 @@ fn main() -> eframe::Result {
             Ok(Box::new(VdiApp::new(cc)))
         }),
     )
+}
+
+/// CLI引数からViewportBuilderを構築
+fn build_viewport_from_config(config: &cli_args::LaunchConfig) -> egui::ViewportBuilder {
+    let mut builder = egui::ViewportBuilder::default()
+        .with_title("VDI-solid")
+        .with_decorations(true)
+        .with_resizable(true);
+    
+    // ウィンドウモードの処理
+    if let Some(mode) = &config.window_mode {
+        match mode.to_lowercase().as_str() {
+            "fullscreen" => {
+                builder = builder.with_fullscreen(true);
+            }
+            "window" => {
+                builder = builder.with_inner_size([1200.0, 800.0]);
+            }
+            _ => {
+                // WIDTHxHEIGHT 形式をパース
+                if let Some((w, h)) = parse_resolution(mode) {
+                    builder = builder.with_inner_size([w as f32, h as f32]);
+                } else {
+                    builder = builder.with_inner_size([1200.0, 800.0]);
+                }
+            }
+        }
+    } else {
+        builder = builder.with_inner_size([1200.0, 800.0]);
+    }
+    
+    builder
+}
+
+/// 解像度文字列をパース (例: "1920x1080")
+fn parse_resolution(s: &str) -> Option<(u32, u32)> {
+    let parts: Vec<&str> = s.split('x').collect();
+    if parts.len() == 2 {
+        let w = parts[0].parse().ok()?;
+        let h = parts[1].parse().ok()?;
+        Some((w, h))
+    } else {
+        None
+    }
 }
 
 fn load_system_fonts() -> egui::FontDefinitions {
@@ -144,6 +194,9 @@ struct VdiApp {
     // フォント読み込み
     font_download_receiver: Option<mpsc::Receiver<Vec<u8>>>,
     font_status_message: Option<String>,
+    
+    // CLI引数からの初期画像読み込み
+    initial_load_pending: Option<PathBuf>,
 }
 
 impl VdiApp {
@@ -213,6 +266,8 @@ impl VdiApp {
             show_settings: false,
             blink_time: 0.0,
             fit_requested: false,
+            // CLI引数から画像パスを取得
+            initial_load_pending: LAUNCH_CONFIG.image_path.as_ref().map(|p| PathBuf::from(p)),
         }
     }
 
@@ -456,7 +511,6 @@ impl VdiApp {
         let stroke = egui::Stroke::new(1.0, color);
         
         match self.settings.grid_pattern {
-            GridPattern::None => {}
             GridPattern::RuleOfThirds => {
                 // Vertical lines
                 let x1 = rect.min.x + rect.width() / 3.0;
@@ -504,6 +558,12 @@ impl VdiApp {
 
 impl eframe::App for VdiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // CLI引数から渡された初期画像を読み込み（一度だけ実行）
+        if let Some(path) = self.initial_load_pending.take() {
+            println!("[INIT] Loading initial image from CLI: {}", path.display());
+            self.load_image(path, ctx);
+        }
+        
         // Update blink time
         self.blink_time += ctx.input(|i| i.stable_dt);
         
@@ -675,8 +735,8 @@ impl eframe::App for VdiApp {
                         self.peaking_dirty = true;
                     }
                     
-                    ui.add(egui::Slider::new(&mut self.settings.peaking_intensity, 0..=255)
-                        .text("強度"));
+                    ui.add(egui::Slider::new(&mut self.settings.peaking_line_width, 1.0..=5.0)
+                        .text("線の太さ"));
                     
                     ui.add(egui::Slider::new(&mut self.settings.peaking_opacity, 0.0..=1.0)
                         .text("不透明度"));
@@ -689,7 +749,6 @@ impl eframe::App for VdiApp {
                     egui::ComboBox::from_label("パターン")
                         .selected_text(format!("{:?}", self.settings.grid_pattern))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::None, "なし");
                             ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "三分割法");
                             ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "黄金比");
                             ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 グリッド");
@@ -887,7 +946,7 @@ impl eframe::App for VdiApp {
                                 self.settings.peaking_color[2],
                                 alpha
                             );
-                            let stroke = egui::Stroke::new(1.0, color);
+                            let stroke = egui::Stroke::new(self.settings.peaking_line_width, color);
                             
                             for edge in &peaking.edges {
                                 let points: Vec<egui::Pos2> = edge.iter().map(|p| {
@@ -961,9 +1020,16 @@ impl eframe::App for VdiApp {
                     .default_size(window_size)
                     .resizable(false)
                     .show(ctx, |ui| {
-                        use egui_plot::{Plot, BarChart, Bar};
+                        use egui_plot::{Plot, BarChart, Bar, PlotBounds};
                         
                         if let vdi_lib::histogram::HistogramData::RGB { r, g, b } = &hist.data {
+                            // 全チャンネルの最大値を取得
+                            let max_r = r.iter().max().copied().unwrap_or(0) as f64;
+                            let max_g = g.iter().max().copied().unwrap_or(0) as f64;
+                            let max_b = b.iter().max().copied().unwrap_or(0) as f64;
+                            let max_value = max_r.max(max_g).max(max_b);
+                            let y_max = max_value + (max_value * 0.05).max(5.0); // +5% or at least +5
+                            
                             let r_bars: Vec<Bar> = r.iter().enumerate().map(|(i, &v)| {
                                 Bar::new(i as f64, v as f64)
                                     .fill(egui::Color32::from_rgba_premultiplied(255, 0, 0, (self.settings.histogram_opacity * 255.0) as u8))
@@ -980,8 +1046,13 @@ impl eframe::App for VdiApp {
                             Plot::new("rgb_hist")
                                 .allow_zoom(false)
                                 .allow_drag(false)
+                                .allow_scroll(false)
+                                .allow_boxed_zoom(false)
                                 .height(180.0 * self.settings.histogram_size)
+                                .show_axes([true, false])
                                 .show(ui, |plot_ui| {
+                                    // Y軸の範囲を固定
+                                    plot_ui.set_plot_bounds(PlotBounds::from_min_max([0.0, 0.0], [256.0, y_max]));
                                     plot_ui.bar_chart(BarChart::new(r_bars).color(egui::Color32::RED));
                                     plot_ui.bar_chart(BarChart::new(g_bars).color(egui::Color32::GREEN));
                                     plot_ui.bar_chart(BarChart::new(b_bars).color(egui::Color32::BLUE));

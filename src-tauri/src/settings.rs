@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct AppSettings {
     // ピーキング設定
     pub peaking_threshold: u8,
-    pub peaking_intensity: u8,
+    pub peaking_line_width: f32,
     pub peaking_color: [u8; 3],
     pub peaking_opacity: f32,
     pub peaking_blink: bool,
@@ -24,7 +24,6 @@ pub struct AppSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum GridPattern {
-    None,
     RuleOfThirds,
     GoldenRatio,
     Grid4x4,
@@ -42,13 +41,13 @@ pub enum HistogramPosition {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            peaking_threshold: 128,
-            peaking_intensity: 128,
+            peaking_threshold: 80,
+            peaking_line_width: 2.0,
             peaking_color: [255, 0, 0],
-            peaking_opacity: 0.7,
+            peaking_opacity: 0.8,
             peaking_blink: false,
             wheel_sensitivity: 0.3,
-            grid_pattern: GridPattern::None,
+            grid_pattern: GridPattern::RuleOfThirds,
             grid_opacity: 0.5,
             histogram_size: 1.0,
             histogram_opacity: 0.9,
