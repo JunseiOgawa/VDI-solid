@@ -41,8 +41,8 @@ pub enum HistogramPosition {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            peaking_threshold: 80,
-            peaking_line_width: 2.0,
+            peaking_threshold: 255,
+            peaking_line_width: 1.0,
             peaking_color: [255, 0, 0],
             peaking_opacity: 0.8,
             peaking_blink: false,
