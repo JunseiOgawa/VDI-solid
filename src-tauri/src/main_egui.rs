@@ -66,6 +66,7 @@ struct VdiApp {
     file_size_bytes: Option<u64>,
     rotation: f32,
     rotation_in_progress: bool,
+    pending_rotations: usize,
     
     // View State
     zoom: f32,
@@ -116,6 +117,7 @@ impl VdiApp {
             file_size_bytes: None,
             rotation: 0.0,
             rotation_in_progress: false,
+            pending_rotations: 0,
             zoom: 1.0,
             pan: egui::Vec2::ZERO,
             peaking_enabled: false,
@@ -138,9 +140,6 @@ impl VdiApp {
         println!("[LOAD_IMAGE] Current rotation before load: {}°", self.rotation);
         
         self.status_message = format!("Loading {}...", path.display());
-        
-        // Save current rotation state
-        let saved_rotation = self.rotation;
         
         // Get file size
         self.file_size_bytes = std::fs::metadata(&path).ok().map(|m| m.len());
@@ -175,6 +174,9 @@ impl VdiApp {
                 self.rotation = 0.0;
                 
                 println!("[LOAD_IMAGE] Final rotation: {}°", self.rotation);
+                
+                // Request screen fit for new image
+                self.fit_requested = true;
                 
                 // Reset features
                 self.peaking_result = None;
@@ -254,63 +256,51 @@ impl VdiApp {
         println!("[ROTATE_IMAGE] Function called");
         
         if let Some(path) = &self.current_path {
-            println!("[ROTATE_IMAGE] Current path: {}", path.display());
-            println!("[ROTATE_IMAGE] Current rotation: {}°", self.rotation);
-            println!("[ROTATE_IMAGE] Rotation in progress: {}", self.rotation_in_progress);
-            
-            // Don't start new rotation if one is in progress
+            // Update rotation immediately for visual feedback regardless of processing state
+            let old_rotation = self.rotation;
+            self.rotation = (self.rotation + 90.0) % 360.0;
+            println!("[ROTATE_IMAGE] Updated visual rotation: {}° -> {}°", old_rotation, self.rotation);
+            self.status_message = format!("Rotating to {}°...", self.rotation);
+
+            // Check if we can stack more rotations (max 3 pending)
             if self.rotation_in_progress {
-                println!("[ROTATE_IMAGE] BLOCKED: Rotation already in progress");
-                self.status_message = "Rotation already in progress...".to_string();
+                if self.pending_rotations < 3 {
+                    self.pending_rotations += 1;
+                    println!("[ROTATE_IMAGE] Stacked rotation request. Pending: {}", self.pending_rotations);
+                } else {
+                    println!("[ROTATE_IMAGE] Max pending rotations reached (3), ignoring request");
+                }
                 return;
             }
             
-            let path_clone = path.clone();
-            
-            // Update rotation immediately for visual feedback
-            let old_rotation = self.rotation;
-            self.rotation = (self.rotation + 90.0) % 360.0;
-            println!("[ROTATE_IMAGE] Updated rotation: {}° -> {}°", old_rotation, self.rotation);
-            
-            self.rotation_in_progress = true;
-            println!("[ROTATE_IMAGE] Set rotation_in_progress = true");
-            
-            self.status_message = format!("Rotating to {}°...", self.rotation);
-            
-            // Create channel for completion notification
-            let (tx, rx) = mpsc::channel();
-            self.rotation_receiver = Some(rx);
-            println!("[ROTATE_IMAGE] Created channel for completion notification");
-            
-            // Spawn async task for actual file rotation
-            let path_str = path_clone.to_string_lossy().to_string();
-            let reload_path = path_clone.clone();
-            
-            println!("[ROTATE_IMAGE] Spawning background thread for file rotation");
-            thread::spawn(move || {
-                println!("[ROTATE_THREAD] Thread started");
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                let result = rt.block_on(async {
-                    println!("[ROTATE_THREAD] Calling rotate_image({}, 90.0)", path_str);
-                    vdi_lib::img::rotate_image(path_str.clone(), 90.0).await
-                });
-                
-                if result.is_ok() {
-                    println!("[ROTATE_THREAD] Rotation successful, waiting 100ms");
-                    // Wait a bit for file to be written
-                    thread::sleep(std::time::Duration::from_millis(100));
-                    println!("[ROTATE_THREAD] Sending reload notification");
-                    // Send path back to reload
-                    let _ = tx.send(reload_path);
-                } else {
-                    println!("[ROTATE_THREAD] Rotation failed: {:?}", result.err());
-                }
+            // Start rotation processing
+            self.start_rotation_process(path.clone());
+        }
+    }
+
+    fn start_rotation_process(&mut self, path: PathBuf) {
+        self.rotation_in_progress = true;
+        println!("[ROTATE_IMAGE] Starting background rotation process");
+        
+        // Create channel for completion notification
+        let (tx, rx) = mpsc::channel();
+        self.rotation_receiver = Some(rx);
+        
+        let path_str = path.to_string_lossy().to_string();
+        let reload_path = path.clone();
+        
+        thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let result = rt.block_on(async {
+                vdi_lib::img::rotate_image(path_str, 90.0).await
             });
             
-            println!("[ROTATE_IMAGE] Function completed");
-        } else {
-            println!("[ROTATE_IMAGE] No current path, aborting");
-        }
+            if result.is_ok() {
+                // Wait a bit for file to be written
+                thread::sleep(std::time::Duration::from_millis(100));
+                let _ = tx.send(reload_path);
+            }
+        });
     }
     
     fn screen_fit(&mut self, available_size: egui::Vec2) {
@@ -444,24 +434,18 @@ impl eframe::App for VdiApp {
         }
         if let Some(rx) = &self.rotation_receiver {
             if let Ok(path) = rx.try_recv() {
-                println!("[ROTATION_COMPLETE] Received completion notification");
-                println!("[ROTATION_COMPLETE] Current rotation: {}°", self.rotation);
-                println!("[ROTATION_COMPLETE] rotation_in_progress: {}", self.rotation_in_progress);
-                
                 self.rotation_receiver = None;
                 
-                println!("[ROTATION_COMPLETE] Calling load_image BEFORE clearing flag");
-                
-                // IMPORTANT: Call load_image BEFORE clearing rotation_in_progress
-                // so that load_image sees the flag as true and preserves rotation
-                self.load_image(path, ctx);
-                
-                // Now clear the flag after reload
-                self.rotation_in_progress = false;
-                println!("[ROTATION_COMPLETE] Cleared rotation_in_progress flag AFTER reload");
-                
-                self.status_message = "Rotation complete".to_string();
-                println!("[ROTATION_COMPLETE] Rotation complete, final angle: {}°", self.rotation);
+                if self.pending_rotations > 0 {
+                    println!("[ROTATION_COMPLETE] Pending rotations: {}. Processing next rotation.", self.pending_rotations);
+                    self.pending_rotations -= 1;
+                    self.start_rotation_process(path);
+                } else {
+                    println!("[ROTATION_COMPLETE] All rotations finished. Reloading image.");
+                    self.load_image(path, ctx);
+                    self.rotation_in_progress = false;
+                    self.status_message = "Rotation complete".to_string();
+                }
             }
         }
 
