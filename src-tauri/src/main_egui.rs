@@ -1,22 +1,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod settings;
+
 use eframe::egui;
-use std::sync::{Arc, Mutex};
+use settings::*;
 use std::path::PathBuf;
-use std::thread;
 use std::sync::mpsc;
-use vdi_lib::{navigation, peaking, histogram};
+use std::sync::Arc;
+use std::thread;
+use vdi_lib::{histogram, img, navigation, peaking};
 use image::GenericImageView;
 
 fn main() -> eframe::Result {
-    // Initialize logging if needed
-    
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])
             .with_title("VDI-solid (Egui)")
-            .with_decorations(true)  // Native titlebar
-            .with_resizable(true),   // Resizable window
+            .with_decorations(true)
+            .with_resizable(true),
         ..Default::default()
     };
 
@@ -25,16 +26,46 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
+            cc.egui_ctx.set_visuals(create_dark_theme());
             Ok(Box::new(VdiApp::new(cc)))
         }),
     )
 }
 
+fn create_dark_theme() -> egui::Visuals {
+    let mut visuals = egui::Visuals::dark();
+    visuals.window_fill = egui::Color32::from_rgba_unmultiplied(20, 20, 25, 230);
+    visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(25, 25, 30, 200);
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgba_unmultiplied(40, 40, 50, 180);
+    visuals.widgets.inactive.bg_fill = egui::Color32::from_rgba_unmultiplied(50, 50, 60, 200);
+    visuals.widgets.hovered.bg_fill = egui::Color32::from_rgba_unmultiplied(70, 70, 85, 220);
+    visuals.widgets.active.bg_fill = egui::Color32::from_rgba_unmultiplied(90, 90, 110, 240);
+    visuals.widgets.noninteractive.rounding = egui::Rounding::same(6.0);
+    visuals.widgets.inactive.rounding = egui::Rounding::same(6.0);
+    visuals.widgets.hovered.rounding = egui::Rounding::same(6.0);
+    visuals.widgets.active.rounding = egui::Rounding::same(6.0);
+    visuals.window_rounding = egui::Rounding::same(8.0);
+    visuals.window_shadow = egui::epaint::Shadow {
+        offset: [0.0, 4.0].into(),
+        blur: 16.0,
+        spread: 0.0,
+        color: egui::Color32::from_black_alpha(100),
+    };
+    visuals
+}
+
 struct VdiApp {
+    // Settings
+    settings: AppSettings,
+    
     // Image State
     current_path: Option<PathBuf>,
     texture: Option<egui::TextureHandle>,
-    original_image: Option<Arc<image::DynamicImage>>, // Arc for sharing with worker threads
+    original_image: Option<Arc<image::DynamicImage>>,
+    image_dimensions: Option<(u32, u32)>,
+    file_size_bytes: Option<u64>,
+    rotation: f32,
+    rotation_in_progress: bool,
     
     // View State
     zoom: f32,
@@ -42,7 +73,6 @@ struct VdiApp {
     
     // Features
     peaking_enabled: bool,
-    peaking_threshold: u8,
     peaking_result: Option<Arc<peaking::PeakingResult>>,
     peaking_receiver: Option<mpsc::Receiver<peaking::PeakingResult>>,
     
@@ -50,35 +80,76 @@ struct VdiApp {
     histogram_result: Option<Arc<histogram::HistogramResult>>,
     histogram_receiver: Option<mpsc::Receiver<histogram::HistogramResult>>,
     
-    // UI
+    rotation_receiver: Option<mpsc::Receiver<PathBuf>>,
+    
+    grid_enabled: bool,
+    
+    // UI State
     status_message: String,
+    show_settings: bool,
+    blink_time: f32,
+    fit_requested: bool,
+    
+    // Temporary settings for UI
+    temp_peaking_threshold: u8,
+    temp_peaking_intensity: u8,
+    temp_peaking_opacity: f32,
+    temp_histogram_size: f32,
+    temp_histogram_opacity: f32,
 }
 
 impl VdiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        let settings = AppSettings::load();
+        
         Self {
+            temp_peaking_threshold: settings.peaking_threshold,
+            temp_peaking_intensity: settings.peaking_intensity,
+            temp_peaking_opacity: settings.peaking_opacity,
+            temp_histogram_size: settings.histogram_size,
+            temp_histogram_opacity: settings.histogram_opacity,
+            settings,
             current_path: None,
             texture: None,
             original_image: None,
+            image_dimensions: None,
+            file_size_bytes: None,
+            rotation: 0.0,
+            rotation_in_progress: false,
             zoom: 1.0,
             pan: egui::Vec2::ZERO,
             peaking_enabled: false,
-            peaking_threshold: 100,
             peaking_result: None,
             peaking_receiver: None,
             histogram_enabled: false,
             histogram_result: None,
             histogram_receiver: None,
+            rotation_receiver: None,
+            grid_enabled: false,
             status_message: "Ready".to_string(),
+            show_settings: false,
+            blink_time: 0.0,
+            fit_requested: false,
         }
     }
 
     fn load_image(&mut self, path: PathBuf, ctx: &egui::Context) {
+        println!("[LOAD_IMAGE] Starting load for: {}", path.display());
+        println!("[LOAD_IMAGE] Current rotation before load: {}°", self.rotation);
+        
         self.status_message = format!("Loading {}...", path.display());
-        let ctx_clone = ctx.clone();
+        
+        // Save current rotation state
+        let saved_rotation = self.rotation;
+        
+        // Get file size
+        self.file_size_bytes = std::fs::metadata(&path).ok().map(|m| m.len());
         
         match image::open(&path) {
             Ok(img) => {
+                println!("[LOAD_IMAGE] Successfully opened image: {}x{}", img.width(), img.height());
+                
+                self.image_dimensions = Some((img.width(), img.height()));
                 let size = [img.width() as _, img.height() as _];
                 let image_buffer = img.to_rgba8();
                 let pixels = image_buffer.as_flat_samples();
@@ -97,6 +168,17 @@ impl VdiApp {
                 self.zoom = 1.0;
                 self.pan = egui::Vec2::ZERO;
                 
+                // Preserve rotation state if rotation was in progress
+                if self.rotation_in_progress {
+                    println!("[LOAD_IMAGE] Rotation in progress, preserving rotation: {}°", saved_rotation);
+                    self.rotation = saved_rotation;
+                } else {
+                    println!("[LOAD_IMAGE] Normal load, resetting rotation to 0°");
+                    self.rotation = 0.0;
+                }
+                
+                println!("[LOAD_IMAGE] Final rotation: {}°", self.rotation);
+                
                 // Reset features
                 self.peaking_result = None;
                 self.histogram_result = None;
@@ -110,7 +192,7 @@ impl VdiApp {
                 }
                 
                 self.status_message = "Loaded".to_string();
-            },
+            }
             Err(err) => {
                 self.status_message = format!("Failed to load image: {}", err);
             }
@@ -120,16 +202,11 @@ impl VdiApp {
     fn trigger_peaking(&mut self) {
         if let Some(path) = &self.current_path {
             let path_str = path.to_string_lossy().to_string();
-            let threshold = self.peaking_threshold;
+            let threshold = self.settings.peaking_threshold;
             let (tx, rx) = mpsc::channel();
             self.peaking_receiver = Some(rx);
             
             thread::spawn(move || {
-                // We use the async function synchronously for now via blocking, or just call logic if we exposed inner functions.
-                // focus_peaking is async. For simplicity in this migration, we might want to use a runtime or Refactor peaking to be sync.
-                // Since calling async from sync thread is annoying without a runtime, let's create a temporary runtime.
-                // Or better, vdi_lib::peaking::focus_peaking returns a Future.
-                
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 let res = rt.block_on(async {
                     vdi_lib::peaking::focus_peaking(path_str, threshold, None).await
@@ -175,10 +252,186 @@ impl VdiApp {
             }
         }
     }
+    
+    fn rotate_image(&mut self, _ctx: &egui::Context) {
+        println!("[ROTATE_IMAGE] Function called");
+        
+        if let Some(path) = &self.current_path {
+            println!("[ROTATE_IMAGE] Current path: {}", path.display());
+            println!("[ROTATE_IMAGE] Current rotation: {}°", self.rotation);
+            println!("[ROTATE_IMAGE] Rotation in progress: {}", self.rotation_in_progress);
+            
+            // Don't start new rotation if one is in progress
+            if self.rotation_in_progress {
+                println!("[ROTATE_IMAGE] BLOCKED: Rotation already in progress");
+                self.status_message = "Rotation already in progress...".to_string();
+                return;
+            }
+            
+            let path_clone = path.clone();
+            
+            // Update rotation immediately for visual feedback
+            let old_rotation = self.rotation;
+            self.rotation = (self.rotation + 90.0) % 360.0;
+            println!("[ROTATE_IMAGE] Updated rotation: {}° -> {}°", old_rotation, self.rotation);
+            
+            self.rotation_in_progress = true;
+            println!("[ROTATE_IMAGE] Set rotation_in_progress = true");
+            
+            self.status_message = format!("Rotating to {}°...", self.rotation);
+            
+            // Create channel for completion notification
+            let (tx, rx) = mpsc::channel();
+            self.rotation_receiver = Some(rx);
+            println!("[ROTATE_IMAGE] Created channel for completion notification");
+            
+            // Spawn async task for actual file rotation
+            let path_str = path_clone.to_string_lossy().to_string();
+            let reload_path = path_clone.clone();
+            
+            println!("[ROTATE_IMAGE] Spawning background thread for file rotation");
+            thread::spawn(move || {
+                println!("[ROTATE_THREAD] Thread started");
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                let result = rt.block_on(async {
+                    println!("[ROTATE_THREAD] Calling rotate_image({}, 90.0)", path_str);
+                    vdi_lib::img::rotate_image(path_str.clone(), 90.0).await
+                });
+                
+                if result.is_ok() {
+                    println!("[ROTATE_THREAD] Rotation successful, waiting 100ms");
+                    // Wait a bit for file to be written
+                    thread::sleep(std::time::Duration::from_millis(100));
+                    println!("[ROTATE_THREAD] Sending reload notification");
+                    // Send path back to reload
+                    let _ = tx.send(reload_path);
+                } else {
+                    println!("[ROTATE_THREAD] Rotation failed: {:?}", result.err());
+                }
+            });
+            
+            println!("[ROTATE_IMAGE] Function completed");
+        } else {
+            println!("[ROTATE_IMAGE] No current path, aborting");
+        }
+    }
+    
+    fn screen_fit(&mut self, available_size: egui::Vec2) {
+        if let Some(texture) = &self.texture {
+            let image_size = texture.size_vec2();
+            
+            // Calculate zoom to fit image in available space
+            let zoom_x = available_size.x / image_size.x;
+            let zoom_y = available_size.y / image_size.y;
+            
+            // Use the smaller zoom factor to ensure entire image is visible
+            // Use 0.95 to leave 5% margin for comfort, with minimum 0.01
+            self.zoom = (zoom_x.min(zoom_y) * 0.95).max(0.01);
+            self.pan = egui::Vec2::ZERO;
+            
+            self.status_message = format!("Fit to screen: {:.0}%", self.zoom * 100.0);
+        }
+    }
+    
+    fn reveal_in_explorer(&self) {
+        if let Some(path) = &self.current_path {
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("explorer")
+                    .args(&["/select,", &path.to_string_lossy()])
+                    .spawn();
+            }
+            
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("open")
+                    .args(&["-R", &path.to_string_lossy()])
+                    .spawn();
+            }
+            
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(parent) = path.parent() {
+                    let _ = std::process::Command::new("xdg-open")
+                        .arg(parent)
+                        .spawn();
+                }
+            }
+        }
+    }
+    
+    fn format_file_size(bytes: u64) -> String {
+        const KB: u64 = 1024;
+        const MB: u64 = KB * 1024;
+        const GB: u64 = MB * 1024;
+        
+        if bytes >= GB {
+            format!("{:.2} GB", bytes as f64 / GB as f64)
+        } else if bytes >= MB {
+            format!("{:.2} MB", bytes as f64 / MB as f64)
+        } else if bytes >= KB {
+            format!("{:.2} KB", bytes as f64 / KB as f64)
+        } else {
+            format!("{} B", bytes)
+        }
+    }
+    
+    fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect) {
+        let color = egui::Color32::from_white_alpha((self.settings.grid_opacity * 255.0) as u8);
+        let stroke = egui::Stroke::new(1.0, color);
+        
+        match self.settings.grid_pattern {
+            GridPattern::None => {}
+            GridPattern::RuleOfThirds => {
+                // Vertical lines
+                let x1 = rect.min.x + rect.width() / 3.0;
+                let x2 = rect.min.x + rect.width() * 2.0 / 3.0;
+                painter.line_segment([egui::pos2(x1, rect.min.y), egui::pos2(x1, rect.max.y)], stroke);
+                painter.line_segment([egui::pos2(x2, rect.min.y), egui::pos2(x2, rect.max.y)], stroke);
+                
+                // Horizontal lines
+                let y1 = rect.min.y + rect.height() / 3.0;
+                let y2 = rect.min.y + rect.height() * 2.0 / 3.0;
+                painter.line_segment([egui::pos2(rect.min.x, y1), egui::pos2(rect.max.x, y1)], stroke);
+                painter.line_segment([egui::pos2(rect.min.x, y2), egui::pos2(rect.max.x, y2)], stroke);
+            }
+            GridPattern::GoldenRatio => {
+                let phi = 1.618;
+                let x1 = rect.min.x + rect.width() / phi;
+                let x2 = rect.max.x - rect.width() / phi;
+                painter.line_segment([egui::pos2(x1, rect.min.y), egui::pos2(x1, rect.max.y)], stroke);
+                painter.line_segment([egui::pos2(x2, rect.min.y), egui::pos2(x2, rect.max.y)], stroke);
+                
+                let y1 = rect.min.y + rect.height() / phi;
+                let y2 = rect.max.y - rect.height() / phi;
+                painter.line_segment([egui::pos2(rect.min.x, y1), egui::pos2(rect.max.x, y1)], stroke);
+                painter.line_segment([egui::pos2(rect.min.x, y2), egui::pos2(rect.max.x, y2)], stroke);
+            }
+            GridPattern::Grid4x4 => {
+                for i in 1..4 {
+                    let x = rect.min.x + rect.width() * i as f32 / 4.0;
+                    painter.line_segment([egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)], stroke);
+                    let y = rect.min.y + rect.height() * i as f32 / 4.0;
+                    painter.line_segment([egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)], stroke);
+                }
+            }
+            GridPattern::Grid8x8 => {
+                for i in 1..8 {
+                    let x = rect.min.x + rect.width() * i as f32 / 8.0;
+                    painter.line_segment([egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)], stroke);
+                    let y = rect.min.y + rect.height() * i as f32 / 8.0;
+                    painter.line_segment([egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)], stroke);
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for VdiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Update blink time
+        self.blink_time += ctx.input(|i| i.stable_dt);
+        
         // Handle background results
         if let Some(rx) = &self.peaking_receiver {
             if let Ok(res) = rx.try_recv() {
@@ -190,6 +443,25 @@ impl eframe::App for VdiApp {
             if let Ok(res) = rx.try_recv() {
                 self.histogram_result = Some(Arc::new(res));
                 self.histogram_receiver = None;
+            }
+        }
+        if let Some(rx) = &self.rotation_receiver {
+            if let Ok(path) = rx.try_recv() {
+                println!("[ROTATION_COMPLETE] Received completion notification");
+                println!("[ROTATION_COMPLETE] Current rotation: {}°", self.rotation);
+                println!("[ROTATION_COMPLETE] rotation_in_progress: {}", self.rotation_in_progress);
+                
+                self.rotation_receiver = None;
+                self.rotation_in_progress = false;
+                
+                println!("[ROTATION_COMPLETE] Cleared rotation_in_progress flag");
+                println!("[ROTATION_COMPLETE] Calling load_image to reload rotated file");
+                
+                // Keep the rotation value but reload the rotated file
+                self.load_image(path, ctx);
+                
+                self.status_message = "Rotation complete".to_string();
+                println!("[ROTATION_COMPLETE] Rotation complete, final angle: {}°", self.rotation);
             }
         }
 
@@ -210,7 +482,33 @@ impl eframe::App for VdiApp {
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
             self.prev_image(ctx);
         }
+        if ctx.input(|i| i.key_pressed(egui::Key::R)) {
+            self.rotate_image(ctx);
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::G)) {
+            self.grid_enabled = !self.grid_enabled;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::P)) {
+            self.peaking_enabled = !self.peaking_enabled;
+            if self.peaking_enabled {
+                self.trigger_peaking();
+            } else {
+                self.peaking_result = None;
+            }
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::H)) {
+            self.histogram_enabled = !self.histogram_enabled;
+            if self.histogram_enabled {
+                self.trigger_histogram();
+            } else {
+                self.histogram_result = None;
+            }
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F)) {
+            self.fit_requested = true;
+        }
 
+        // Top Panel
         egui::TopBottomPanel::top("vdi_top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("📂 Open").clicked() {
@@ -221,21 +519,19 @@ impl eframe::App for VdiApp {
                 
                 if ui.button("⬅").clicked() { self.prev_image(ctx); }
                 if ui.button("➡").clicked() { self.next_image(ctx); }
+                if ui.button("🔄").clicked() { self.rotate_image(ctx); }
                 
                 ui.separator();
                 
-                if ui.checkbox(&mut self.peaking_enabled, "Peaking").changed() {
+                if ui.checkbox(&mut self.peaking_enabled, "Peaking (P)").changed() {
                     if self.peaking_enabled {
                         self.trigger_peaking();
                     } else {
                         self.peaking_result = None;
                     }
                 }
-                if self.peaking_enabled {
-                    ui.add(egui::DragValue::new(&mut self.peaking_threshold).range(0..=255).speed(1));
-                }
                 
-                if ui.checkbox(&mut self.histogram_enabled, "Histogram").changed() {
+                if ui.checkbox(&mut self.histogram_enabled, "Histogram (H)").changed() {
                     if self.histogram_enabled {
                         self.trigger_histogram();
                     } else {
@@ -243,101 +539,375 @@ impl eframe::App for VdiApp {
                     }
                 }
                 
+                if ui.checkbox(&mut self.grid_enabled, "Grid (G)").changed() {}
+                
+                ui.separator();
+                
+                if ui.button("Fit (F)").clicked() {
+                    self.fit_requested = true;
+                }
+                
+                if ui.button("⚙ Settings").clicked() {
+                    self.show_settings = !self.show_settings;
+                }
+                
                 ui.separator();
                 ui.label(&self.status_message);
             });
         });
+        
+        // Settings Window
+        let mut trigger_peaking_update = false;
+        
+        if self.show_settings {
+            if let Some(response) = egui::Window::new("Settings")
+                .open(&mut self.show_settings)
+                .show(ctx, |ui| {
+                    ui.heading("Zoom");
+                    ui.add(egui::Slider::new(&mut self.settings.wheel_sensitivity,  0.05..=1.0)
+                        .text("Wheel Sensitivity"));
+                    
+                    ui.separator();
+                    ui.heading("Peaking");
+                    
+                    // Use local variable to avoid borrow issues
+                    let mut should_trigger = false;
+                    
+                    ui.add(egui::Slider::new(&mut self.temp_peaking_threshold, 0..=255)
+                        .text("Threshold"));
+                    if ui.button("Apply Threshold").clicked() {
+                        self.settings.peaking_threshold = self.temp_peaking_threshold;
+                        should_trigger = self.peaking_enabled;
+                    }
+                    
+                    ui.add(egui::Slider::new(&mut self.temp_peaking_intensity, 0..=255)
+                        .text("Intensity"));
+                    if ui.button("Apply Intensity").clicked() {
+                        self.settings.peaking_intensity = self.temp_peaking_intensity;
+                    }
+                    
+                    ui.add(egui::Slider::new(&mut self.temp_peaking_opacity, 0.0..=1.0)
+                        .text("Opacity"));
+                    if ui.button("Apply Opacity").clicked() {
+                        self.settings.peaking_opacity = self.temp_peaking_opacity;
+                    }
+                    
+                    ui.color_edit_button_srgb(&mut self.settings.peaking_color);
+                    ui.checkbox(&mut self.settings.peaking_blink, "Blink");
+                    
+                    ui.separator();
+                    ui.heading("Grid");
+                    egui::ComboBox::from_label("Pattern")
+                        .selected_text(format!("{:?}", self.settings.grid_pattern))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::None, "None");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "Rule of Thirds");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "Golden Ratio");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 Grid");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid8x8, "8x8 Grid");
+                        });
+                    ui.add(egui::Slider::new(&mut self.settings.grid_opacity, 0.0..=1.0)
+                        .text("Grid Opacity"));
+                    
+                    ui.separator();
+                    ui.heading("Histogram");
+                    
+                    ui.add(egui::Slider::new(&mut self.temp_histogram_size, 0.5..=2.0)
+                        .text("Size"));
+                    if ui.button("Apply Size").clicked() {
+                        self.settings.histogram_size = self.temp_histogram_size;
+                    }
+                    
+                    ui.add(egui::Slider::new(&mut self.temp_histogram_opacity, 0.0..=1.0)
+                        .text("Opacity"));
+                    if ui.button("Apply Opacity").clicked() {
+                        self.settings.histogram_opacity = self.temp_histogram_opacity;
+                    }
+                    
+                    egui::ComboBox::from_label("Position")
+                        .selected_text(format!("{:?}", self.settings.histogram_position))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopLeft, "Top Left");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopRight, "Top Right");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomLeft, "Bottom Left");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomRight, "Bottom Right");
+                        });
+                    
+                    ui.separator();
+                    if ui.button("Save Settings").clicked() {
+                        self.settings.save();
+                        self.status_message = "Settings saved".to_string();
+                    }
+                    
+                    should_trigger
+                })
+            {
+                if let Some(should_trigger) = response.inner {
+                    trigger_peaking_update = should_trigger;
+                }
+            }
+        }
+        
+        // Trigger peaking outside the window closure
+        if trigger_peaking_update {
+            self.trigger_peaking();
+        }
 
+        // Central Panel - Image Viewer
+        let mut fit_size = None;
+        
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(texture) = &self.texture {
                 let available_size = ui.available_size();
+                
+                // Store size for fit processing outside closure
+                if self.fit_requested {
+                    fit_size = Some(available_size);
+                }
+                
                 let (response, painter) = ui.allocate_painter(available_size, egui::Sense::drag());
                 
-                // Zoom & Pan Logic
+                // Zoom & Pan Logic with mouse position
                 if response.hovered() {
                     let scroll = ctx.input(|i| i.smooth_scroll_delta.y);
                     if scroll != 0.0 {
-                        let zoom_factor = if scroll > 0.0 { 1.1 } else { 0.9 };
-                        self.zoom = (self.zoom * zoom_factor).clamp(0.1, 20.0);
+                        let zoom_factor = if scroll > 0.0 {
+                            1.0 + (0.1 * self.settings.wheel_sensitivity)
+                        } else {
+                            1.0 / (1.0 + (0.1 * self.settings.wheel_sensitivity))
+                        };
+                        
+                        // Zoom towards mouse position
+                        if let Some(pointer_pos) = response.hover_pos() {
+                            let center = response.rect.center() + self.pan;
+                            let before_zoom_offset = (pointer_pos - center) / self.zoom;
+                            self.zoom = (self.zoom * zoom_factor).clamp(0.1, 20.0);
+                            let after_zoom_offset = (pointer_pos - center) / self.zoom;
+                            self.pan += (after_zoom_offset - before_zoom_offset) * self.zoom;
+                        } else {
+                            self.zoom = (self.zoom * zoom_factor).clamp(0.1, 20.0);
+                        }
                     }
                 }
+                
                 if response.dragged() {
                     self.pan += response.drag_delta();
                 }
 
                 let image_size = texture.size_vec2();
-                let scaled_size = image_size * self.zoom;
+                
+                // Swap width/height for 90 and 270 degree rotations
+                let display_size = if self.rotation == 90.0 || self.rotation == 270.0 {
+                    egui::vec2(image_size.y, image_size.x)
+                } else {
+                    image_size
+                };
+                let scaled_size = display_size * self.zoom;
                 
                 // Center the image + pan
                 let center = response.rect.center() + self.pan;
                 let rect = egui::Rect::from_center_size(center, scaled_size);
                 
-                painter.image(
-                    texture.id(),
-                    rect,
-                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                    egui::Color32::WHITE
-                );
+                // Draw image with rotation
+                if self.rotation == 0.0 {
+                    // No rotation - draw normally
+                    painter.image(
+                        texture.id(),
+                        rect,
+                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        egui::Color32::WHITE
+                    );
+                } else {
+                    // Apply rotation using mesh
+                    use egui::epaint::{Mesh, Vertex};
+                    
+                    let mut mesh = Mesh::with_texture(texture.id());
+                    
+                    // Calculate rotated corners
+                    let angle_rad = self.rotation.to_radians();
+                    let cos_a = angle_rad.cos();
+                    let sin_a = angle_rad.sin();
+                    
+                    let half_w = scaled_size.x / 2.0;
+                    let half_h = scaled_size.y / 2.0;
+                    
+                    // Corner positions (before rotation)
+                    let corners = [
+                        [-half_w, -half_h], // Top-left
+                        [half_w, -half_h],  // Top-right
+                        [half_w, half_h],   // Bottom-right
+                        [-half_w, half_h],  // Bottom-left
+                    ];
+                    
+                    // UV coordinates based on rotation
+                    let uvs = match self.rotation as i32 {
+                        90 => [
+                            [0.0, 1.0],  // Top-left -> Bottom-left
+                            [0.0, 0.0],  // Top-right -> Top-left
+                            [1.0, 0.0],  // Bottom-right -> Top-right
+                            [1.0, 1.0],  // Bottom-left -> Bottom-right
+                        ],
+                        180 => [
+                            [1.0, 1.0],  // Top-left -> Bottom-right
+                            [0.0, 1.0],  // Top-right -> Bottom-left
+                            [0.0, 0.0],  // Bottom-right -> Top-left
+                            [1.0, 0.0],  // Bottom-left -> Top-right
+                        ],
+                        270 => [
+                            [1.0, 0.0],  // Top-left -> Top-right
+                            [1.0, 1.0],  // Top-right -> Bottom-right
+                            [0.0, 1.0],  // Bottom-right -> Bottom-left
+                            [0.0, 0.0],  // Bottom-left -> Top-left
+                        ],
+                        _ => [
+                            [0.0, 0.0],
+                            [1.0, 0.0],
+                            [1.0, 1.0],
+                            [0.0, 1.0],
+                        ],
+                    };
+                    
+                    // Add vertices with rotation
+                    for (i, corner) in corners.iter().enumerate() {
+                        let x = corner[0] * cos_a - corner[1] * sin_a + center.x;
+                        let y = corner[0] * sin_a + corner[1] * cos_a + center.y;
+                        
+                        mesh.vertices.push(Vertex {
+                            pos: egui::pos2(x, y),
+                            uv: egui::pos2(uvs[i][0], uvs[i][1]),
+                            color: egui::Color32::WHITE,
+                        });
+                    }
+                    
+                    // Add indices for two triangles
+                    mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
+                    
+                    painter.add(egui::Shape::mesh(mesh));
+                }
+                
+                // Grid Overlay
+                if self.grid_enabled {
+                    self.draw_grid(&painter, rect);
+                }
                 
                 // Peaking Overlay
                 if self.peaking_enabled {
                     if let Some(peaking) = &self.peaking_result {
-                         // Map peaking coordinates to screen coordinates
-                         // Original image coord (px) -> Screen coord
-                         // ScreenX = RectMinX + (ImgX / ImgW) * RectW
-                         // ScreenY = RectMinY + (ImgY / ImgH) * RectH
-                         
-                         let stroke = egui::Stroke::new(1.0, egui::Color32::RED);
-                         
-                         // Optimization: Don't draw if too small?
-                         // Draw points/lines
-                         for edge in &peaking.edges {
-                             let points: Vec<egui::Pos2> = edge.iter().map(|p| {
-                                 let u = p.x / image_size.x;
-                                 let v = p.y / image_size.y;
-                                 egui::pos2(
-                                     rect.min.x + u * rect.width(),
-                                     rect.min.y + v * rect.height()
-                                 )
-                             }).collect();
-                             
-                             if points.len() > 1 {
-                                 painter.add(egui::Shape::line(points, stroke));
-                             } else if !points.is_empty() {
-                                 // Draw single point?
-                             }
-                         }
+                        let should_draw = if self.settings.peaking_blink {
+                            (self.blink_time * 3.0).sin() > 0.0
+                        } else {
+                            true
+                        };
+                        
+                        if should_draw {
+                            let alpha = (self.settings.peaking_opacity * 255.0) as u8;
+                            let color = egui::Color32::from_rgba_premultiplied(
+                                self.settings.peaking_color[0],
+                                self.settings.peaking_color[1],
+                                self.settings.peaking_color[2],
+                                alpha
+                            );
+                            let stroke = egui::Stroke::new(1.0, color);
+                            
+                            for edge in &peaking.edges {
+                                let points: Vec<egui::Pos2> = edge.iter().map(|p| {
+                                    let u = p.x / image_size.x;
+                                    let v = p.y / image_size.y;
+                                    egui::pos2(
+                                        rect.min.x + u * rect.width(),
+                                        rect.min.y + v * rect.height()
+                                    )
+                                }).collect();
+                                
+                                if points.len() > 1 {
+                                    painter.add(egui::Shape::line(points, stroke));
+                                }
+                            }
+                        }
                     }
                 }
             } else {
-                 ui.centered_and_justified(|ui| {
-                     ui.label("Drag & Drop an image here or click Open");
-                 });
+                ui.centered_and_justified(|ui| {
+                    ui.label("Drag & Drop an image here or click Open");
+                });
             }
         });
+        
+        // Footer
+        egui::TopBottomPanel::bottom("vdi_bottom_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if let Some(path) = &self.current_path {
+                    ui.label(format!("📄 {}", path.file_name().unwrap_or_default().to_string_lossy()));
+                }
+                
+                if let Some((w, h)) = self.image_dimensions {
+                    ui.label(format!("{}x{}", w, h));
+                }
+                
+                if let Some(size) = self.file_size_bytes {
+                    ui.label(Self::format_file_size(size));
+                }
+                
+                ui.label(format!("Zoom: {:.0}%", self.zoom * 100.0));
+                
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("📂 Reveal in Explorer").clicked() {
+                        self.reveal_in_explorer();
+                    }
+                });
+            });
+        });
+        
+        // Process fit request outside closure
+        if let Some(size) = fit_size {
+            self.fit_requested = false;
+            self.screen_fit(size);
+        }
         
         // Histogram Window
         if self.histogram_enabled {
             if let Some(hist) = &self.histogram_result {
-                egui::Window::new("Histogram").show(ctx, |ui| {
-                    use egui_plot::{Plot, BarChart, Bar};
-                    
-                    if let vdi_lib::histogram::HistogramData::RGB { r, g, b } = &hist.data {
-                         let r_bars: Vec<Bar> = r.iter().enumerate().map(|(i, &v)| Bar::new(i as f64, v as f64).fill(egui::Color32::RED)).collect();
-                         let g_bars: Vec<Bar> = g.iter().enumerate().map(|(i, &v)| Bar::new(i as f64, v as f64).fill(egui::Color32::GREEN)).collect();
-                         let b_bars: Vec<Bar> = b.iter().enumerate().map(|(i, &v)| Bar::new(i as f64, v as f64).fill(egui::Color32::BLUE)).collect();
-                         
-                         Plot::new("rgb_hist")
-                            .allow_zoom(false)
-                            .allow_drag(false)
-                            .height(200.0)
-                            .show(ui, |plot_ui| {
-                                plot_ui.bar_chart(BarChart::new(r_bars).color(egui::Color32::RED));
-                                plot_ui.bar_chart(BarChart::new(g_bars).color(egui::Color32::GREEN));
-                                plot_ui.bar_chart(BarChart::new(b_bars).color(egui::Color32::BLUE));
-                            });
-                    }
-                });
+                let window_size = egui::vec2(300.0 * self.settings.histogram_size, 200.0 * self.settings.histogram_size);
+                
+                let anchor = match self.settings.histogram_position {
+                    HistogramPosition::TopLeft => egui::Align2::LEFT_TOP,
+                    HistogramPosition::TopRight => egui::Align2::RIGHT_TOP,
+                    HistogramPosition::BottomLeft => egui::Align2::LEFT_BOTTOM,
+                    HistogramPosition::BottomRight => egui::Align2::RIGHT_BOTTOM,
+                };
+                
+                egui::Window::new("Histogram")
+                    .anchor(anchor, egui::vec2(10.0, 10.0))
+                    .default_size(window_size)
+                    .resizable(false)
+                    .show(ctx, |ui| {
+                        use egui_plot::{Plot, BarChart, Bar};
+                        
+                        if let vdi_lib::histogram::HistogramData::RGB { r, g, b } = &hist.data {
+                            let r_bars: Vec<Bar> = r.iter().enumerate().map(|(i, &v)| {
+                                Bar::new(i as f64, v as f64)
+                                    .fill(egui::Color32::from_rgba_premultiplied(255, 0, 0, (self.settings.histogram_opacity * 255.0) as u8))
+                            }).collect();
+                            let g_bars: Vec<Bar> = g.iter().enumerate().map(|(i, &v)| {
+                                Bar::new(i as f64, v as f64)
+                                    .fill(egui::Color32::from_rgba_premultiplied(0, 255, 0, (self.settings.histogram_opacity * 255.0) as u8))
+                            }).collect();
+                            let b_bars: Vec<Bar> = b.iter().enumerate().map(|(i, &v)| {
+                                Bar::new(i as f64, v as f64)
+                                    .fill(egui::Color32::from_rgba_premultiplied(0, 0, 255, (self.settings.histogram_opacity * 255.0) as u8))
+                            }).collect();
+                            
+                            Plot::new("rgb_hist")
+                                .allow_zoom(false)
+                                .allow_drag(false)
+                                .height(180.0 * self.settings.histogram_size)
+                                .show(ui, |plot_ui| {
+                                    plot_ui.bar_chart(BarChart::new(r_bars).color(egui::Color32::RED));
+                                    plot_ui.bar_chart(BarChart::new(g_bars).color(egui::Color32::GREEN));
+                                    plot_ui.bar_chart(BarChart::new(b_bars).color(egui::Color32::BLUE));
+                                });
+                        }
+                    });
             }
         }
     }
