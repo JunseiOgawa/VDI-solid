@@ -404,7 +404,7 @@ impl VdiApp {
             self.zoom = zoom_x.min(zoom_y).max(0.01);
             self.pan = egui::Vec2::ZERO;
             
-            self.status_message = format!("画面に合わせる: {:.0}%", self.zoom * 100.0);
+
         }
     }
     
