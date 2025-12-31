@@ -9,12 +9,15 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use vdi_lib::{histogram, peaking};
+use std::io::Write;
+
+
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])
-            .with_title("VDI-solid (Egui)")
+            .with_title("VDI-solid (Egui版)")
             .with_decorations(true)
             .with_resizable(true),
         ..Default::default()
@@ -24,11 +27,55 @@ fn main() -> eframe::Result {
         "VDI-solid",
         options,
         Box::new(|cc| {
+            // 初期フォント設定（システムフォント）
+            let fonts = load_system_fonts();
+            cc.egui_ctx.set_fonts(fonts);
+            
             egui_extras::install_image_loaders(&cc.egui_ctx);
             cc.egui_ctx.set_visuals(create_dark_theme());
             Ok(Box::new(VdiApp::new(cc)))
         }),
     )
+}
+
+fn load_system_fonts() -> egui::FontDefinitions {
+    let mut fonts = egui::FontDefinitions::default();
+    
+    // Windows標準の日本語フォントを試行
+    let font_candidates = [
+        "C:\\Windows\\Fonts\\msgothic.ttc", // MS ゴシック
+        "C:\\Windows\\Fonts\\meiryo.ttc",   // メイリオ
+    ];
+
+    for path in font_candidates {
+        if let Ok(data) = std::fs::read(path) {
+            println!("[FONTS] Loading system font from: {}", path);
+            fonts.font_data.insert(
+                "japanese_system".to_owned(),
+                egui::FontData::from_owned(data).tweak(
+                    egui::FontTweak {
+                        scale: 1.2, // MSゴシックなどは少し小さいので調整
+                        ..Default::default()
+                    }
+                ),
+            );
+
+            // Proportionalフォントの先頭に追加（優先使用）
+            if let Some(vec) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+                vec.insert(0, "japanese_system".to_owned());
+            }
+
+            // Monospaceにも追加
+            if let Some(vec) = fonts.families.get_mut(&egui::FontFamily::Monospace) {
+                vec.push("japanese_system".to_owned());
+            }
+            
+            return fonts;
+        }
+    }
+    
+    eprintln!("[FONTS] No suitable system Japanese font found.");
+    fonts
 }
 
 fn create_dark_theme() -> egui::Visuals {
@@ -54,10 +101,10 @@ fn create_dark_theme() -> egui::Visuals {
 }
 
 struct VdiApp {
-    // Settings
+    // 設定
     settings: AppSettings,
     
-    // Image State
+    // 画像の状態
     current_path: Option<PathBuf>,
     texture: Option<egui::TextureHandle>,
     original_image: Option<Arc<image::DynamicImage>>,
@@ -67,11 +114,11 @@ struct VdiApp {
     rotation_in_progress: bool,
     pending_rotations: usize,
     
-    // View State
+    // 表示状態
     zoom: f32,
     pan: egui::Vec2,
     
-    // Features
+    // 機能
     peaking_enabled: bool,
     peaking_result: Option<Arc<peaking::PeakingResult>>,
     peaking_receiver: Option<mpsc::Receiver<peaking::PeakingResult>>,
@@ -84,24 +131,65 @@ struct VdiApp {
     
     grid_enabled: bool,
     
-    // UI State
+    // UI状態
     status_message: String,
     show_settings: bool,
     blink_time: f32,
     fit_requested: bool,
     
-    // Throttling
+    // スロットリング
     peaking_dirty: bool,
     last_peaking_trigger: f64,
+    
+    // フォント読み込み
+    font_download_receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    font_status_message: Option<String>,
 }
 
 impl VdiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let settings = AppSettings::load();
         
+        // フォントの非同期ダウンロード開始
+        let (font_tx, font_rx) = mpsc::channel();
+        thread::spawn(move || {
+            // BIZ UDP明朝のURL（Google Fonts GitHub Raw）
+            let url = "https://github.com/google/fonts/raw/main/ofl/bizudpmincho/BIZUDPMincho-Regular.ttf";
+            // キャッシュディレクトリの確認
+            let cache_dir = dirs_next::cache_dir().unwrap_or(PathBuf::from("."));
+            let font_cache_path = cache_dir.join("vdi_biz_udp_mincho.ttf");
+            
+            // キャッシュがあるか確認
+            if font_cache_path.exists() {
+                println!("[FONTS] Loading from cache: {:?}", font_cache_path);
+                if let Ok(data) = std::fs::read(&font_cache_path) {
+                     let _ = font_tx.send(data);
+                     return;
+                }
+            }
+            
+            println!("[FONTS] Downloading from: {}", url);
+            // ダウンロード実行
+            match reqwest::blocking::get(url) {
+                Ok(resp) => {
+                    if let Ok(bytes) = resp.bytes() {
+                        let data = bytes.to_vec();
+                        // キャッシュに保存
+                        if let Ok(mut file) = std::fs::File::create(&font_cache_path) {
+                            let _ = file.write_all(&data);
+                        }
+                        let _ = font_tx.send(data);
+                    }
+                }
+                Err(e) => eprintln!("[FONTS] Download failed: {}", e),
+            }
+        });
+
         Self {
             peaking_dirty: false,
             last_peaking_trigger: 0.0,
+            font_download_receiver: Some(font_rx),
+            font_status_message: None,
             settings,
             current_path: None,
             texture: None,
@@ -121,7 +209,7 @@ impl VdiApp {
             histogram_receiver: None,
             rotation_receiver: None,
             grid_enabled: false,
-            status_message: "Ready".to_string(),
+            status_message: "準備完了".to_string(),
             show_settings: false,
             blink_time: 0.0,
             fit_requested: false,
@@ -132,9 +220,9 @@ impl VdiApp {
         println!("[LOAD_IMAGE] Starting load for: {}", path.display());
         println!("[LOAD_IMAGE] Current rotation before load: {}°", self.rotation);
         
-        self.status_message = format!("Loading {}...", path.display());
+        self.status_message = format!("{} を読み込み中...", path.display());
         
-        // Get file size
+        // ファイルサイズを取得
         self.file_size_bytes = std::fs::metadata(&path).ok().map(|m| m.len());
         
         match image::open(&path) {
@@ -160,22 +248,22 @@ impl VdiApp {
                 self.zoom = 1.0;
                 self.pan = egui::Vec2::ZERO;
                 
-                // Always reset rotation to 0.0 after loading
-                // The file itself is already rotated if this is a reload after rotation
-                // So we don't need to apply visual rotation anymore
+                // 読み込み後、常に回転を0.0にリセットする
+                // ファイル自体は回転後の再読み込みであれば既に回転している
+                // そのため、視覚的な回転を適用する必要はもうない
                 println!("[LOAD_IMAGE] Resetting rotation to 0° (New image loaded)");
                 self.rotation = 0.0;
                 
                 println!("[LOAD_IMAGE] Final rotation: {}°", self.rotation);
                 
-                // Request screen fit for new image
+                // 新しい画像の画面合わせをリクエスト
                 self.fit_requested = true;
                 
-                // Reset features
+                // 機能をリセット
                 self.peaking_result = None;
                 self.histogram_result = None;
                 
-                // Trigger features if enabled
+                // 有効な場合、機能をトリガーする
                 if self.peaking_enabled {
                     self.trigger_peaking();
                 }
@@ -183,10 +271,10 @@ impl VdiApp {
                     self.trigger_histogram();
                 }
                 
-                self.status_message = "Loaded".to_string();
+                self.status_message = "読み込み完了".to_string();
             }
             Err(err) => {
-                self.status_message = format!("Failed to load image: {}", err);
+                self.status_message = format!("画像の読み込みに失敗しました: {}", err);
             }
         }
     }
@@ -249,11 +337,11 @@ impl VdiApp {
         println!("[ROTATE_IMAGE] Function called");
         
         if let Some(path) = &self.current_path {
-            // Update rotation immediately for visual feedback regardless of processing state
+            // 処理状態に関係なく、視覚的なフィードバックのために回転を即座に更新する
             let old_rotation = self.rotation;
             self.rotation = (self.rotation + 90.0) % 360.0;
             println!("[ROTATE_IMAGE] Updated visual rotation: {}° -> {}°", old_rotation, self.rotation);
-            self.status_message = format!("Rotating to {}°...", self.rotation);
+            self.status_message = format!("{}° に回転中...", self.rotation);
 
             // Check if we can stack more rotations (max 3 pending)
             if self.rotation_in_progress {
@@ -266,7 +354,7 @@ impl VdiApp {
                 return;
             }
             
-            // Start rotation processing
+            // 回転処理を開始
             self.start_rotation_process(path.clone());
         }
     }
@@ -300,8 +388,8 @@ impl VdiApp {
         if let Some(texture) = &self.texture {
             let image_size = texture.size_vec2();
             
-            // Calculate zoom to fit image in available space
-            // Account for rotation
+            // 利用可能なスペースに合わせて画像のズームを計算
+            // 回転を考慮
             let (display_width, display_height) = if self.rotation == 90.0 || self.rotation == 270.0 {
                 (image_size.y, image_size.x)
             } else {
@@ -311,12 +399,12 @@ impl VdiApp {
             let zoom_x = available_size.x / display_width;
             let zoom_y = available_size.y / display_height;
             
-            // Use the smaller zoom factor to ensure entire image is visible
-            // Removed 5% margin to fill the screen completely
+            // 画像全体が表示されるように小さい方のズーム係数を使用
+            // 画面全体を埋めるために5%のマージンを削除
             self.zoom = zoom_x.min(zoom_y).max(0.01);
             self.pan = egui::Vec2::ZERO;
             
-            self.status_message = format!("Fit to screen: {:.0}%", self.zoom * 100.0);
+            self.status_message = format!("画面に合わせる: {:.0}%", self.zoom * 100.0);
         }
     }
     
@@ -419,7 +507,7 @@ impl eframe::App for VdiApp {
         // Update blink time
         self.blink_time += ctx.input(|i| i.stable_dt);
         
-        // Handle background results
+        // バックグラウンドの結果を処理
         if let Some(rx) = &self.peaking_receiver {
             if let Ok(res) = rx.try_recv() {
                 self.peaking_result = Some(Arc::new(res));
@@ -444,12 +532,41 @@ impl eframe::App for VdiApp {
                     println!("[ROTATION_COMPLETE] All rotations finished. Reloading image.");
                     self.load_image(path, ctx);
                     self.rotation_in_progress = false;
-                    self.status_message = "Rotation complete".to_string();
+                    self.status_message = "回転完了".to_string();
                 }
             }
         }
 
-        // Handle Drag & Drop
+        // フォントの適用確認
+        if let Some(rx) = &self.font_download_receiver {
+            if let Ok(font_data) = rx.try_recv() {
+                println!("[FONTS] Received custom font data. Applying...");
+                self.font_download_receiver = None; // 完了
+                
+                let mut fonts = load_system_fonts(); // ベースはシステムフォント
+                
+                fonts.font_data.insert(
+                    "shippori_mincho".to_owned(),
+                    egui::FontData::from_owned(font_data),
+                );
+                
+                // 最優先に設定
+                if let Some(vec) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+                    vec.insert(0, "shippori_mincho".to_owned());
+                }
+                if let Some(vec) = fonts.families.get_mut(&egui::FontFamily::Monospace) {
+                    vec.insert(0, "shippori_mincho".to_owned());
+                }
+                
+                ctx.set_fonts(fonts);
+                self.font_status_message = Some("フォントを更新しました: しっぽり明朝".to_string());
+                
+                // 3秒後にメッセージを消す（簡易実装）
+                self.status_message = "フォントを更新しました".to_string();
+            }
+        }
+
+        // ドラッグ＆ドロップを処理
         if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
             let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
             if let Some(file) = dropped_files.first() {
@@ -459,7 +576,7 @@ impl eframe::App for VdiApp {
             }
         }
         
-        // Key Inputs
+        // キー入力
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
             self.next_image(ctx);
         }
@@ -492,10 +609,10 @@ impl eframe::App for VdiApp {
             self.fit_requested = true;
         }
 
-        // Top Panel
+        // 上部パネル
         egui::TopBottomPanel::top("vdi_top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui.button("📂 Open").clicked() {
+                if ui.button("📂 開く").clicked() {
                     if let Some(path) = rfd::FileDialog::new().pick_file() {
                         self.load_image(path, ctx);
                     }
@@ -507,7 +624,7 @@ impl eframe::App for VdiApp {
                 
                 ui.separator();
                 
-                if ui.checkbox(&mut self.peaking_enabled, "Peaking (P)").changed() {
+                if ui.checkbox(&mut self.peaking_enabled, "ピーキング (P)").changed() {
                     if self.peaking_enabled {
                         self.trigger_peaking();
                     } else {
@@ -515,7 +632,7 @@ impl eframe::App for VdiApp {
                     }
                 }
                 
-                if ui.checkbox(&mut self.histogram_enabled, "Histogram (H)").changed() {
+                if ui.checkbox(&mut self.histogram_enabled, "ヒストグラム (H)").changed() {
                     if self.histogram_enabled {
                         self.trigger_histogram();
                     } else {
@@ -523,15 +640,15 @@ impl eframe::App for VdiApp {
                     }
                 }
                 
-                if ui.checkbox(&mut self.grid_enabled, "Grid (G)").changed() {}
+                if ui.checkbox(&mut self.grid_enabled, "グリッド (G)").changed() {}
                 
                 ui.separator();
                 
-                if ui.button("Fit (F)").clicked() {
+                if ui.button("全体表示 (F)").clicked() {
                     self.fit_requested = true;
                 }
                 
-                if ui.button("⚙ Settings").clicked() {
+                if ui.button("⚙ 設定").clicked() {
                     self.show_settings = !self.show_settings;
                 }
                 
@@ -540,74 +657,74 @@ impl eframe::App for VdiApp {
             });
         });
         
-        // Settings Window
+        // 設定ウィンドウ
         if self.show_settings {
-            egui::Window::new("Settings")
+            egui::Window::new("設定")
                 .open(&mut self.show_settings)
                 .show(ctx, |ui| {
-                    ui.heading("Zoom");
+                    ui.heading("ズーム");
                     ui.add(egui::Slider::new(&mut self.settings.wheel_sensitivity,  0.05..=1.0)
-                        .text("Wheel Sensitivity"));
+                        .text("ホイール感度"));
                     
                     ui.separator();
-                    ui.heading("Peaking");
+                    ui.heading("ピーキング");
                     
                     if ui.add(egui::Slider::new(&mut self.settings.peaking_threshold, 0..=255)
-                        .text("Threshold")).changed() 
+                        .text("しきい値")).changed() 
                     {
                         self.peaking_dirty = true;
                     }
                     
                     ui.add(egui::Slider::new(&mut self.settings.peaking_intensity, 0..=255)
-                        .text("Intensity"));
+                        .text("強度"));
                     
                     ui.add(egui::Slider::new(&mut self.settings.peaking_opacity, 0.0..=1.0)
-                        .text("Opacity"));
+                        .text("不透明度"));
                     
                     ui.color_edit_button_srgb(&mut self.settings.peaking_color);
-                    ui.checkbox(&mut self.settings.peaking_blink, "Blink");
+                    ui.checkbox(&mut self.settings.peaking_blink, "点滅");
                     
                     ui.separator();
-                    ui.heading("Grid");
-                    egui::ComboBox::from_label("Pattern")
+                    ui.heading("グリッド");
+                    egui::ComboBox::from_label("パターン")
                         .selected_text(format!("{:?}", self.settings.grid_pattern))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::None, "None");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "Rule of Thirds");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "Golden Ratio");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 Grid");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid8x8, "8x8 Grid");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::None, "なし");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "三分割法");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "黄金比");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 グリッド");
+                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid8x8, "8x8 グリッド");
                         });
                     ui.add(egui::Slider::new(&mut self.settings.grid_opacity, 0.0..=1.0)
-                        .text("Grid Opacity"));
+                        .text("グリッド不透明度"));
                     
                     ui.separator();
-                    ui.heading("Histogram");
+                    ui.heading("ヒストグラム");
                     
                     ui.add(egui::Slider::new(&mut self.settings.histogram_size, 0.5..=2.0)
-                        .text("Size"));
+                        .text("サイズ"));
                     
                     ui.add(egui::Slider::new(&mut self.settings.histogram_opacity, 0.0..=1.0)
-                        .text("Opacity"));
+                        .text("不透明度"));
                     
-                    egui::ComboBox::from_label("Position")
+                    egui::ComboBox::from_label("位置")
                         .selected_text(format!("{:?}", self.settings.histogram_position))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopLeft, "Top Left");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopRight, "Top Right");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomLeft, "Bottom Left");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomRight, "Bottom Right");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopLeft, "左上");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopRight, "右上");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomLeft, "左下");
+                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomRight, "右下");
                         });
                     
                     ui.separator();
-                    if ui.button("Save Settings").clicked() {
+                    if ui.button("設定を保存").clicked() {
                         self.settings.save();
-                        self.status_message = "Settings saved".to_string();
+                        self.status_message = "設定を保存しました".to_string();
                     }
                 });
         }
         
-        // Trigger peaking logic with throttling
+        // スロットリング付きでピーキングロジックをトリガー
         let now = ctx.input(|i| i.time);
         if self.peaking_dirty && self.peaking_enabled {
             // Only trigger if enough time passed AND no calculation currently running
@@ -618,7 +735,7 @@ impl eframe::App for VdiApp {
             }
         }
 
-        // Central Panel - Image Viewer
+        // 中央パネル - 画像ビューア
         let mut fit_size = None;
         
         egui::CentralPanel::default()
@@ -634,7 +751,7 @@ impl eframe::App for VdiApp {
                 
                 let (response, painter) = ui.allocate_painter(available_size, egui::Sense::drag());
                 
-                // Zoom & Pan Logic with mouse position
+                // マウス位置によるズーム＆パンのロジック
                 if response.hovered() {
                     let scroll = ctx.input(|i| i.smooth_scroll_delta.y);
                     if scroll != 0.0 {
@@ -644,7 +761,7 @@ impl eframe::App for VdiApp {
                             1.0 / (1.0 + (0.1 * self.settings.wheel_sensitivity))
                         };
                         
-                        // Zoom towards mouse position
+                        // マウス位置に向かってズーム
                         if let Some(pointer_pos) = response.hover_pos() {
                             let center = response.rect.center() + self.pan;
                             let before_zoom_offset = (pointer_pos - center) / self.zoom;
@@ -659,7 +776,7 @@ impl eframe::App for VdiApp {
                 
                 let image_size = texture.size_vec2();
                 
-                // Swap width/height for 90 and 270 degree rotations
+                // 90度および270度回転の場合、幅と高さを入れ替える
                 let display_size = if self.rotation == 90.0 || self.rotation == 270.0 {
                     egui::vec2(image_size.y, image_size.x)
                 } else {
@@ -671,20 +788,20 @@ impl eframe::App for VdiApp {
                     self.pan += response.drag_delta();
                 }
                 
-                // Constrain Pan to keep image somewhat visible
+                // 画像がある程度見えるようにパンを制限
                 let x_limit = (available_size.x + scaled_size.x) / 2.0 - 50.0; // Keep 50px visible
                 let y_limit = (available_size.y + scaled_size.y) / 2.0 - 50.0;
                 
                 self.pan.x = self.pan.x.clamp(-x_limit, x_limit);
                 self.pan.y = self.pan.y.clamp(-y_limit, y_limit);
                 
-                // Center the image + pan
+                // 画像を中央に配置 + パン
                 let center = response.rect.center() + self.pan;
                 let rect = egui::Rect::from_center_size(center, scaled_size);
                 
-                // Draw image with rotation
+                // 回転付きで画像を描画
                 if self.rotation == 0.0 {
-                    // No rotation - draw normally
+                    // 回転なし - 通常通り描画
                     painter.image(
                         texture.id(),
                         rect,
@@ -692,12 +809,12 @@ impl eframe::App for VdiApp {
                         egui::Color32::WHITE
                     );
                 } else {
-                    // Apply rotation using mesh
+                    // メッシュを使用して回転を適用
                     use egui::epaint::{Mesh, Vertex};
                     
                     let mut mesh = Mesh::with_texture(texture.id());
                     
-                    // Standard Rect corners
+                    // 標準のRectコーナー
                     let corners = [
                         rect.min,                           // Top-left
                         egui::pos2(rect.max.x, rect.min.y), // Top-right
@@ -705,7 +822,7 @@ impl eframe::App for VdiApp {
                         egui::pos2(rect.min.x, rect.max.y), // Bottom-left
                     ];
                     
-                    // UV coordinates based on rotation
+                    // 回転に基づくUV座標
                     let uvs = match self.rotation as i32 {
                         90 => [
                             [0.0, 1.0],
@@ -733,7 +850,7 @@ impl eframe::App for VdiApp {
                         ],
                     };
                     
-                    // Add vertices
+                    // 頂点を追加
                     for (i, corner) in corners.iter().enumerate() {
                         mesh.vertices.push(Vertex {
                             pos: *corner,
@@ -742,18 +859,18 @@ impl eframe::App for VdiApp {
                         });
                     }
                     
-                    // Add indices
+                    // インデックスを追加
                     mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
                     
                     painter.add(egui::Shape::mesh(mesh));
                 }
                 
-                // Grid Overlay
+                // グリッドオーバーレイ
                 if self.grid_enabled {
                     self.draw_grid(&painter, rect);
                 }
                 
-                // Peaking Overlay
+                // ピーキングオーバーレイ
                 if self.peaking_enabled {
                     if let Some(peaking) = &self.peaking_result {
                         let should_draw = if self.settings.peaking_blink {
@@ -791,12 +908,12 @@ impl eframe::App for VdiApp {
                 }
             } else {
                 ui.centered_and_justified(|ui| {
-                    ui.label("Drag & Drop an image here or click Open");
+                    ui.label("画像をここにドラッグ＆ドロップするか、開くをクリックしてください");
                 });
             }
         });
         
-        // Footer
+        // フッター
         egui::TopBottomPanel::bottom("vdi_bottom_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if let Some(path) = &self.current_path {
