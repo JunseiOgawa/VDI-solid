@@ -720,11 +720,15 @@ impl eframe::App for VdiApp {
         // 設定ウィンドウ
         if self.show_settings {
             egui::Window::new("設定")
-                .open(&mut self.show_settings)
+                .title_bar(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
                 .show(ctx, |ui| {
+                    let mut changed = false;
+
                     ui.heading("ズーム");
-                    ui.add(egui::Slider::new(&mut self.settings.wheel_sensitivity,  0.05..=1.0)
-                        .text("ホイール感度"));
+                    if ui.add(egui::Slider::new(&mut self.settings.wheel_sensitivity,  0.05..=1.0)
+                        .text("ホイール感度")).changed() { changed = true; }
                     
                     ui.separator();
                     ui.heading("ピーキング");
@@ -733,53 +737,61 @@ impl eframe::App for VdiApp {
                         .text("しきい値")).changed() 
                     {
                         self.peaking_dirty = true;
+                        changed = true;
                     }
                     
-                    ui.add(egui::Slider::new(&mut self.settings.peaking_line_width, 1.0..=5.0)
-                        .text("線の太さ"));
+                    if ui.add(egui::Slider::new(&mut self.settings.peaking_line_width, 1.0..=5.0)
+                        .text("線の太さ")).changed() { changed = true; }
                     
-                    ui.add(egui::Slider::new(&mut self.settings.peaking_opacity, 0.0..=1.0)
-                        .text("不透明度"));
+                    if ui.add(egui::Slider::new(&mut self.settings.peaking_opacity, 0.0..=1.0)
+                        .text("不透明度")).changed() { changed = true; }
                     
-                    ui.color_edit_button_srgb(&mut self.settings.peaking_color);
-                    ui.checkbox(&mut self.settings.peaking_blink, "点滅");
+                    if ui.color_edit_button_srgb(&mut self.settings.peaking_color).changed() { changed = true; }
+                    if ui.checkbox(&mut self.settings.peaking_blink, "点滅").changed() { changed = true; }
                     
                     ui.separator();
                     ui.heading("グリッド");
                     egui::ComboBox::from_label("パターン")
                         .selected_text(format!("{:?}", self.settings.grid_pattern))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "三分割法");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "黄金比");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 グリッド");
-                            ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid8x8, "8x8 グリッド");
+                            if ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::RuleOfThirds, "三分割法").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::GoldenRatio, "黄金比").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid4x4, "4x4 グリッド").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.grid_pattern, GridPattern::Grid8x8, "8x8 グリッド").changed() { changed = true; }
                         });
-                    ui.add(egui::Slider::new(&mut self.settings.grid_opacity, 0.0..=1.0)
-                        .text("グリッド不透明度"));
+                    if ui.add(egui::Slider::new(&mut self.settings.grid_opacity, 0.0..=1.0)
+                        .text("グリッド不透明度")).changed() { changed = true; }
                     
                     ui.separator();
                     ui.heading("ヒストグラム");
                     
-                    ui.add(egui::Slider::new(&mut self.settings.histogram_size, 0.5..=2.0)
-                        .text("サイズ"));
+                    if ui.add(egui::Slider::new(&mut self.settings.histogram_size, 0.5..=2.0)
+                        .text("サイズ")).changed() { changed = true; }
                     
-                    ui.add(egui::Slider::new(&mut self.settings.histogram_opacity, 0.0..=1.0)
-                        .text("不透明度"));
+                    if ui.add(egui::Slider::new(&mut self.settings.histogram_opacity, 0.0..=1.0)
+                        .text("不透明度")).changed() { changed = true; }
                     
                     egui::ComboBox::from_label("位置")
                         .selected_text(format!("{:?}", self.settings.histogram_position))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopLeft, "左上");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopRight, "右上");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomLeft, "左下");
-                            ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomRight, "右下");
+                            if ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopLeft, "左上").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::TopRight, "右上").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomLeft, "左下").changed() { changed = true; }
+                            if ui.selectable_value(&mut self.settings.histogram_position, HistogramPosition::BottomRight, "右下").changed() { changed = true; }
                         });
                     
-                    ui.separator();
-                    if ui.button("設定を保存").clicked() {
+                    if changed {
                         self.settings.save();
-                        self.status_message = "設定を保存しました".to_string();
                     }
+
+                    ui.separator();
+                    ui.separator();
+                    // ボタンを横並びにする
+                    ui.horizontal(|ui| {
+                        if ui.button("閉じる").clicked() {
+                            self.show_settings = false;
+                        }
+                    });
                 });
         }
         
