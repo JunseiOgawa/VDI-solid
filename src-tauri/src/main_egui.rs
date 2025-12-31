@@ -168,14 +168,11 @@ impl VdiApp {
                 self.zoom = 1.0;
                 self.pan = egui::Vec2::ZERO;
                 
-                // Preserve rotation state if rotation was in progress
-                if self.rotation_in_progress {
-                    println!("[LOAD_IMAGE] Rotation in progress, preserving rotation: {}°", saved_rotation);
-                    self.rotation = saved_rotation;
-                } else {
-                    println!("[LOAD_IMAGE] Normal load, resetting rotation to 0°");
-                    self.rotation = 0.0;
-                }
+                // Always reset rotation to 0.0 after loading
+                // The file itself is already rotated if this is a reload after rotation
+                // So we don't need to apply visual rotation anymore
+                println!("[LOAD_IMAGE] Resetting rotation to 0° (New image loaded)");
+                self.rotation = 0.0;
                 
                 println!("[LOAD_IMAGE] Final rotation: {}°", self.rotation);
                 
