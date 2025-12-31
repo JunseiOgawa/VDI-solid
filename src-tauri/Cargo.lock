@@ -6477,7 +6477,7 @@ dependencies = [
 
 [[package]]
 name = "vdi"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dirs-next",
