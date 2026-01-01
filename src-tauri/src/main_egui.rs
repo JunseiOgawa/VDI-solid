@@ -91,11 +91,32 @@ fn parse_resolution(s: &str) -> Option<(u32, u32)> {
 fn load_system_fonts() -> egui::FontDefinitions {
     let mut fonts = egui::FontDefinitions::default();
     
-    // Windows標準の日本語フォントを試行
-    let font_candidates = [
+    // OS別の日本語フォント候補
+    #[cfg(target_os = "windows")]
+    let font_candidates: &[&str] = &[
         "C:\\Windows\\Fonts\\msgothic.ttc", // MS ゴシック
         "C:\\Windows\\Fonts\\meiryo.ttc",   // メイリオ
     ];
+
+    #[cfg(target_os = "macos")]
+    let font_candidates: &[&str] = &[
+        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+    ];
+
+    #[cfg(target_os = "linux")]
+    let font_candidates: &[&str] = &[
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/OTF/NotoSansCJK-Regular.ttc",
+    ];
+
+    // 未対応OSの場合のフォールバック
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let font_candidates: &[&str] = &[];
 
     for path in font_candidates {
         if let Ok(data) = std::fs::read(path) {
@@ -104,7 +125,7 @@ fn load_system_fonts() -> egui::FontDefinitions {
                 "japanese_system".to_owned(),
                 egui::FontData::from_owned(data).tweak(
                     egui::FontTweak {
-                        scale: 1.2, // MSゴシックなどは少し小さいので調整
+                        scale: 1.2, // フォントサイズ調整
                         ..Default::default()
                     }
                 ),

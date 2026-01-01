@@ -33,13 +33,24 @@ cargo watch -x "run --bin vdi-egui"
 ※ `cargo-watch` が必要です: `cargo install cargo-watch`
 
 ### リリースビルド
-Windows向け実行ファイル (`vdi-egui.exe`) を生成します。
 
+#### Windows
 ```bash
 cd src-tauri
 cargo build --release --bin vdi-egui
 ```
 生成物: `src-tauri/target/release/vdi-egui.exe`
+
+#### Linux
+```bash
+# 依存関係をインストール (Ubuntu/Debian)
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+
+# ビルド
+cd src-tauri
+cargo build --release --bin vdi-egui
+```
+生成物: `src-tauri/target/release/vdi-egui`
 
 ---
 
