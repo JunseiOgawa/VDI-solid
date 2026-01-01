@@ -36,25 +36,22 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "src-tauri -> target"
+          workspaces: ". -> target"
 
       # Linux用の依存関係をインストール
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+          sudo apt-get install -y libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 
       - name: Build Binary
-        run: |
-          cd src-tauri
-          cargo build --release --bin vdi-egui --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
         
       - name: Rename and Prepare Asset
         shell: bash
         run: |
-          cd src-tauri/target/${{ matrix.target }}/release
-          cp ${{ matrix.bin_name }} ../../../../${{ matrix.asset_name }}
+          cp target/${{ matrix.target }}/release/${{ matrix.bin_name }} ${{ matrix.asset_name }}
 
       # Windows専用: Inno Setupインストーラーをビルド
       - name: Install Inno Setup

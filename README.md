@@ -1,23 +1,20 @@
 # VDI-solid (vdi-egui)
 
-**VDI-solid (vdi-egui)** は、VRゴーグル向けの高精度画像ビューアです。Rustと`egui`を使用した**軽量・高速なネイティブアプリケーション**として再設計され、従来のWebviewベースのオーバーヘッドを排除し、快適な起動速度とレスポンスを実現しました。
+**VDI-solid (vdi-egui)** は、VRゴーグル向けの高精度画像ビューアです。Rustと`egui`を使用した**軽量・高速なネイティブアプリケーション**です。
 
-![VDI-solid Screnshot](docs/screenshot.png) <!-- 必要に応じて追加 -->
+![VDI-solid Screenshot](docs/screenshot.png)
 
-## 🚀 特徴 (vdi-egui / eGUI版)
+## 🚀 特徴
 
-Webview (Tauri HTML/JS) を使用せず、RustネイティブGUIを採用することで以下の性能を実現しています。
-
-- **超高速起動**: Webブラウザエンジンの初期化待ちがありません。
-- **低レイテンシ**: ズームやパン操作が遅延なく追従します。
-- **メモリ効率**: メモリ使用量を大幅に削減（従来比 -50%以上）。
+- **超高速起動**: Webviewを使用しないため、瞬時に起動します
+- **低レイテンシ**: ズームやパン操作が遅延なく追従します
+- **メモリ効率**: 軽量なネイティブGUIのためメモリ使用量が少ない
 
 ### 実装機能
 - **画像操作**: ズーム、パン、90度回転(Rキー)、フィット(Fキー)
 - **分析ツール**: ピーキング(Pキー)、ヒストグラム(Hキー)、グリッド表示(Gキー)
-- **UI**: ダークテーマ、カスタムタイトルバー、フローティング設定
-- **多言語**: 日本語/英語対応（現在実装中）
-- **対応形式**: PNG, JPEG, WEBP, BMP, GIF, TIFF, AVIF
+- **UI**: ダークテーマ、フローティング設定
+- **対応形式**: PNG, JPEG, WEBP, BMP, GIF, TIFF
 
 ---
 
@@ -27,55 +24,35 @@ Webview (Tauri HTML/JS) を使用せず、RustネイティブGUIを採用する�
 コード変更を検知して自動的に再起動します。
 
 ```bash
-cd src-tauri
-cargo watch -x "run --bin vdi-egui"
+cargo watch -x "run"
 ```
 ※ `cargo-watch` が必要です: `cargo install cargo-watch`
 
 ### リリースビルド
 
-#### Windows
 ```bash
-cd src-tauri
-cargo build --release --bin vdi-egui
+cargo build --release
 ```
-生成物: `src-tauri/target/release/vdi-egui.exe`
-
-#### Linux
-```bash
-# 依存関係をインストール (Ubuntu/Debian)
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
-
-# ビルド
-cd src-tauri
-cargo build --release --bin vdi-egui
-```
-生成物: `src-tauri/target/release/vdi-egui`
+生成物: `target/release/vdi-egui.exe` (Windows) / `target/release/vdi-egui` (Linux/macOS)
 
 ---
 
 ## 🛠 プロジェクト構成
 
-このプロジェクトは現在、**Rust + eGUI** を中心に開発されています。
-
 ```
 VDI-solid/
-├── src-tauri/
-│   ├── src/
-│   │   ├── main_egui.rs   # ★ eGUI版メインエントリーポイント
-│   │   ├── lib.rs         # 共通ライブラリ定義
-│   │   ├── img.rs         # 画像処理 (回転・バックアップ)
-│   │   ├── peaking.rs     # ピーキング解析ロジック
-│   │   ├── histogram.rs   # ヒストグラム計算ロジック
-│   │   ├── settings.rs    # 設定保存・読み込み
-│   │   └── ...
-│   └── Cargo.toml         # 依存関係定義
-│
-├── docs/
-│   ├── design_egui.md          # ★ 新アーキテクチャ設計書
-│   ├── design_legacy_solidjs.md # 旧設計書 (Tauri/React)
-│   └── ...
-└── release/                    # リリースビルド格納場所
+├── src/
+│   ├── main.rs        # メインエントリーポイント
+│   ├── settings.rs    # 設定管理
+│   ├── cli_args.rs    # CLI引数パース
+│   ├── img.rs         # 画像処理（回転など）
+│   ├── peaking.rs     # ピーキング解析ロジック
+│   ├── histogram.rs   # ヒストグラム計算ロジック
+│   └── navigation.rs  # フォルダ内画像ナビゲーション
+├── Cargo.toml         # 依存関係定義
+├── docs/              # ドキュメント
+├── installer/         # インストーラー設定
+└── README.md
 ```
 
 ### アーキテクチャ概要
@@ -87,22 +64,6 @@ VDI-solid/
 3. **Immediate Mode Rendering**: 毎フレームUIを再構築・描画
 
 詳細な設計は [docs/design_egui.md](docs/design_egui.md) を参照してください。
-
----
-
-## ⚠️ Legacy Info (Webview / SolidJS Version)
-
-以前のTauri + SolidJS/TypeScriptベースのフロントエンドコードは `src/` に残されていますが、現在はメンテナンスモードです。以下の機能は eGUI 版に移植済みです。
-
-**旧構成 (参考)**:
-- Frontend: SolidJS, TypeScript, TailwindCSS
-- Backend: Rust (Tauri Commands)
-
-Webview版のビルドコマンド:
-```bash
-npm install
-npm run tauri build
-```
 
 ---
 
