@@ -1,0 +1,37 @@
+[package]
+name = "vdi-egui"
+version = "0.4.2"
+description = "A standard Rust/eGUI Image Viewer"
+authors = ["you"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "fs", "process"] }
+reqwest = { version = "0.11", features = ["blocking", "rustls-tls"] }
+rayon = "1.8"
+lazy_static = "1.4"
+sysinfo = "0.30"
+
+# Egui dependencies
+eframe = { version = "0.29", default-features = false, features = [
+    "default_fonts", 
+    "glow", 
+    "wayland", 
+    "x11", 
+    "persistence"
+] }
+egui = "0.29"
+egui_extras = { version = "0.29", features = ["all_loaders"] }
+egui_plot = "0.29"
+rfd = "0.12"
+chrono = "0.4"
+dirs-next = "2.0"
+once_cell = "1.18"
+
+[[bin]]
+name = "vdi-egui"
+path = "src/main.rs"
+bench = false
