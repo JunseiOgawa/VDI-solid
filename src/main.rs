@@ -6,6 +6,7 @@ mod img;
 mod navigation;
 mod peaking;
 mod settings;
+mod update;
 
 use eframe::egui;
 use settings::*;
@@ -219,6 +220,11 @@ struct VdiApp {
 
     // CLI引数からの初期画像読み込み
     initial_load_pending: Option<PathBuf>,
+
+    // アップデートチェック
+    update_receiver: Option<mpsc::Receiver<update::UpdateResult>>,
+    update_status: Option<update::UpdateStatus>,
+    show_update_dialog: bool,
 }
 
 impl VdiApp {
@@ -290,6 +296,10 @@ impl VdiApp {
             fit_requested: false,
             // CLI引数から画像パスを取得
             initial_load_pending: LAUNCH_CONFIG.image_path.as_ref().map(|p| PathBuf::from(p)),
+            // アップデートチェック
+            update_receiver: None,
+            update_status: None,
+            show_update_dialog: false,
         }
     }
 
@@ -365,9 +375,7 @@ impl VdiApp {
             self.peaking_receiver = Some(rx);
 
             thread::spawn(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                let res =
-                    rt.block_on(async { peaking::focus_peaking(path_str, threshold, None).await });
+                let res = peaking::focus_peaking(path_str, threshold, None);
 
                 if let Ok(result) = res {
                     let _ = tx.send(result);
@@ -383,10 +391,7 @@ impl VdiApp {
             self.histogram_receiver = Some(rx);
 
             thread::spawn(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                let res = rt.block_on(async {
-                    histogram::calculate_histogram(path_str, "rgb".to_string(), None).await
-                });
+                let res = histogram::calculate_histogram(path_str, "rgb".to_string(), None);
                 if let Ok(result) = res {
                     let _ = tx.send(result);
                 }
@@ -457,8 +462,7 @@ impl VdiApp {
         let reload_path = path.clone();
 
         thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let result = rt.block_on(async { img::rotate_image(path_str, 90.0).await });
+            let result = img::rotate_image(path_str, 90.0);
 
             if result.is_ok() {
                 // Wait a bit for file to be written
@@ -691,6 +695,41 @@ impl eframe::App for VdiApp {
             }
         }
 
+        // アップデートチェック結果の処理
+        if let Some(rx) = &self.update_receiver {
+            if let Ok(result) = rx.try_recv() {
+                self.update_receiver = None;
+                match result {
+                    update::UpdateResult::CheckResult(check_result) => {
+                        if check_result.has_update {
+                            self.update_status = Some(update::UpdateStatus::UpdateAvailable {
+                                new_version: check_result.new_version.unwrap_or_default(),
+                                release_notes: check_result.release_notes,
+                            });
+                            self.show_update_dialog = true;
+                            self.status_message = "新しいバージョンが利用可能です".to_string();
+                        } else {
+                            self.update_status = Some(update::UpdateStatus::UpToDate);
+                            self.status_message =
+                                format!("最新版です (v{})", update::current_version());
+                        }
+                    }
+                    update::UpdateResult::Updated(version) => {
+                        self.update_status = Some(update::UpdateStatus::Updated {
+                            version: version.clone(),
+                        });
+                        self.show_update_dialog = true;
+                        self.status_message =
+                            format!("v{} に更新しました。再起動してください", version);
+                    }
+                    update::UpdateResult::Error(err) => {
+                        self.update_status = Some(update::UpdateStatus::Error(err.clone()));
+                        self.status_message = format!("アップデートエラー: {}", err);
+                    }
+                }
+            }
+        }
+
         // ドラッグ＆ドロップを処理
         if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
             let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
@@ -790,6 +829,24 @@ impl eframe::App for VdiApp {
 
                 if ui.button("⚙ 設定").clicked() {
                     self.show_settings = !self.show_settings;
+                }
+
+                // アップデートチェックボタン
+                let is_checking =
+                    matches!(&self.update_status, Some(update::UpdateStatus::Checking));
+                let update_button_text = if is_checking {
+                    "⏳ 確認中..."
+                } else {
+                    "🔄 更新を確認"
+                };
+
+                if ui
+                    .add_enabled(!is_checking, egui::Button::new(update_button_text))
+                    .clicked()
+                {
+                    self.update_status = Some(update::UpdateStatus::Checking);
+                    self.update_receiver = Some(update::check_for_updates_async());
+                    self.status_message = "アップデートを確認中...".to_string();
                 }
 
                 ui.separator();
@@ -1000,6 +1057,79 @@ impl eframe::App for VdiApp {
                             self.show_settings = false;
                         }
                     });
+                });
+        }
+
+        // アップデートダイアログ
+        if self.show_update_dialog {
+            egui::Window::new("アップデート")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ctx, |ui| match &self.update_status {
+                    Some(update::UpdateStatus::UpdateAvailable {
+                        new_version,
+                        release_notes,
+                    }) => {
+                        ui.heading("🎉 新しいバージョンが利用可能");
+                        ui.add_space(10.0);
+                        ui.label(format!("現在のバージョン: v{}", update::current_version()));
+                        ui.label(format!("新しいバージョン: v{}", new_version));
+
+                        if let Some(notes) = release_notes {
+                            ui.add_space(10.0);
+                            ui.label("リリースノート:");
+                            egui::ScrollArea::vertical()
+                                .max_height(150.0)
+                                .show(ui, |ui| {
+                                    ui.label(notes);
+                                });
+                        }
+
+                        ui.add_space(15.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("今すぐ更新").clicked() {
+                                self.update_status =
+                                    Some(update::UpdateStatus::Downloading { progress: 0.0 });
+                                self.update_receiver = Some(update::perform_update_async());
+                                self.status_message = "アップデートをダウンロード中...".to_string();
+                            }
+                            if ui.button("後で").clicked() {
+                                self.show_update_dialog = false;
+                                self.update_status = None;
+                            }
+                        });
+                    }
+                    Some(update::UpdateStatus::Downloading { .. }) => {
+                        ui.heading("⏳ ダウンロード中...");
+                        ui.add_space(10.0);
+                        ui.label("新しいバージョンをダウンロードしています。");
+                        ui.add_space(5.0);
+                        ui.spinner();
+                    }
+                    Some(update::UpdateStatus::Updated { version }) => {
+                        ui.heading("✅ 更新完了");
+                        ui.add_space(10.0);
+                        ui.label(format!("v{} に更新しました！", version));
+                        ui.label("変更を適用するには、アプリケーションを再起動してください。");
+                        ui.add_space(15.0);
+                        if ui.button("閉じる").clicked() {
+                            self.show_update_dialog = false;
+                        }
+                    }
+                    Some(update::UpdateStatus::Error(err)) => {
+                        ui.heading("❌ エラー");
+                        ui.add_space(10.0);
+                        ui.label(format!("アップデートに失敗しました:\n{}", err));
+                        ui.add_space(15.0);
+                        if ui.button("閉じる").clicked() {
+                            self.show_update_dialog = false;
+                            self.update_status = None;
+                        }
+                    }
+                    _ => {
+                        self.show_update_dialog = false;
+                    }
                 });
         }
 

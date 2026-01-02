@@ -7,10 +7,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-lazy_static::lazy_static! {
-    static ref HISTOGRAM_CANCEL_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
-    static ref HISTOGRAM_REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
-}
+static HISTOGRAM_CANCEL_FLAGS: once_cell::sync::Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
+static HISTOGRAM_REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// ユニークなリクエストIDを生成
 fn generate_unique_request_id(base_key: &str) -> String {
@@ -182,7 +181,7 @@ fn calculate_luminance_histogram(
 /// # Returns
 /// * `Ok(HistogramResult)` - ヒストグラムデータ
 /// * `Err(String)` - エラーメッセージ
-pub async fn calculate_histogram(
+pub fn calculate_histogram(
     image_path: String,
     display_type: String,
     request_id: Option<String>,

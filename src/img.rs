@@ -16,7 +16,7 @@ use std::path::Path;
 ///
 /// * ファイルが存在しない場合
 /// * ファイルのコピーに失敗した場合
-pub async fn create_image_backup(image_path: String) -> Result<String, String> {
+pub fn create_image_backup(image_path: String) -> Result<String, String> {
     let path = std::path::Path::new(&image_path);
 
     if !path.exists() {
@@ -51,7 +51,7 @@ pub async fn create_image_backup(image_path: String) -> Result<String, String> {
 /// * バックアップファイルが存在しない場合
 /// * ファイルのコピーに失敗した場合
 /// * バックアップファイルの削除に失敗した場合
-pub async fn restore_image_from_backup(image_path: String) -> Result<String, String> {
+pub fn restore_image_from_backup(image_path: String) -> Result<String, String> {
     let backup_path = format!("{}.backup", image_path);
     let backup = std::path::Path::new(&backup_path);
 
@@ -83,7 +83,7 @@ pub async fn restore_image_from_backup(image_path: String) -> Result<String, Str
 ///
 /// * `Ok(())` - 成功
 /// * `Err(String)` - エラーメッセージ
-pub async fn cleanup_image_backup(image_path: String) -> Result<(), String> {
+pub fn cleanup_image_backup(image_path: String) -> Result<(), String> {
     let backup_path = format!("{}.backup", image_path);
     let backup = std::path::Path::new(&backup_path);
 
@@ -114,7 +114,7 @@ pub async fn cleanup_image_backup(image_path: String) -> Result<(), String> {
 /// * ファイルが存在しない場合
 /// * 回転角が90度単位でない場合
 /// * 画像の読み込みまたは保存に失敗した場合
-pub async fn rotate_image(image_path: String, rotation_angle: f32) -> Result<String, String> {
+pub fn rotate_image(image_path: String, rotation_angle: f32) -> Result<String, String> {
     let path = Path::new(&image_path);
 
     // パスの検証
