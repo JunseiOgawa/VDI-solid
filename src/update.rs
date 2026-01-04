@@ -85,7 +85,7 @@ fn check_for_updates_sync() -> UpdateResult {
 }
 
 pub fn perform_update_async() -> mpsc::Receiver<UpdateResult> {
-    let (tx, rx) = mpsc::channel();
+    let (_tx, rx) = mpsc::channel();
     thread::spawn(move || {
         let result = self_update::backends::github::Update::configure()
             .repo_owner("JunseiOgawa")
