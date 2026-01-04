@@ -19,6 +19,7 @@ pub enum UpdateStatus {
     Error(String),
 }
 
+#[derive(Debug)]
 pub struct UpdateCheckResult {
     pub has_update: bool,
     pub new_version: Option<String>,
