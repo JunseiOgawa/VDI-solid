@@ -1113,9 +1113,16 @@ impl eframe::App for VdiApp {
                         ui.label(format!("v{} に更新しました！", version));
                         ui.label("変更を適用するには、アプリケーションを再起動してください。");
                         ui.add_space(15.0);
-                        if ui.button("閉じる").clicked() {
-                            self.show_update_dialog = false;
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.button("今すぐ再起動").clicked() {
+                                if let Err(e) = update::restart_app() {
+                                    self.status_message = format!("再起動失敗: {}", e);
+                                }
+                            }
+                            if ui.button("後で").clicked() {
+                                self.show_update_dialog = false;
+                            }
+                        });
                     }
                     Some(update::UpdateStatus::Error(err)) => {
                         ui.heading("❌ エラー");
