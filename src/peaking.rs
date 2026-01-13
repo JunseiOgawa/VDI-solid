@@ -125,10 +125,11 @@ fn scale_back_edges(edges: &mut Vec<Vec<EdgePoint>>, scale: Option<(f32, f32)>) 
 
 /// Sobelフィルタを適用してエッジを検出（並列化版）
 fn apply_sobel_filter(
-    img: &ImageBuffer<Luma<u8>, Vec<u8>>,
+    blurred_img: &ImageBuffer<Luma<u8>, Vec<u8>>,
+    original_img: &ImageBuffer<Luma<u8>, Vec<u8>>,
     cancel_flag: Arc<AtomicBool>,
 ) -> Result<ImageBuffer<Luma<u8>, Vec<u8>>, String> {
-    let (width, height) = img.dimensions();
+    let (width, height) = blurred_img.dimensions();
 
     // Sobelカーネル
     let sobel_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
@@ -146,13 +147,20 @@ fn apply_sobel_filter(
             let mut row_data = vec![0u8; width as usize];
 
             for x in 1..width - 1 {
+                // Check for highlight clipping in original image
+                // 白飛び（250以上）の領域はエッジ検出から除外して誤検知を防ぐ
+                if original_img.get_pixel(x, y)[0] >= 250 {
+                    row_data[x as usize] = 0;
+                    continue;
+                }
+
                 let mut gx: i32 = 0;
                 let mut gy: i32 = 0;
 
                 // 3x3カーネル適用
                 for ky in 0..3 {
                     for kx in 0..3 {
-                        let pixel = img.get_pixel(x + kx - 1, y + ky - 1)[0] as i32;
+                        let pixel = blurred_img.get_pixel(x + kx - 1, y + ky - 1)[0] as i32;
                         gx += pixel * sobel_x[ky as usize][kx as usize];
                         gy += pixel * sobel_y[ky as usize][kx as usize];
                     }
@@ -333,9 +341,14 @@ pub fn focus_peaking(
 
     let gray_img = processing_img.to_luma8();
 
+    // ノイズ低減のためのガウシアンブラー適用
+    let blur_start = Instant::now();
+    let blurred_img = image::imageops::blur(&gray_img, 0.8);
+    println!("[Peaking] Gaussian Blur: {:?}", blur_start.elapsed());
+
     // Sobelフィルタ適用
     let sobel_start = Instant::now();
-    let edge_img = apply_sobel_filter(&gray_img, cancel_flag.clone())?;
+    let edge_img = apply_sobel_filter(&blurred_img, &gray_img, cancel_flag.clone())?;
     println!("[Peaking] Sobelフィルタ: {:?}", sobel_start.elapsed());
 
     // キャンセルチェック2
@@ -456,5 +469,40 @@ mod tests {
 
         assert_eq!(original_width_restored, 4000, "幅が元に戻るはず");
         assert_eq!(original_height_restored, 2000, "高さが元に戻るはず");
+    }
+
+    #[test]
+    fn test_highlight_cutoff() {
+        // 白飛び（255）のピクセルが無視されるかテスト
+        let width = 10;
+        let height = 10;
+        let mut original_img = ImageBuffer::<Luma<u8>, Vec<u8>>::new(width, height);
+
+        // 全体を中間色(100)で埋める
+        for p in original_img.pixels_mut() {
+            *p = Luma([100]);
+        }
+
+        // 中心を白飛び(255)にする
+        original_img.put_pixel(5, 5, Luma([255]));
+
+        // apply_sobel_filterはエッジ検出なので、隣接ピクセルとの差分を見るが、
+        // 今回の修正で「元画像が250以上なら強制的に0」になるはず。
+
+        // テスト用に同じ画像を blurred_img としても使用（ブラーの影響は無視）
+        let blurred_img = original_img.clone();
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+
+        let edge_img = apply_sobel_filter(&blurred_img, &original_img, cancel_flag).unwrap();
+
+        // (5, 5) は 255 なので、結果は 0 になるはず
+        let center_val = edge_img.get_pixel(5, 5)[0];
+        assert_eq!(
+            center_val, 0,
+            "輝度255のピクセルはエッジ検出から除外されるべき"
+        );
+
+        // (4, 4) などは 100 なので、255との差分でエッジが出る可能性があるが、
+        // 少なくともハイライト部分は抑制されていることを確認
     }
 }
