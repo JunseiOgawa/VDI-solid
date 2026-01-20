@@ -19,6 +19,7 @@ pub enum UpdateStatus {
     Error(String),
 }
 
+#[derive(Debug)]
 pub struct UpdateCheckResult {
     pub has_update: bool,
     pub new_version: Option<String>,
@@ -94,13 +95,28 @@ pub fn perform_update_async() -> mpsc::Receiver<UpdateResult> {
             .current_version(cargo_crate_version!())
             .build();
 
-        match result {
+        let update_result = match result {
             Ok(updater) => match updater.update() {
                 Ok(status) => UpdateResult::Updated(status.version().to_string()),
                 Err(e) => UpdateResult::Error(format!("Update failed: {}", e)),
             },
             Err(e) => UpdateResult::Error(format!("Failed to configure updater: {}", e)),
-        }
+        };
+        let _ = tx.send(update_result);
     });
     rx
+}
+
+/// アプリを再起動する（アップデート適用後に使用）
+pub fn restart_app() -> Result<(), String> {
+    let current_exe =
+        std::env::current_exe().map_err(|e| format!("Failed to get current exe: {}", e))?;
+
+    println!("[Update] Restarting app: {:?}", current_exe);
+
+    std::process::Command::new(&current_exe)
+        .spawn()
+        .map_err(|e| format!("Failed to spawn new process: {}", e))?;
+
+    std::process::exit(0);
 }

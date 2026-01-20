@@ -3,6 +3,7 @@
 mod cli_args;
 mod histogram;
 mod img;
+mod metadata;
 mod navigation;
 mod peaking;
 mod settings;
@@ -225,6 +226,12 @@ struct VdiApp {
     update_receiver: Option<mpsc::Receiver<update::UpdateResult>>,
     update_status: Option<update::UpdateStatus>,
     show_update_dialog: bool,
+
+    // メタデータ表示
+    /// VSAから渡されるメタデータ（撮影情報）
+    photo_metadata: Option<metadata::PhotoMetadata>,
+    /// メタデータパネルの表示状態
+    show_metadata_panel: bool,
 }
 
 impl VdiApp {
@@ -282,14 +289,15 @@ impl VdiApp {
             pending_rotations: 0,
             zoom: 1.0,
             pan: egui::Vec2::ZERO,
-            peaking_enabled: false,
+            // CLI引数からの初期設定を適用
+            peaking_enabled: LAUNCH_CONFIG.peaking_enabled.unwrap_or(false),
             peaking_result: None,
             peaking_receiver: None,
             histogram_enabled: false,
             histogram_result: None,
             histogram_receiver: None,
             rotation_receiver: None,
-            grid_enabled: false,
+            grid_enabled: LAUNCH_CONFIG.grid_enabled.unwrap_or(false),
             status_message: "準備完了".to_string(),
             show_settings: false,
             blink_time: 0.0,
@@ -300,6 +308,11 @@ impl VdiApp {
             update_receiver: None,
             update_status: None,
             show_update_dialog: false,
+            // メタデータ表示
+            // CLI引数からBase64デコードしたメタデータを取得
+            // ※ Base64を使用する理由: ワールド名・ユーザー名に日本語やスペースが含まれるため
+            photo_metadata: LAUNCH_CONFIG.decode_metadata(),
+            show_metadata_panel: LAUNCH_CONFIG.show_metadata.unwrap_or(false),
         }
     }
 
@@ -772,6 +785,9 @@ impl eframe::App for VdiApp {
         if ctx.input(|i| i.key_pressed(egui::Key::F)) {
             self.fit_requested = true;
         }
+        if ctx.input(|i| i.key_pressed(egui::Key::M)) {
+            self.show_metadata_panel = !self.show_metadata_panel;
+        }
 
         // 上部パネル
         egui::TopBottomPanel::top("vdi_top_panel").show(ctx, |ui| {
@@ -820,6 +836,14 @@ impl eframe::App for VdiApp {
                     .checkbox(&mut self.grid_enabled, "グリッド (G)")
                     .changed()
                 {}
+
+                // メタデータフィールドがある場合のみ表示
+                if self.photo_metadata.is_some() {
+                    if ui
+                        .checkbox(&mut self.show_metadata_panel, "情報 (M)")
+                        .changed()
+                    {}
+                }
 
                 ui.separator();
 
@@ -1113,9 +1137,16 @@ impl eframe::App for VdiApp {
                         ui.label(format!("v{} に更新しました！", version));
                         ui.label("変更を適用するには、アプリケーションを再起動してください。");
                         ui.add_space(15.0);
-                        if ui.button("閉じる").clicked() {
-                            self.show_update_dialog = false;
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.button("今すぐ再起動").clicked() {
+                                if let Err(e) = update::restart_app() {
+                                    self.status_message = format!("再起動失敗: {}", e);
+                                }
+                            }
+                            if ui.button("後で").clicked() {
+                                self.show_update_dialog = false;
+                            }
+                        });
                     }
                     Some(update::UpdateStatus::Error(err)) => {
                         ui.heading("❌ エラー");
@@ -1439,6 +1470,93 @@ impl eframe::App for VdiApp {
                                     );
                                 });
                         }
+                    });
+            }
+        }
+
+        // メタデータパネル描画
+        self.draw_metadata_panel(ctx);
+    }
+}
+
+impl VdiApp {
+    /// メタデータパネルを描画
+    fn draw_metadata_panel(&self, ctx: &egui::Context) {
+        if self.show_metadata_panel {
+            if let Some(meta) = &self.photo_metadata {
+                egui::Window::new("撮影情報")
+                    .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-10.0, -40.0)) // ステータスバーの上
+                    .resizable(false)
+                    .collapsible(false)
+                    .title_bar(true)
+                    .show(ctx, |ui| {
+                        ui.set_max_width(300.0);
+
+                        egui::Grid::new("metadata_grid")
+                            .num_columns(2)
+                            .spacing([20.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                // ワールド名
+                                if let Some(world) = &meta.world_name {
+                                    ui.label("🌎 ワールド");
+                                    ui.label(world);
+                                    ui.end_row();
+                                }
+
+                                // 撮影者
+                                if let Some(photographer) = &meta.photographer_name {
+                                    ui.label("📸 撮影者");
+                                    ui.label(photographer);
+                                    ui.end_row();
+                                }
+
+                                // ユーザー数
+                                if let Some(count) = meta.user_count {
+                                    ui.label("👥 人数");
+                                    ui.label(format!("{}人", count));
+                                    ui.end_row();
+                                }
+
+                                // 撮影日時
+                                if let Some(date) = &meta.taken_at {
+                                    ui.label("📅 日時");
+                                    ui.label(date);
+                                    ui.end_row();
+                                }
+
+                                // カメラ情報セクション
+                                if meta.has_camera_params() || meta.camera_type.is_some() {
+                                    ui.end_row();
+                                    ui.label(egui::RichText::new("📷 カメラ設定").strong());
+                                    ui.label("");
+                                    ui.end_row();
+
+                                    if let Some(cam_type) = &meta.camera_type {
+                                        ui.label("タイプ");
+                                        ui.label(cam_type);
+                                        ui.end_row();
+                                    }
+
+                                    if let Some(f) = meta.camera_aperture {
+                                        ui.label("F値");
+                                        ui.label(format!("f/{:.1}", f));
+                                        ui.end_row();
+                                    }
+
+                                    if let Some(zoom) = meta.camera_zoom {
+                                        ui.label("ズーム");
+                                        ui.label(format!("{:.2}x", zoom));
+                                        ui.end_row();
+                                    }
+
+                                    if let Some(exp) = meta.camera_exposure {
+                                        ui.label("露出");
+                                        ui.label(format!("{:.1}", exp));
+                                        ui.end_row();
+                                    }
+                                }
+                            });
                     });
             }
         }

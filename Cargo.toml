@@ -1,6 +1,6 @@
 [package]
 name = "vdi-egui"
-version = "0.5.1"
+version = "0.5.2"
 description = "A standard Rust/eGUI Image Viewer"
 authors = ["you"]
 edition = "2021"
@@ -37,6 +37,7 @@ self_update = { version = "0.42", default-features = false, features = [
     "compression-zip-deflate",
     "rustls"
 ] }
+base64 = "0.22.1"
 
 [[bin]]
 name = "vdi-egui"
