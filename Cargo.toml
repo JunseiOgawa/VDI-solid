@@ -1,6 +1,6 @@
 [package]
 name = "vdi-egui"
-version = "0.5.2"
+version = "0.6.0"
 description = "A standard Rust/eGUI Image Viewer"
 authors = ["you"]
 edition = "2021"
